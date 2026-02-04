@@ -1,47 +1,85 @@
 <?php
-// backend-api/modules/auth/reset_password.php
+// FILE: backend-api/modules/auth/reset_password.php
+
 require_once '../../config/cors.php';
 require_once '../../config/database.php';
 
 $input = json_decode(file_get_contents("php://input"));
 
+// 1. Validasi Input
 if (!isset($input->token) || !isset($input->password)) {
-    http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "Data tidak lengkap."]);
+    http_response_code(400); 
+    echo json_encode(["status"=>"error", "message"=>"Data tidak lengkap"]); 
     exit;
 }
 
-$token = $input->token;
-$password_baru = $input->password;
-
 try {
-    // 1. Cek Validitas Token
-    $stmt = $db->prepare("SELECT email FROM password_resets WHERE token = :token LIMIT 1");
-    $stmt->execute([':token' => $token]);
-    $reset_request = $stmt->fetch();
+    // -----------------------------------------------------------
+    // LANGKAH 1: Cek Token di Tabel 'password_resets'
+    // -----------------------------------------------------------
+    // (Kita sesuaikan dengan screenshot Anda: kolomnya 'token' dan 'email')
+    $stmt = $db->prepare("SELECT email, created_at FROM password_resets WHERE token = ? LIMIT 1");
+    $stmt->execute([$input->token]);
+    $resetData = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$reset_request) {
-        http_response_code(400); // Bad Request
-        echo json_encode(["status" => "error", "message" => "Token tidak valid atau sudah kadaluarsa."]);
+    if (!$resetData) {
+        http_response_code(400); 
+        echo json_encode(["status" => "error", "message" => "Token salah atau sudah digunakan."]);
         exit;
     }
 
-    $email = $reset_request->email;
+    // Cek Kadaluarsa (Misal: Token hanya berlaku 1 jam dari created_at)
+    $waktu_dibuat = strtotime($resetData['created_at']);
+    $selisih_waktu = time() - $waktu_dibuat; // dalam detik
 
-    // 2. Hash Password Baru
-    $password_hash = password_hash($password_baru, PASSWORD_BCRYPT);
+    if ($selisih_waktu > 3600) { // 3600 detik = 1 Jam
+        http_response_code(400); 
+        echo json_encode(["status" => "error", "message" => "Link reset password sudah kadaluarsa (lebih dari 1 jam)."]);
+        exit;
+    }
 
-    // 3. Update Password di Tabel Users
-    $update = $db->prepare("UPDATE users SET password = :pass WHERE email = :email");
-    $update->execute([':pass' => $password_hash, ':email' => $email]);
+    $email_user = $resetData['email'];
 
-    // 4. Hapus Token (Sekali Pakai)
-    $delete = $db->prepare("DELETE FROM password_resets WHERE email = :email");
-    $delete->execute([':email' => $email]);
+    // -----------------------------------------------------------
+    // LANGKAH 2: Ambil Password Lama di Tabel 'users'
+    // -----------------------------------------------------------
+    $stmtUser = $db->prepare("SELECT password FROM users WHERE email = ?");
+    $stmtUser->execute([$email_user]);
+    $userLogin = $stmtUser->fetch(PDO::FETCH_ASSOC);
 
-    echo json_encode(["status" => "success", "message" => "Password berhasil diubah! Silakan login."]);
+    if (!$userLogin) {
+        http_response_code(400);
+        echo json_encode(["status" => "error", "message" => "Email tidak ditemukan di tabel Users."]);
+        exit;
+    }
 
-} catch (PDOException $e) {
+    // -----------------------------------------------------------
+    // LANGKAH 3: Cek Password Baru vs Lama
+    // -----------------------------------------------------------
+    if (password_verify($input->password, $userLogin['password'])) {
+        http_response_code(400); 
+        echo json_encode(["status" => "error", "message" => "Password baru tidak boleh sama dengan password lama!"]);
+        exit;
+    }
+
+    // -----------------------------------------------------------
+    // LANGKAH 4: Update Password di Tabel 'users'
+    // -----------------------------------------------------------
+    $new_hash = password_hash($input->password, PASSWORD_DEFAULT);
+    
+    $updateUser = $db->prepare("UPDATE users SET password = ? WHERE email = ?");
+    $updateUser->execute([$new_hash, $email_user]);
+
+    // -----------------------------------------------------------
+    // LANGKAH 5: Hapus Token di Tabel 'password_resets'
+    // -----------------------------------------------------------
+    // Hapus semua request reset milik email ini biar bersih
+    $deleteToken = $db->prepare("DELETE FROM password_resets WHERE email = ?");
+    $deleteToken->execute([$email_user]);
+
+    echo json_encode(["status" => "success", "message" => "Password Berhasil Diubah! Silakan Login."]);
+
+} catch (Exception $e) {
     http_response_code(500);
     echo json_encode(["status" => "error", "message" => "Database Error: " . $e->getMessage()]);
 }

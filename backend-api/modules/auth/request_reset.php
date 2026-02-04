@@ -56,11 +56,11 @@ try {
     $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
     $mail->Port       = 587;
 
-    $mail->setFrom(SMTP_USER, 'HAWK Security');
+    $mail->setFrom(SMTP_USER, 'Red Ant Colony Security');
     $mail->addAddress($email);
 
     $mail->isHTML(true);
-    $mail->Subject = 'Reset Password - HAWK Payroll';
+    $mail->Subject = 'Reset Password - Red Ant Colony Payroll';
     
     // Link mengarah ke Frontend React
     $link = BASE_URL_FRONTEND . "/reset-password?token=" . $token;
@@ -70,7 +70,6 @@ try {
         <p>Halo, kami menerima permintaan untuk mereset password akun Anda.</p>
         <p>Klik link di bawah ini untuk membuat password baru:</p>
         <p><a href='$link' style='background:#2563eb; color:white; padding:10px 20px; text-decoration:none; border-radius:5px;'>Reset Password Sekarang</a></p>
-        <p>Atau copy link ini: $link</p>
         <p>Link ini hanya berlaku 1 jam.</p>
     ";
 
