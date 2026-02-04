@@ -38,10 +38,13 @@ try {
     // Recipients
     $mail->setFrom($email_pengirim, $nama_pengirim);
     
-    // PERHATIAN: Karena di local biasanya tidak ada email asli pegawai, 
-    // kita kirim ke email Anda sendiri dulu untuk testing.
-    // Nanti kalau sudah production, ganti jadi: $mail->addAddress($pegawai->email);
-    $mail->addAddress($email_pengirim); // Kirim ke diri sendiri dulu sbg test
+    // Kirim ke email pegawai
+    if (!empty($pegawai->email)) {
+        $mail->addAddress($pegawai->email); 
+    } else {
+        // Fallback jika email pegawai kosong (opsional, atau throw error)
+        throw new Exception("Email pegawai tidak tersedia di database");
+    }
 
     // Content
     $mail->isHTML(true);
