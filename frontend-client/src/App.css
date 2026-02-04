@@ -1,0 +1,228 @@
+/* frontend-client/src/App.css */
+
+/* GLOBAL RESET */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Poppins', 'Inter', sans-serif; /* Font modern */
+  background-color: #f1f5f9;
+}
+
+/* =========================================
+   LOGIN PAGE (CENTERED CARD DESIGN)
+   ========================================= */
+.login-wrapper {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Background Gradient Biru seperti referensi */
+  background: linear-gradient(135deg, #4338ca 0%, #3b82f6 100%);
+  padding: 20px;
+}
+
+.login-card {
+  background: white;
+  width: 100%;
+  max-width: 450px; /* Lebar kartu ideal */
+  padding: 40px;
+  border-radius: 24px; /* Sudut sangat membulat */
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  text-align: center;
+  position: relative;
+}
+
+/* ICON BAGIAN ATAS (Money Bag) */
+.icon-container {
+  width: 70px;
+  height: 70px;
+  background-color: #e0e7ff; /* Biru sangat muda */
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px auto;
+  color: #4338ca;
+  font-size: 32px;
+  box-shadow: 0 4px 6px -1px rgba(67, 56, 202, 0.1);
+}
+
+.login-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 8px 0;
+}
+
+.login-subtitle {
+  color: #64748b;
+  font-size: 0.95rem;
+  margin-bottom: 30px;
+}
+
+/* FORM INPUT STYLES */
+.form-group {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 8px;
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  background-color: #f1f5f9; /* Abu-abu muda untuk input */
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 0 16px;
+  transition: all 0.3s ease;
+}
+
+.input-wrapper:focus-within {
+  background-color: #fff;
+  border-color: #4338ca; /* Border biru saat aktif */
+  box-shadow: 0 0 0 4px rgba(67, 56, 202, 0.1);
+}
+
+.input-icon {
+  color: #94a3b8;
+  font-size: 1.2rem;
+  margin-right: 12px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 14px 0;
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  color: #334155;
+  outline: none;
+  font-weight: 500;
+}
+
+.form-control::placeholder {
+  color: #cbd5e1;
+}
+
+/* TOMBOL LOGIN UTAMA */
+.btn-login {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(to right, #4f46e5, #3b82f6); /* Gradient Biru */
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.4); /* Shadow berwarna */
+  transition: transform 0.2s, box-shadow 0.2s;
+  margin-top: 10px;
+}
+
+.btn-login:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 20px -3px rgba(79, 70, 229, 0.5);
+}
+
+.btn-login:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* DIVIDER */
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 30px 0;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.divider span {
+  padding: 0 15px;
+}
+
+/* ERROR MESSAGE */
+.alert-error {
+  background-color: #fee2e2;
+  color: #dc2626;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+  border: 1px solid #fecaca;
+}
+
+/* LINK LUPA PASSWORD */
+.forgot-link {
+  display: block;
+  margin-top: 25px;
+  color: #4f46e5;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: color 0.2s;
+}
+
+.forgot-link:hover {
+  color: #3730a3;
+  text-decoration: underline;
+}
+
+/* =========================================
+   DASHBOARD & OTHER STYLES (Tetap dipertahankan)
+   ========================================= */
+/* Agar Dashboard tidak rusak, kita simpan style layout dashboard di sini */
+.app-layout { display: flex; min-height: 100vh; width: 100%; }
+.sidebar { width: 260px; background-color: #0f172a; color: white; display: flex; flex-direction: column; position: fixed; height: 100vh; left: 0; top: 0; z-index: 10; }
+.sidebar-header { padding: 30px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sidebar-brand { font-size: 1.5rem; font-weight: 800; color: #fff; letter-spacing: 1px; }
+.sidebar-menu { padding: 20px; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.menu-item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; color: #cbd5e1; text-decoration: none; border-radius: 10px; transition: all 0.3s; background: transparent; border: none; width: 100%; text-align: left; font-size: 0.95rem; font-weight: 500; cursor: pointer; }
+.menu-item:hover, .menu-item.active { background-color: #2563eb; color: white; transform: translateX(5px); }
+.sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+.user-profile { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+.avatar { width: 40px; height: 40px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; }
+.main-content { margin-left: 260px; flex: 1; padding: 40px; width: calc(100% - 260px); }
+.page-header { margin-bottom: 30px; }
+.page-title { font-size: 1.8rem; font-weight: 700; color: #0f172a; margin: 0; }
+.page-subtitle { color: #64748b; margin-top: 5px; }
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; margin-bottom: 35px; }
+.stat-card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); display: flex; align-items: center; gap: 20px; border: 1px solid #f1f5f9; }
+.stat-icon { width: 60px; height: 60px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+.bg-blue { background: #eff6ff; color: #2563eb; } .bg-green { background: #f0fdf4; color: #16a34a; } .bg-red { background: #fef2f2; color: #dc2626; }
+.stat-info h4 { margin: 0; color: #64748b; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; } .stat-info p { margin: 5px 0 0 0; font-size: 1.6rem; font-weight: 800; color: #0f172a; }
+.card { background: white; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-bottom: 30px; overflow: hidden; }
+.card-header { padding: 25px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+.card-title { font-size: 1.1rem; font-weight: 700; color: #0f172a; }
+.upload-area { padding: 30px; border: 2px dashed #cbd5e1; border-radius: 12px; background: #f8fafc; display: flex; gap: 15px; align-items: center; margin: 25px; }
+.custom-table { width: 100%; border-collapse: collapse; } .custom-table th { background: #f8fafc; padding: 18px 25px; text-align: left; font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; } .custom-table td { padding: 18px 25px; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; vertical-align: middle; } .custom-table tr:hover { background: #f8fafc; }
+.btn { border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.9rem; } .btn-sm { padding: 8px 12px; font-size: 0.85rem; }
+.btn-primary { background: #2563eb; color: white; } .btn-primary:hover { background: #1d4ed8; } .btn-danger { background: #ef4444; color: white; }
+.btn-logout { width: 100%; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); } .btn-logout:hover { background: #ef4444; border-color: #ef4444; }

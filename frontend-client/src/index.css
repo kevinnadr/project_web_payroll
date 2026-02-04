@@ -1,0 +1,11 @@
+/* frontend-client/src/index.css */
+/* KOSONGKAN SAJA atau isi reset dasar ini: */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
