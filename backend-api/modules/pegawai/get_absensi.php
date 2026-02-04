@@ -1,17 +1,22 @@
 <?php
+// FILE: backend-api/modules/pegawai/get_absensi.php
+
 require_once '../../config/cors.php';
 require_once '../../config/database.php';
 
+// Ambil parameter bulan dari URL (Default: Bulan ini)
 $bulan = $_GET['bulan'] ?? date('Y-m');
 
 try {
-    // Teknik LEFT JOIN: Ambil semua pegawai, lalu tempelkan data absensi jika ada.
-    // Fungsi COALESCE akan mengisi default (20, 0, 0, 0) jika data absensi belum ada (NULL).
+    // Query Logic:
+    // Ambil semua pegawai, lalu sambungkan (LEFT JOIN) dengan tabel absensi.
+    // PENTING: COALESCE(..., 0) artinya jika data belum ada, tampilkan 0.
+    
     $sql = "SELECT 
                 p.id, 
                 p.nama_lengkap, 
                 p.jabatan,
-                COALESCE(a.hadir, 20) as hadir, 
+                COALESCE(a.hadir, 0) as hadir, 
                 COALESCE(a.sakit, 0) as sakit, 
                 COALESCE(a.izin, 0) as izin, 
                 COALESCE(a.alpha, 0) as alpha

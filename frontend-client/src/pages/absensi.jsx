@@ -1,4 +1,5 @@
-// frontend-client/src/pages/Absensi.jsx
+// FILE: frontend-client/src/pages/Absensi.jsx
+
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -7,10 +8,10 @@ import '../App.css';
 const Absensi = () => {
     // --- STATE MANAGEMENT ---
     const [pegawai, setPegawai] = useState([]);
-    const [bulan, setBulan] = useState("2026-02"); // Default bulan
+    const [bulan, setBulan] = useState("2026-02"); // Default bulan (bisa disesuaikan)
     const [loading, setLoading] = useState(false);
     const [user, setUser] = useState(null);
-    const [fileMessage, setFileMessage] = useState(""); 
+    const [isUploading, setIsUploading] = useState(false);
 
     const fileInputRef = useRef(null);
     const navigate = useNavigate();
@@ -27,19 +28,19 @@ const Absensi = () => {
         }
     }, [navigate]);
 
-    // --- 2. FETCH DATA (SETIAP BULAN BERUBAH) ---
+    // --- 2. FETCH DATA (Jalan saat bulan berubah) ---
     useEffect(() => {
         fetchDataAbsensi();
     }, [bulan]);
 
-    // FUNGSI UTAMA: Mengambil data gabungan Pegawai + Absensi
     const fetchDataAbsensi = async () => {
         try {
-            // Panggil API baru 'get_absensi.php'
-            const res = await axios.get(`http://localhost/project_web_payroll/backend-api/modules/pegawai/get_absensi.php?bulan=${bulan}`);
+            // Gunakan timestamp agar browser tidak menyimpan cache (data selalu fresh)
+            const timestamp = new Date().getTime(); 
+            const res = await axios.get(`http://localhost/project_web_payroll/backend-api/modules/pegawai/get_absensi.php?bulan=${bulan}&t=${timestamp}`);
             
             if (res.data.status === 'success') {
-                // Pastikan format angka integer agar tidak error di input field
+                // Pastikan tipe data angka (integer) agar tidak error saat perhitungan
                 const fixedData = res.data.data.map(p => ({
                     ...p,
                     hadir: parseInt(p.hadir),
@@ -61,11 +62,24 @@ const Absensi = () => {
         setPegawai(newPegawai);
     };
 
-    // --- 4. SIMPAN PERUBAHAN KE DATABASE ---
+    // --- 4. FITUR BARU: ISI DEFAULT OTOMATIS ---
+    const handleSetDefault = () => {
+        if(window.confirm("Isi otomatis semua pegawai menjadi Hadir 20 hari? (Data yang sudah diketik akan tertimpa)")) {
+            const newData = pegawai.map(p => ({
+                ...p,
+                hadir: 20, // Default 20 hari kerja
+                sakit: 0,
+                izin: 0,
+                alpha: 0
+            }));
+            setPegawai(newData);
+        }
+    };
+
+    // --- 5. SIMPAN KE DATABASE ---
     const handleSimpanSemua = async () => {
         setLoading(true);
         try {
-            // Loop simpan satu per satu
             for (let p of pegawai) {
                 await axios.post('http://localhost/project_web_payroll/backend-api/modules/pegawai/input_absensi.php', {
                     pegawai_id: p.id,
@@ -76,22 +90,17 @@ const Absensi = () => {
                     alpha: p.alpha
                 });
             }
-            alert(`✅ Absensi Periode ${bulan} Berhasil Disimpan!`);
+            alert(`✅ Data Absensi Periode ${bulan} Berhasil Disimpan!`);
         } catch (error) {
-            alert("❌ Gagal menyimpan data.");
+            alert("❌ Gagal menyimpan data. Cek koneksi server.");
         } finally {
             setLoading(false);
         }
     };
 
-    // --- 5. EXPORT & IMPORT EXCEL ---
+    // --- 6. EXPORT & IMPORT EXCEL ---
     const handleDownloadTemplate = () => {
-        // Download via browser window
         window.open(`http://localhost/project_web_payroll/backend-api/modules/pegawai/export_absensi.php?bulan=${bulan}`, '_blank');
-    };
-
-    const handleImportClick = () => {
-        fileInputRef.current.click(); // Trigger input file tersembunyi
     };
 
     const handleFileChange = async (e) => {
@@ -102,42 +111,37 @@ const Absensi = () => {
         formData.append('file_excel', file);
         formData.append('bulan', bulan);
 
-        setLoading(true);
-        setFileMessage("⏳ Uploading...");
+        setIsUploading(true);
 
         try {
-            const res = await axios.post('http://localhost/latihan_m2/backend-api/modules/pegawai/import_absensi.php', formData, {
+            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/pegawai/import_absensi.php', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             
             if (res.data.status === 'success') {
-                alert("✅ " + res.data.message);
-                fetchDataAbsensi(); // REFRESH DATA SETELAH IMPORT (PENTING!)
+                alert("✅ Upload Berhasil!");
+                fetchDataAbsensi(); // Refresh tabel otomatis
             }
         } catch (error) {
             console.error(error);
             alert("❌ Gagal Import: " + (error.response?.data?.message || error.message));
         } finally {
-            setLoading(false);
-            setFileMessage("");
+            setIsUploading(false);
             e.target.value = null; // Reset input file
         }
     };
 
-    // --- 6. LOGOUT ---
-    const handleLogout = () => {
-        if(window.confirm("Yakin mau logout?")) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            navigate('/');
-        }
+    // Helper: Membuat inisial nama (Kevin Adrian -> KA)
+    const getInitials = (name) => {
+        if(!name) return "U";
+        return name.match(/(\b\S)?/g).join("").match(/(^\S|\S$)?/g).join("").toUpperCase();
     };
 
     // --- RENDER UI ---
     return (
         <div className="app-layout">
             
-            {/* --- SIDEBAR KIRI --- */}
+            {/* SIDEBAR FIXED VERSION */}
             <aside className="sidebar">
                 <div className="sidebar-header">
                     <div className="sidebar-brand">WEB <span>PAYROLL</span></div>
@@ -157,104 +161,140 @@ const Absensi = () => {
 
                 <div className="sidebar-footer">
                     <div className="user-profile">
-                        <div className="avatar">{user?.nama?.charAt(0) || 'A'}</div>
-                        <span style={{fontSize:'0.9rem', color:'#cbd5e1'}}>Halo, <br/><strong style={{color:'white'}}>{user?.nama}</strong></span>
+                        {/* 1. Avatar disamakan: Background Biru, 1 Huruf Saja */}
+                        <div className="avatar" style={{background: '#3b82f6', color: 'white'}}>
+                            {user?.nama ? user.nama.charAt(0).toUpperCase() : 'U'}
+                        </div>
+                        
+                        {/* 2. Teks disamakan: Ada "Halo," */}
+                        <div style={{display:'flex', flexDirection:'column'}}>
+                            <span style={{fontSize:'0.9rem', color:'#cbd5e1'}}>Halo,</span>
+                            <span style={{fontSize:'0.9rem', fontWeight:'bold', color:'white'}}>
+                                {user?.nama || 'User'}
+                            </span>
+                        </div>
                     </div>
-                    <button onClick={handleLogout} className="btn btn-logout">
+                    
+                    {/* 3. Tombol Logout disamakan teksnya */}
+                    <button onClick={()=>{localStorage.clear(); navigate('/');}} className="btn btn-logout">
                         Logout Keluar
                     </button>
                 </div>
             </aside>
 
-            {/* --- KONTEN KANAN --- */}
+            {/* KONTEN UTAMA */}
             <main className="main-content">
                 
-                <div className="page-header" style={{display:'flex', justifyContent:'space-between', alignItems:'end'}}>
+                {/* HEADER: Judul & Selector Periode */}
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'30px'}}>
                     <div>
                         <h1 className="page-title">Input Absensi</h1>
-                        <p className="page-subtitle">Kelola kehadiran via Web atau Import Excel.</p>
+                        <p className="page-subtitle">Kelola data kehadiran pegawai per periode.</p>
                     </div>
-                    <div>
-                        <label style={{display:'block', fontSize:'0.85rem', fontWeight:'600', marginBottom:'5px', color:'#64748b'}}>Periode Gaji</label>
+
+                    {/* Selector Periode Modern */}
+                    <div style={{background:'white', padding:'8px 15px', borderRadius:'12px', display:'flex', alignItems:'center', gap:'10px', boxShadow:'0 2px 5px rgba(0,0,0,0.05)'}}>
+                        <span style={{color:'#64748b', fontSize:'0.9rem', fontWeight:'600'}}>Periode:</span>
                         <input 
                             type="month" 
                             value={bulan} 
                             onChange={(e) => setBulan(e.target.value)}
-                            style={{padding:'10px', borderRadius:'8px', border:'1px solid #cbd5e1', cursor:'pointer', fontWeight:'600', color:'#334155'}}
+                            style={{border:'none', outline:'none', fontWeight:'bold', color:'#334155', cursor:'pointer', fontSize:'1rem'}}
                         />
                     </div>
                 </div>
 
-                {/* AREA IMPORT/EXPORT */}
-                <div className="card" style={{padding:'20px', display:'flex', gap:'20px', alignItems:'center', background:'#f8fafc', border:'1px dashed #cbd5e1'}}>
-                    <div style={{flex:1}}>
-                        <h4 style={{margin:'0 0 5px 0', color:'#334155'}}>📂 Import / Export Excel</h4>
-                        <p style={{margin:0, fontSize:'0.9rem', color:'#64748b'}}>
-                            {fileMessage ? <span style={{color:'#2563eb', fontWeight:'bold'}}>{fileMessage}</span> : "Download template, isi data, lalu upload kembali."}
-                        </p>
+                {/* CARD ACTION: IMPORT/EXPORT */}
+                <div className="card" style={{padding:'20px', display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'25px'}}>
+                    <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
+                        <div style={{width:'50px', height:'50px', background:'#eff6ff', borderRadius:'12px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'24px'}}>
+                            📂
+                        </div>
+                        <div>
+                            <h4 style={{margin:'0 0 5px 0', color:'#1e293b'}}>Import Data Excel</h4>
+                            <p style={{margin:0, fontSize:'0.85rem', color:'#64748b'}}>Upload file absensi dari mesin fingerprint atau edit manual.</p>
+                        </div>
                     </div>
                     
-                    <button onClick={handleDownloadTemplate} className="btn" style={{background:'white', border:'1px solid #cbd5e1', color:'#334155'}}>
-                        ⬇️ Download Template
-                    </button>
-                    
-                    <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        onChange={handleFileChange} 
-                        style={{display:'none'}} 
-                        accept=".xlsx, .xls" 
-                    />
-                    <button onClick={handleImportClick} className="btn btn-primary" disabled={loading}>
-                        {loading ? 'Processing...' : '⬆️ Upload Excel'}
-                    </button>
+                    <div style={{display:'flex', gap:'10px'}}>
+                        <button onClick={handleDownloadTemplate} className="btn" style={{background:'white', border:'1px solid #cbd5e1', color:'#475569'}}>
+                            ⬇️ Download Template
+                        </button>
+                        
+                        <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            onChange={handleFileChange} 
+                            style={{display:'none'}} 
+                            accept=".xlsx, .xls" 
+                        />
+                        <button 
+                            onClick={() => fileInputRef.current.click()} 
+                            className="btn btn-primary" 
+                            disabled={isUploading}
+                        >
+                            {isUploading ? '⏳ Uploading...' : '⬆️ Upload Excel'}
+                        </button>
+                    </div>
                 </div>
 
-                {/* TABEL INPUT DATA */}
+                {/* TABEL ABSENSI */}
                 <div className="card">
-                    <div className="card-header">
-                        <span className="card-title">📝 Data Kehadiran (Bulan {bulan})</span>
-                    </div>
-                    
                     <div className="table-responsive">
                         <table className="custom-table">
                             <thead>
                                 <tr>
-                                    <th>Nama Pegawai</th>
-                                    <th width="100">Hadir</th>
-                                    <th width="100">Sakit</th>
-                                    <th width="100">Izin</th>
-                                    <th width="100" style={{color:'#ef4444'}}>Alpha (Mangkir)</th>
+                                    <th style={{paddingLeft:'30px'}}>Pegawai</th>
+                                    <th className="text-center" width="100">Hadir</th>
+                                    <th className="text-center" width="100">Sakit</th>
+                                    <th className="text-center" width="100">Izin</th>
+                                    <th className="text-center" width="100" style={{color:'#ef4444'}}>Alpha</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {pegawai.map((p, index) => (
-                                    <tr key={p.id}>
-                                        <td>
-                                            <div style={{fontWeight:'700', color:'#0f172a'}}>{p.nama_lengkap}</div>
-                                            <div style={{fontSize:'0.8rem', color:'#64748b'}}>{p.jabatan}</div>
+                                    <tr key={p.id} style={{borderBottom:'1px solid #f1f5f9'}}>
+                                        <td style={{padding:'15px 30px'}}>
+                                            <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
+                                                {/* Avatar Warna-Warni */}
+                                                <div style={{
+                                                    width:'40px', height:'40px', 
+                                                    background: `hsl(${((index * 50) + 200) % 360}, 70%, 85%)`, // Warna dinamis beda tiap user
+                                                    color:'#1e293b', borderRadius:'50%', 
+                                                    display:'flex', alignItems:'center', justifyContent:'center', 
+                                                    fontWeight:'bold', fontSize:'14px'
+                                                }}>
+                                                    {getInitials(p.nama_lengkap)}
+                                                </div>
+                                                <div>
+                                                    <div style={{fontWeight:'600', color:'#334155'}}>{p.nama_lengkap}</div>
+                                                    <div style={{fontSize:'0.8rem', color:'#94a3b8'}}>{p.jabatan}</div>
+                                                </div>
+                                            </div>
                                         </td>
-                                        <td>
-                                            <input type="number" className="form-control" value={p.hadir} onChange={(e)=>handleChange(index, 'hadir', e.target.value)} style={{width:'80px', textAlign:'center'}} />
+                                        
+                                        {/* Input Angka */}
+                                        <td align="center">
+                                            <input type="number" className="input-absen" value={p.hadir} onChange={(e)=>handleChange(index, 'hadir', e.target.value)} />
                                         </td>
-                                        <td>
-                                            <input type="number" className="form-control" value={p.sakit} onChange={(e)=>handleChange(index, 'sakit', e.target.value)} style={{width:'80px', textAlign:'center'}} />
+                                        <td align="center">
+                                            <input type="number" className="input-absen" value={p.sakit} onChange={(e)=>handleChange(index, 'sakit', e.target.value)} />
                                         </td>
-                                        <td>
-                                            <input type="number" className="form-control" value={p.izin} onChange={(e)=>handleChange(index, 'izin', e.target.value)} style={{width:'80px', textAlign:'center'}} />
+                                        <td align="center">
+                                            <input type="number" className="input-absen" value={p.izin} onChange={(e)=>handleChange(index, 'izin', e.target.value)} />
                                         </td>
-                                        <td>
+                                        <td align="center">
                                             <input 
                                                 type="number" 
-                                                className="form-control" 
+                                                className="input-absen" 
                                                 value={p.alpha} 
                                                 onChange={(e)=>handleChange(index, 'alpha', e.target.value)} 
                                                 style={{
-                                                    width:'80px', textAlign:'center', 
-                                                    borderColor: p.alpha > 0 ? '#ef4444' : '', 
-                                                    color: p.alpha > 0 ? '#ef4444' : '', 
-                                                    fontWeight: p.alpha > 0 ? 'bold' : 'normal'
-                                                }} 
+                                                    color: p.alpha > 0 ? '#ef4444' : 'inherit',
+                                                    fontWeight: p.alpha > 0 ? 'bold' : 'normal',
+                                                    background: p.alpha > 0 ? '#fef2f2' : '#f8fafc',
+                                                    borderColor: p.alpha > 0 ? '#fecaca' : '#e2e8f0'
+                                                }}
                                             />
                                         </td>
                                     </tr>
@@ -262,12 +302,42 @@ const Absensi = () => {
                             </tbody>
                         </table>
                     </div>
+                </div>
 
-                    <div style={{padding:'20px', textAlign:'right', borderTop:'1px solid #f1f5f9'}}>
-                        <button onClick={handleSimpanSemua} className="btn btn-primary" disabled={loading} style={{padding:'12px 24px', fontSize:'1rem'}}>
-                            {loading ? 'Menyimpan...' : '💾 Simpan Perubahan'}
-                        </button>
-                    </div>
+                {/* TOMBOL AKSI (ISI DEFAULT & SIMPAN) */}
+                <div style={{marginTop:'20px', display:'flex', justifyContent:'flex-end', gap:'15px', paddingBottom:'40px'}}>
+                     
+                     {/* Tombol Isi Default */}
+                     <button 
+                        onClick={handleSetDefault} 
+                        className="btn" 
+                        style={{
+                            background:'white', 
+                            border:'1px solid #cbd5e1', 
+                            color:'#475569',
+                            padding:'12px 20px', 
+                            fontSize:'0.95rem',
+                            fontWeight:'600',
+                            cursor:'pointer'
+                        }}
+                    >
+                        ⚡ Isi Default (20)
+                    </button>
+
+                     {/* Tombol Simpan */}
+                     <button 
+                        onClick={handleSimpanSemua} 
+                        className="btn btn-primary" 
+                        disabled={loading}
+                        style={{
+                            padding:'12px 30px', 
+                            fontSize:'0.95rem', 
+                            boxShadow:'0 10px 15px -3px rgba(37, 99, 235, 0.3)',
+                            display:'flex', alignItems:'center', gap:'10px'
+                        }}
+                    >
+                        {loading ? '💾 Menyimpan...' : '💾 Simpan Perubahan'}
+                    </button>
                 </div>
 
             </main>

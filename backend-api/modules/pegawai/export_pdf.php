@@ -1,131 +1,197 @@
 <?php
-// backend-api/modules/pegawai/export_pdf.php
+// FILE: backend-api/modules/pegawai/export_pdf.php
+
 require_once '../../config/cors.php';
 require_once '../../config/database.php';
 require_once '../../vendor/autoload.php';
 
 use Dompdf\Dompdf;
-use Dompdf\Options;
 
-if (!isset($_GET['id'])) { die("Error: ID Pegawai tidak ditemukan."); }
-$id = $_GET['id'];
-$bulan_ini = "2026-02"; // Kita kunci ke periode ini dulu untuk demo
+// 1. Cek ID Pegawai
+if (!isset($_GET['id'])) {
+    die("Error: ID Pegawai tidak ditemukan.");
+}
+
+$id_pegawai = $_GET['id'];
+$bulan      = $_GET['bulan'] ?? date('Y-m'); // Default bulan ini
 
 try {
-    // 1. DATA PEGAWAI
-    $stmt = $db->prepare("SELECT * FROM pegawai WHERE id = :id");
-    $stmt->execute([':id' => $id]);
-    $pegawai = $stmt->fetch();
-    if (!$pegawai) die("Error: Pegawai tidak ditemukan.");
+    // 2. Ambil Data Pegawai & Absensi
+    // Kita LEFT JOIN agar tahu jumlah Alpha
+    $sql = "SELECT p.*, 
+            COALESCE(a.hadir, 0) as hadir, 
+            COALESCE(a.sakit, 0) as sakit,
+            COALESCE(a.izin, 0) as izin,
+            COALESCE(a.alpha, 0) as alpha 
+            FROM pegawai p 
+            LEFT JOIN absensi a ON p.id = a.pegawai_id AND a.bulan = :bulan
+            WHERE p.id = :id";
 
-    // 2. DATA KOMPONEN (Master Gaji)
-    $stmt_komponen = $db->query("SELECT * FROM komponen_gaji ORDER BY jenis ASC");
-    $list_komponen = $stmt_komponen->fetchAll();
+    $stmt = $db->prepare($sql);
+    $stmt->execute([':id' => $id_pegawai, ':bulan' => $bulan]);
+    $pegawai = $stmt->fetch(PDO::FETCH_OBJ);
 
-    // 3. DATA ABSENSI (BARU!)
-    $stmt_absen = $db->prepare("SELECT * FROM absensi WHERE pegawai_id = :id AND bulan = :bln");
-    $stmt_absen->execute([':id' => $id, ':bln' => $bulan_ini]);
-    $absen = $stmt_absen->fetch();
+    if (!$pegawai) {
+        die("Data pegawai tidak ditemukan.");
+    }
 
-    // Default jika belum absen
-    $alpha = $absen ? $absen->alpha : 0;
-    $hadir = $absen ? $absen->hadir : 0;
-
-    // 4. PERHITUNGAN GAJI
+    // --- 3. LOGIKA HITUNGAN (SAMA PERSIS DENGAN EMAIL) ---
+    
+    // A. PENDAPATAN
     $gaji_pokok = $pegawai->gaji_pokok;
-    $total_penerimaan = 0;
-    $total_potongan = 0;
+    
+    // Tunjangan Jabatan (Contoh Logika)
+    if (stripos($pegawai->jabatan, 'Direktur') !== false || stripos($pegawai->jabatan, 'Manager') !== false) {
+        $tunjangan_jabatan = 2000000;
+    } else {
+        $tunjangan_jabatan = 500000;
+    }
+    
+    $uang_transport = 250000; 
+    $total_penambahan = $tunjangan_jabatan + $uang_transport;
 
-    // Susun HTML Komponen Master
-    $html_penerimaan = "";
-    $html_potongan = "";
+    // B. POTONGAN
+    $bpjs = 100000; 
 
-    foreach ($list_komponen as $k) {
-        $nominal = $k->nominal;
-        if ($k->jenis == 'penerimaan') {
-            $total_penerimaan += $nominal;
-            $html_penerimaan .= '<tr><td>'.$k->nama_komponen.'</td><td class="amount">Rp '.number_format($nominal,0,',','.').'</td></tr>';
-        } else {
-            $total_potongan += $nominal;
-            $html_potongan .= '<tr><td>'.$k->nama_komponen.'</td><td class="amount">(Rp '.number_format($nominal,0,',','.').')</td></tr>';
-        }
+    // Hitung Potongan Alpha (Hanya jika Alpha > 0)
+    $jumlah_alpha    = $pegawai->alpha; 
+    $tarif_potongan  = 100000; // Denda per hari
+    $total_pot_alpha = $jumlah_alpha * $tarif_potongan; 
+
+    // Denda Lain (Default 0)
+    $denda = 0; 
+
+    $total_potongan = $bpjs + $denda + $total_pot_alpha;
+
+    // C. TOTAL BERSIH
+    $take_home_pay = ($gaji_pokok + $total_penambahan) - $total_potongan;
+    
+    // Format Tanggal
+    $dateObj   = DateTime::createFromFormat('!Y-m', $bulan);
+    $nama_bulan = $dateObj->format('F Y'); 
+
+    // --- 4. SIAPKAN BARIS HTML DINAMIS ---
+    
+    // Baris Alpha (Cuma muncul kalau ada denda)
+    $row_alpha = "";
+    if ($total_pot_alpha > 0) {
+        $row_alpha = "
+        <tr>
+            <td class='red'>Potongan Alpha ({$jumlah_alpha} Hari)</td>
+            <td class='right red'>(Rp " . number_format($total_pot_alpha, 0, ',', '.') . ")</td>
+        </tr>";
     }
 
-    // --- LOGIKA POTONGAN ALPHA (Rp 100.000 per hari) ---
-    $denda_per_hari = 100000;
-    $total_denda = $alpha * $denda_per_hari;
-
-    if ($alpha > 0) {
-        $total_potongan += $total_denda;
-        $html_potongan .= '
-            <tr style="color:red;">
-                <td>Potongan Mangkir ('.$alpha.' Hari)</td>
-                <td class="amount">(Rp '.number_format($total_denda, 0, ',', '.').')</td>
-            </tr>';
+    // Baris Denda (Cuma muncul kalau ada denda)
+    $row_denda = "";
+    if ($denda > 0) {
+        $row_denda = "
+        <tr>
+            <td class='red'>Denda Lainnya</td>
+            <td class='right red'>(Rp " . number_format($denda, 0, ',', '.') . ")</td>
+        </tr>";
     }
 
-    $take_home_pay = $gaji_pokok + $total_penerimaan - $total_potongan;
-
-    // 5. RENDER HTML
-    $html = '
+    // --- 5. TEMPLATE HTML ---
+    $html = "
     <html>
     <head>
+        <title>Slip Gaji - {$pegawai->nama_lengkap}</title>
         <style>
-            body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; }
-            .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-            .table-data { width: 100%; border-collapse: collapse; }
-            .table-data td { padding: 5px; }
-            .amount { text-align: right; }
-            .total-row { font-weight: bold; background-color: #eee; }
-            .sub-header { font-weight: bold; text-decoration: underline; }
+            body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #000; }
+            .header { text-align: center; margin-bottom: 20px; }
+            .header h2 { margin: 0; font-weight: bold; font-size: 18px; text-transform: uppercase; color: #000; }
+            .header p { margin: 5px 0 0 0; font-size: 12px; }
+            hr { border: 0; border-top: 2px solid #000; margin: 10px 0 25px 0; }
+            
+            .info-table { width: 100%; margin-bottom: 20px; }
+            .info-table td { padding: 4px 0; vertical-align: top; }
+            
+            .rincian-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+            .rincian-table td { padding: 6px 0; }
+            
+            .line-top { border-top: 1px solid #000; }
+            .line-bottom { border-bottom: 1px solid #000; }
+            
+            .section-title { font-weight: bold; text-decoration: underline; margin-top: 15px; display:block; font-size: 13px; }
+            .bg-gray { background-color: #e5e7eb; font-weight: bold; padding: 10px 5px !important; font-size: 14px; }
+            
+            .right { text-align: right; }
+            .red { color: #dc2626; } 
         </style>
     </head>
     <body>
-        <div class="header">
-            <div style="font-size: 18px; font-weight: bold;">PT. HAWK TEKNOLOGI INDONESIA</div>
-            <div>SLIP GAJI - Periode Februari 2026</div>
+        <div class='header'>
+            <h2>PT. HAWK TEKNOLOGI INDONESIA</h2>
+            <p>Jalan Teknologi No. 123, Jakarta Selatan - Indonesia</p>
+            <p style='font-weight:bold; margin-top:10px;'>SLIP GAJI - PERIODE $nama_bulan</p>
         </div>
-
-        <table class="table-data" style="margin-bottom: 15px;">
-            <tr><td width="150">NIK / Nama</td><td>: ' . $pegawai->nik . ' / <b>' . strtoupper($pegawai->nama_lengkap) . '</b></td></tr>
-            <tr><td>Jabatan</td><td>: ' . $pegawai->jabatan . '</td></tr>
-            <tr><td>Kehadiran</td><td>: Hadir: '.$hadir.' Hari | <b>Alpha: '.$alpha.' Hari</b></td></tr>
-        </table>
-
         <hr>
 
-        <table class="table-data">
-            <tr><td><b>Gaji Pokok</b></td><td class="amount"><b>Rp ' . number_format($gaji_pokok, 0, ',', '.') . '</b></td></tr>
+        <table class='info-table'>
+            <tr><td width='130'>NIK</td><td>: {$pegawai->nik}</td></tr>
+            <tr><td>Nama Pegawai</td><td>: <strong>{$pegawai->nama_lengkap}</strong></td></tr>
+            <tr><td>Jabatan</td><td>: {$pegawai->jabatan}</td></tr>
+            <tr><td>Kehadiran</td><td>: Hadir: {$pegawai->hadir} | Sakit/Izin: " . ($pegawai->sakit + $pegawai->izin) . " | <strong>Alpha: {$pegawai->alpha}</strong></td></tr>
+        </table>
 
-            <tr><td colspan="2" class="sub-header"><br>Penambahan</td></tr>
-            ' . ($html_penerimaan ?: '<tr><td colspan="2">-</td></tr>') . '
-
-            <tr><td colspan="2" class="sub-header"><br>Potongan</td></tr>
-            ' . ($html_potongan ?: '<tr><td colspan="2">-</td></tr>') . '
-
-            <tr><td colspan="2"><hr></td></tr>
-
-            <tr class="total-row">
-                <td style="padding-top:10px;">TAKE HOME PAY</td>
-                <td class="amount" style="padding-top:10px;">Rp ' . number_format($take_home_pay, 0, ',', '.') . '</td>
+        <div class='line-top'></div>
+        
+        <table class='rincian-table'>
+            <tr>
+                <td style='font-weight:bold;'>GAJI POKOK</td>
+                <td class='right' style='font-weight:bold;'>Rp " . number_format($gaji_pokok, 0, ',', '.') . "</td>
             </tr>
         </table>
-        
-        <div style="margin-top: 30px; font-size: 10px; color: #666;">
-            * Potongan mangkir dihitung Rp 100.000 / hari
-        </div>
-    </body>
-    </html>';
 
-    $options = new Options();
-    $options->set('isRemoteEnabled', true);
-    $dompdf = new Dompdf($options);
+        <span class='section-title'>PENAMBAHAN</span>
+        <table class='rincian-table'>
+            <tr><td>Tunjangan Jabatan</td><td class='right'>Rp " . number_format($tunjangan_jabatan, 0, ',', '.') . "</td></tr>
+            <tr><td>Uang Transport/Makan</td><td class='right'>Rp " . number_format($uang_transport, 0, ',', '.') . "</td></tr>
+        </table>
+
+        <span class='section-title'>POTONGAN</span>
+        <table class='rincian-table'>
+            <tr><td>Iuran BPJS Kesehatan/TK</td><td class='right red'>(Rp " . number_format($bpjs, 0, ',', '.') . ")</td></tr>
+            $row_alpha
+            $row_denda
+        </table>
+        
+        <br>
+        <div class='line-top'></div>
+        <table class='rincian-table'>
+            <tr class='bg-gray'>
+                <td>TAKE HOME PAY (DITERIMA)</td>
+                <td class='right'>Rp " . number_format($take_home_pay, 0, ',', '.') . "</td>
+            </tr>
+        </table>
+        <div class='line-bottom'></div>
+
+        <div style='margin-top: 40px; width: 100%;'>
+            <div style='float: right; width: 200px; text-align: center;'>
+                <p>Jakarta, " . date('d F Y') . "</p>
+                <br><br><br>
+                <p style='font-weight:bold; text-decoration:underline;'>Manager Keuangan</p>
+            </div>
+            <div style='clear: both;'></div>
+        </div>
+
+        <p style='margin-top:20px; font-size:10px; color:#666; font-style:italic;'>
+            * Dokumen ini digenerate otomatis oleh sistem Web Payroll dan sah tanpa tanda tangan basah.
+        </p>
+    </body>
+    </html>";
+
+    // 6. GENERATE & DOWNLOAD PDF
+    $dompdf = new Dompdf();
     $dompdf->loadHtml($html);
     $dompdf->setPaper('A4', 'portrait');
     $dompdf->render();
-    $dompdf->stream("SlipGaji.pdf", ["Attachment" => 0]);
+    
+    // Stream = Langsung download di browser
+    $dompdf->stream("Slip_Gaji_{$pegawai->nama_lengkap}.pdf", array("Attachment" => false));
 
 } catch (Exception $e) {
-    echo "Error: " . $e->getMessage();
+    die("Terjadi Kesalahan: " . $e->getMessage());
 }
 ?>
