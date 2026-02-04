@@ -154,9 +154,17 @@ const Absensi = () => {
                     <button className="menu-item" onClick={() => navigate('/master-gaji')}>
                         <span>⚙️</span> <span>Atur Komponen Gaji</span>
                     </button>
+                    {/* Menu Aktif */}
                     <button className="menu-item active">
                         <span>📅</span> <span>Input Absensi</span>
                     </button>
+
+                    {/* --- LOGIKA BARU: MENU MANAJEMEN USER --- */}
+                    {user?.role === 'admin' && (
+                        <button className="menu-item" onClick={() => navigate('/users')}>
+                            <span>👥</span> <span>Manajemen User</span>
+                        </button>
+                    )}
                 </nav>
 
                 <div className="sidebar-footer">

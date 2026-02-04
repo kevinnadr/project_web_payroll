@@ -93,6 +93,13 @@ const MasterGaji = () => {
                     <button className="menu-item" onClick={() => navigate('/absensi')}>
                         <span>📅</span> <span>Input Absensi</span>
                     </button>
+
+                    {/* --- LOGIKA BARU: MENU MANAJEMEN USER --- */}
+                    {user?.role === 'admin' && (
+                        <button className="menu-item" onClick={() => navigate('/users')}>
+                            <span>👥</span> <span>Manajemen User</span>
+                        </button>
+                    )}
                 </nav>
 
                 <div className="sidebar-footer">

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
+import { jwtDecode } from "jwt-decode"; // --- PENTING: Import Logic Decoder ---
 import '../App.css';
 
 const Login = () => {
@@ -28,29 +29,50 @@ const Login = () => {
             if (response.data.status === 'success') {
                 localStorage.setItem('token', response.data.token);
                 localStorage.setItem('user', JSON.stringify(response.data.user));
-                navigate('/dashboard');
+                
+                // Cek Role (Opsional, jika ingin membedakan redirect)
+                if (response.data.user.role === 'admin') {
+                    navigate('/dashboard');
+                } else {
+                    navigate('/dashboard');
+                }
+            } else {
+                setError(response.data.message); // Tampilkan pesan error dari backend
             }
         } catch (err) {
             setError(err.response?.data?.message || "Email atau password salah.");
+        } finally {
             setLoading(false);
         }
     };
 
-    // --- LOGIC LOGIN GOOGLE ---
+    // --- LOGIC LOGIN GOOGLE (TERBARU) ---
     const handleGoogleSuccess = async (credentialResponse) => {
         setError("");
         setLoading(true);
         try {
+            // 1. DECODE TOKEN DARI GOOGLE
+            const decoded = jwtDecode(credentialResponse.credential);
+            console.log("Data Google:", decoded);
+
+            // 2. KIRIM DATA YANG SUDAH BERSIH KE BACKEND
             const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/auth/login_google.php', {
-                credential: credentialResponse.credential
+                email: decoded.email,
+                name: decoded.name
             });
+
             if (res.data.status === 'success') {
                 localStorage.setItem('token', res.data.token);
                 localStorage.setItem('user', JSON.stringify(res.data.user));
+                alert("Login Google Berhasil!");
                 navigate('/dashboard');
+            } else {
+                setError(res.data.message);
             }
         } catch (err) {
+            console.error(err);
             setError(err.response?.data?.message || "Gagal login dengan Google.");
+        } finally {
             setLoading(false);
         }
     };
@@ -131,15 +153,16 @@ const Login = () => {
                         onSuccess={handleGoogleSuccess}
                         onError={() => { setError("Gagal koneksi Google"); setLoading(false); }}
                         useOneTap
-                        theme="outline" /* Menggunakan tema outline agar putih seperti gambar */
+                        theme="outline"
                         size="large"
                         shape="rectangular"
-                        width="370" /* Lebar tombol google */
+                        width="370"
                         logo_alignment="center"
                     />
                 </div>
 
-                <a href="/forgot-password" class="forgot-link">Lupa Password Anda?</a>
+                {/* Perbaikan: class -> className */}
+                <a href="/forgot-password" className="forgot-link">Lupa Password Anda?</a>
 
                 {loading && (
                     <div style={{marginTop:'15px', color:'#64748b', fontSize:'0.9rem'}}>
