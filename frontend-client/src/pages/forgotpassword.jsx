@@ -41,7 +41,7 @@ const ForgotPassword = () => {
                             type="email" 
                             className="form-control" // Asumsi class input
                             style={{width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd'}}
-                            placeholder="Contoh: admin@hawk.com"
+                            placeholder="Contoh: nama@gmail.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required

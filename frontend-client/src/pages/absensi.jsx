@@ -226,7 +226,7 @@ const Absensi = () => {
                     
                     <div style={{display:'flex', gap:'10px'}}>
                         <button onClick={handleDownloadTemplate} className="btn" style={{background:'white', border:'1px solid #cbd5e1', color:'#475569'}}>
-                            ⬇️ Download Template
+                            ⬆️ export data
                         </button>
                         
                         <input 
@@ -241,7 +241,7 @@ const Absensi = () => {
                             className="btn btn-primary" 
                             disabled={isUploading}
                         >
-                            {isUploading ? '⏳ Uploading...' : '⬆️ Upload Excel'}
+                            {isUploading ? '⏳ Uploading...' : '⬇️ Upload Excel'}
                         </button>
                     </div>
                 </div>

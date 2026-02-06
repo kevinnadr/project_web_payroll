@@ -132,8 +132,8 @@ try {
     </head>
     <body>
         <div class='header'>
-            <h2>PT. HAWK TEKNOLOGI INDONESIA</h2>
-            <p>Jalan Teknologi No. 123, Jakarta Selatan - Indonesia</p>
+            <h2>Red Ant Colony</h2>
+            <p>Gedung Merah, perum De'Asmaradana Residence, Jl. Sugeng Jeroni, Patangpuluhan, Wirobrajan, Kota Yogyakarta, Daerah Istimewa Yogyakarta 55251 - Indonesia</p>
             <p style='font-weight:bold; margin-top:10px;'>SLIP GAJI - PERIODE $periode_teks</p>
         </div>
         <hr>
@@ -179,7 +179,7 @@ try {
 
         <div style='margin-top: 40px; width: 100%;'>
             <div style='float: right; width: 200px; text-align: center;'>
-                <p>Jakarta, " . date('d F Y') . "</p>
+                <p>Yogyakarta, " . date('d F Y') . "</p>
                 <br><br><br>
                 <p style='font-weight:bold; text-decoration:underline;'>Manager Keuangan</p>
             </div>
@@ -245,7 +245,7 @@ try {
         <p>Terlampir adalah <strong>Slip Gaji (PDF)</strong> untuk periode $periode_teks.</p>
         <p>Silakan didownload dan disimpan.</p>
         <br>
-        <p>Hormat Kami,<br><strong>HRD Dept. - PT. HAWK TEKNOLOGI</strong></p>
+        <p>Hormat Kami,<br><strong>HRD Dept. - Red Ant Colony</strong></p>
     ";
 
     $mail->send();

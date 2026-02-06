@@ -53,8 +53,7 @@ const Dashboard = () => {
 
     const handleLogout = () => {
         if (window.confirm("Yakin mau logout?")) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
+            localStorage.clear(); // Hapus semua sesi
             navigate('/');
         }
     };
@@ -84,6 +83,11 @@ const Dashboard = () => {
 
     // Helper Actions
     const handlePrint = (id) => window.open(`http://localhost/project_web_payroll/backend-api/modules/pegawai/export_pdf.php?id=${id}`, '_blank');
+    
+    // Fitur Baru: Export Excel (Semua Data)
+    const handleExportExcel = () => {
+        window.open('http://localhost/project_web_payroll/backend-api/modules/pegawai/export_excel.php', '_blank');
+    };
 
     const handleEmail = async (id, nama) => {
         if (!window.confirm(`Kirim slip ke ${nama}?`)) return;
@@ -164,7 +168,7 @@ const Dashboard = () => {
                         <span>📅</span> <span>Input Absensi</span>
                     </button>
 
-                    {/* --- LOGIKA BARU: MENU MANAJEMEN USER --- */}
+                    {/* Menu Khusus Admin */}
                     {user?.role === 'admin' && (
                         <button className="menu-item" onClick={() => navigate('/users')}>
                             <span>👥</span> <span>Manajemen User</span>
@@ -233,15 +237,23 @@ const Dashboard = () => {
 
                 {/* 3. Tabel Data */}
                 <div className="card">
-                    <div className="card-header">
+                    <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                             <span className="card-title">📋 Data Pegawai Aktif</span>
                             <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Total: {dataPegawai.length} Pegawai</div>
                         </div>
-                        <button onClick={handleAdd} className="btn btn-primary" style={{ padding: '8px 16px' }}>
-                            + Tambah Pegawai
-                        </button>
+                        
+                        {/* Grup Tombol Aksi */}
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button onClick={handleExportExcel} className="btn" style={{ background: '#10b981', color: 'white', display:'flex', alignItems:'center', gap:'5px' }}>
+                                📊 Export Excel
+                            </button>
+                            <button onClick={handleAdd} className="btn btn-primary" style={{ padding: '8px 16px' }}>
+                                + Tambah Pegawai
+                            </button>
+                        </div>
                     </div>
+                    
                     <div className="table-responsive">
                         <table className="custom-table">
                             <thead>

@@ -117,8 +117,8 @@ const MasterGaji = () => {
             <main className="main-content">
                 
                 <div className="page-header">
-                    <h1 className="page-title">Master Data Gaji</h1>
-                    <p className="page-subtitle">Atur komponen penambah dan pengurang gaji secara dinamis.</p>
+                    <h1 className="page-title">Pengaturan komponen gaji</h1>
+                    <p className="page-subtitle">.</p>
                 </div>
 
                 {/* Grid Layout: Kiri Form, Kanan Tabel */}
