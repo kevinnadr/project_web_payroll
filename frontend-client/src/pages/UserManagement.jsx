@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import Sidebar from '../components/Sidebar'; // <--- Import Sidebar Baru
 import '../App.css';
 
 const UserManagement = () => {
@@ -70,15 +71,15 @@ const UserManagement = () => {
         try {
             const res = await axios.post(url, formData);
             if (res.data.status === 'success') {
-                alert(isEdit ? "User berhasil diupdate!" : "User baru berhasil ditambahkan!");
+                alert(isEdit ? "✅ User berhasil diupdate!" : "✅ User baru berhasil ditambahkan!");
                 setShowModal(false);
                 fetchUsers();
                 resetForm();
             } else {
-                alert("Gagal: " + res.data.message);
+                alert("❌ Gagal: " + res.data.message);
             }
         } catch (error) {
-            alert("Terjadi kesalahan sistem.");
+            alert("❌ Terjadi kesalahan sistem.");
         } finally {
             setLoading(false);
         }
@@ -90,11 +91,11 @@ const UserManagement = () => {
         try {
             const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/users/delete.php', { id });
             if (res.data.status === 'success') {
-                alert("User dihapus!");
+                alert("✅ User dihapus!");
                 fetchUsers();
             }
         } catch (error) {
-            alert("Gagal menghapus user.");
+            alert("❌ Gagal menghapus user.");
         }
     };
 
@@ -109,49 +110,12 @@ const UserManagement = () => {
         setShowModal(true);
     };
 
-    const handleLogout = () => {
-        if(window.confirm("Yakin mau logout?")) {
-            localStorage.clear();
-            navigate('/');
-        }
-    };
-
     return (
         <div className="app-layout">
             
-            {/* --- SIDEBAR (SAMA PERSIS DENGAN HALAMAN LAIN) --- */}
-            <aside className="sidebar">
-                <div className="sidebar-header">
-                    <div className="sidebar-brand">WEB <span>PAYROLL</span></div>
-                </div>
-                
-                <nav className="sidebar-menu">
-                    <button className="menu-item" onClick={() => navigate('/dashboard')}>
-                        <span>📊</span> <span>Dashboard Overview</span>
-                    </button>
-                    <button className="menu-item" onClick={() => navigate('/master-gaji')}>
-                        <span>⚙️</span> <span>Atur Komponen Gaji</span>
-                    </button>
-                    <button className="menu-item" onClick={() => navigate('/absensi')}>
-                        <span>📅</span> <span>Input Absensi</span>
-                    </button>
-
-                    {/* Menu Aktif */}
-                    <button className="menu-item active">
-                        <span>👥</span> <span>Manajemen User</span>
-                    </button>
-                </nav>
-
-                <div className="sidebar-footer">
-                    <div className="user-profile">
-                        <div className="avatar">{currentUser?.nama?.charAt(0) || 'A'}</div>
-                        <span style={{fontSize:'0.9rem', color:'#cbd5e1'}}>Halo, <br/><strong style={{color:'white'}}>{currentUser?.nama}</strong></span>
-                    </div>
-                    <button onClick={handleLogout} className="btn btn-logout">
-                        Logout Keluar
-                    </button>
-                </div>
-            </aside>
+            {/* --- SIDEBAR BARU --- */}
+            {/* Logika user & active menu sudah diurus di dalam komponen ini */}
+            <Sidebar user={currentUser} />
 
             {/* --- KONTEN UTAMA --- */}
             <main className="main-content">

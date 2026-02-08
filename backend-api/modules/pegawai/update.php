@@ -1,56 +1,89 @@
 <?php
-// backend-api/modules/pegawai/update.php
-require_once '../../config/cors.php';
+// FILE: backend-api/modules/pegawai/save.php
 require_once '../../config/database.php';
+require_once '../../config/cors.php';
 
-// Cek Method (Hanya boleh POST/PUT - kita pakai POST biar gampang di axios)
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    exit;
-}
+// Matikan display error agar JSON tidak rusak
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
 
-// Ambil data JSON dari body request
-$data = json_decode(file_get_contents("php://input"));
+$input = file_get_contents("php://input");
+$data = json_decode($input);
 
-// Validasi ID
-if (empty($data->id)) {
-    http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "ID Pegawai tidak ditemukan"]);
+if (!$data) {
+    echo json_encode(["status" => "error", "message" => "Data tidak valid"]);
     exit;
 }
 
 try {
-    // Query dinamis atau fixed, kita buat fixed dulu untuk field utama
-    $sql = "UPDATE pegawai SET 
-            nik = :nik,
-            nama_lengkap = :nama,
-            jabatan = :jabatan,
-            gaji_pokok = :gaji,
-            email = :email,
-            tanggal_masuk = :tgl
-            WHERE id = :id";
-    
-    $stmt = $db->prepare($sql);
-    
-    $data_param = [
-        ':id' => $data->id,
-        ':nik' => $data->nik,
-        ':nama' => $data->nama_lengkap,
-        ':jabatan' => $data->jabatan,
-        ':gaji' => $data->gaji_pokok,
-        ':email' => !empty($data->email) ? $data->email : null,
-        ':tgl' => !empty($data->tanggal_masuk) ? $data->tanggal_masuk : null
-    ];
-    
-    $stmt->execute($data_param);
+    $db->beginTransaction();
 
-    echo json_encode([
-        "status" => "success",
-        "message" => "Data pegawai berhasil diupdate"
-    ]);
+    // --- DATA DARI FRONTEND ---
+    $id = $data->id ?? null; // Jika ada ID = Edit, Jika null = Baru
+    
+    // Data Tabel PEGAWAI
+    $nik = $data->nik;
+    $nama = strtoupper($data->nama_lengkap);
+    $jabatan = $data->jabatan;
+    $email = $data->email ?? null;
+    $tgl_masuk = $data->tanggal_masuk ?? date('Y-m-d');
 
-} catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Gagal update pegawai: " . $e->getMessage()]);
+    // Data Tabel INFO_FINANSIAL
+    $gaji = (float)($data->gaji_pokok ?? 0);
+    $ptkp = $data->status_ptkp ?? 'TK/0';
+    $status_peg = $data->status_kepegawaian ?? 'Pegawai Tetap';
+    $hari_kerja = (int)($data->hari_kerja_efektif ?? 20);
+    $bank = $data->bank_nama ?? null;
+    $rekening = $data->bank_rekening ?? null;
+
+    if ($id) {
+        // === MODE UPDATE (EDIT) ===
+        
+        // 1. Update Tabel Induk (Pegawai)
+        $sql1 = "UPDATE pegawai SET nik=?, nama_lengkap=?, jabatan=?, email=?, tanggal_masuk=? WHERE id=?";
+        $db->prepare($sql1)->execute([$nik, $nama, $jabatan, $email, $tgl_masuk, $id]);
+
+        // 2. Update Tabel Anak (Info Finansial)
+        // Cek dulu apakah data finansialnya sudah ada?
+        $cek = $db->prepare("SELECT id FROM info_finansial WHERE pegawai_id=?");
+        $cek->execute([$id]);
+        
+        if ($cek->rowCount() > 0) {
+            $sql2 = "UPDATE info_finansial SET 
+                     gaji_pokok=?, status_ptkp=?, status_kepegawaian=?, hari_kerja_efektif=?, bank_nama=?, bank_rekening=? 
+                     WHERE pegawai_id=?";
+            $db->prepare($sql2)->execute([$gaji, $ptkp, $status_peg, $hari_kerja, $bank, $rekening, $id]);
+        } else {
+            // Jika belum ada (kasus data lama), kita Insert baru
+            $sql2 = "INSERT INTO info_finansial (pegawai_id, gaji_pokok, status_ptkp, status_kepegawaian, hari_kerja_efektif, bank_nama, bank_rekening)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)";
+            $db->prepare($sql2)->execute([$id, $gaji, $ptkp, $status_peg, $hari_kerja, $bank, $rekening]);
+        }
+
+        $msg = "Data Pegawai Berhasil Diupdate!";
+
+    } else {
+        // === MODE INSERT (BARU) ===
+        
+        // 1. Insert Tabel Induk (Pegawai)
+        $sql1 = "INSERT INTO pegawai (nik, nama_lengkap, jabatan, email, tanggal_masuk) VALUES (?, ?, ?, ?, ?)";
+        $db->prepare($sql1)->execute([$nik, $nama, $jabatan, $email, $tgl_masuk]);
+        
+        $new_id = $db->lastInsertId(); // Ambil ID pegawai yang baru dibuat
+
+        // 2. Insert Tabel Anak (Info Finansial)
+        $sql2 = "INSERT INTO info_finansial (pegawai_id, gaji_pokok, status_ptkp, status_kepegawaian, hari_kerja_efektif, bank_nama, bank_rekening)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)";
+        $db->prepare($sql2)->execute([$new_id, $gaji, $ptkp, $status_peg, $hari_kerja, $bank, $rekening]);
+
+        $msg = "Pegawai Baru Berhasil Ditambahkan!";
+    }
+
+    $db->commit();
+    echo json_encode(["status" => "success", "message" => $msg]);
+
+} catch (Exception $e) {
+    $db->rollBack();
+    echo json_encode(["status" => "error", "message" => "Gagal: " . $e->getMessage()]);
 }
 ?>

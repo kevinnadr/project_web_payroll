@@ -1,50 +1,119 @@
 <?php
-// FILE: backend-api/modules/pegawai/export_excel.php
-
-// 1. Config Database
 require_once '../../config/database.php';
-require_once '../../config/cors.php';
+require_once '../../vendor/autoload.php';
 
-// 2. Header agar browser tahu ini file Excel
-header("Content-type: application/vnd-ms-excel");
-header("Content-Disposition: attachment; filename=Data_Pegawai_Payroll.xls");
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
-// 3. Ambil Semua Data Pegawai
-try {
-    $sql = "SELECT nik, nama_lengkap, jabatan, gaji_pokok, email, tanggal_masuk FROM pegawai ORDER BY nama_lengkap ASC";
-    $stmt = $db->query($sql);
-    $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (Exception $e) {
-    echo "Error: " . $e->getMessage();
-    exit;
+$bulan = $_GET['bulan'] ?? date('Y-m');
+
+// 1. AMBIL ATURAN DENDA
+$stmtRule = $db->query("SELECT * FROM aturan_gaji LIMIT 1");
+$rule = $stmtRule->fetch(PDO::FETCH_ASSOC);
+$denda_awal = $rule['denda_keterlambatan_awal'] ?? 0;
+$denda_per_15 = $rule['denda_per_15_menit'] ?? 0;
+
+// 2. QUERY UTAMA (Semua Pegawai + Absensi)
+$sql = "SELECT p.*, 
+        COALESCE(a.hadir, 0) as hadir,
+        COALESCE(a.terlambat, 0) as terlambat,
+        COALESCE(a.`menit terlambat`, 0) as menit_terlambat
+        FROM pegawai p 
+        LEFT JOIN absensi a ON p.id = a.pegawai_id AND a.bulan = ?
+        ORDER BY p.nama_lengkap ASC";
+$stmt = $db->prepare($sql);
+$stmt->execute([$bulan]);
+$pegawaiList = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// 3. SETUP EXCEL
+$spreadsheet = new Spreadsheet();
+$sheet = $spreadsheet->getActiveSheet();
+$sheet->setTitle('Laporan Gaji ' . $bulan);
+
+// HEADER
+$headers = ['No', 'NIK', 'Nama Pegawai', 'Jabatan', 'Hadir', 'Gaji Pokok', 'Total Tunjangan', 'Denda Telat', 'Potongan Lain', 'Total Terima (THP)'];
+$col = 'A';
+foreach ($headers as $h) {
+    $sheet->setCellValue($col . '1', $h);
+    $sheet->getStyle($col . '1')->getFont()->setBold(true);
+    $sheet->getStyle($col . '1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFCCCCCC');
+    $col++;
 }
-?>
 
-<table border="1">
-    <thead>
-        <tr style="background-color: #fca5a5; font-weight: bold;">
-            <th>No</th>
-            <th>NIK</th>
-            <th>Nama Lengkap</th>
-            <th>Jabatan</th>
-            <th>Gaji Pokok</th>
-            <th>Email</th>
-            <th>Tanggal Masuk</th>
-        </tr>
-    </thead>
-    <tbody>
-        <?php 
-        $no = 1;
-        foreach($data as $row): 
-        ?>
-        <tr>
-            <td><?= $no++ ?></td>
-            <td style="mso-number-format:'\@';"><?= $row['nik'] ?></td> <td><?= $row['nama_lengkap'] ?></td>
-            <td><?= $row['jabatan'] ?></td>
-            <td><?= $row['gaji_pokok'] ?></td>
-            <td><?= $row['email'] ?></td>
-            <td><?= $row['tanggal_masuk'] ?></td>
-        </tr>
-        <?php endforeach; ?>
-    </tbody>
-</table>
+// ISI DATA
+$rowNum = 2;
+$no = 1;
+
+foreach ($pegawaiList as $p) {
+    // A. Ambil Komponen Pegawai Ini
+    $stmtKomp = $db->prepare("SELECT * FROM pegawai_komponen WHERE pegawai_id = ?");
+    $stmtKomp->execute([$p['id']]);
+    $komponen = $stmtKomp->fetchAll(PDO::FETCH_ASSOC);
+
+    // B. Hitung Tunjangan & Potongan Lain
+    $total_tunjangan = 0;
+    $total_potongan_lain = 0;
+
+    foreach ($komponen as $k) {
+        $nominal = 0;
+        // Cek Logika Harian vs Fixed
+        if ($k['tipe_hitungan'] === 'harian') {
+            $nominal = $k['nominal'] * $p['hadir'];
+        } else {
+            $nominal = $k['nominal'];
+        }
+
+        if ($k['jenis'] === 'penerimaan') {
+            $total_tunjangan += $nominal;
+        } else {
+            $total_potongan_lain += $nominal;
+        }
+    }
+
+    // C. Hitung Denda Telat
+    $denda_telat = 0;
+    if ($p['terlambat'] > 0 || $p['menit_terlambat'] > 0) {
+        $biaya_kali = $p['terlambat'] * $denda_awal;
+        $biaya_menit = floor($p['menit_terlambat'] / 15) * $denda_per_15;
+        $denda_telat = $biaya_kali + $biaya_menit;
+    }
+
+    // D. Hitung THP
+    $thp = ($p['gaji_pokok'] + $total_tunjangan) - ($denda_telat + $total_potongan_lain);
+
+    // Tulis ke Excel
+    $sheet->setCellValue('A' . $rowNum, $no++);
+    $sheet->setCellValue('B' . $rowNum, $p['nik']);
+    $sheet->setCellValue('C' . $rowNum, $p['nama_lengkap']);
+    $sheet->setCellValue('D' . $rowNum, $p['jabatan']);
+    $sheet->setCellValue('E' . $rowNum, $p['hadir']);
+    
+    // Format Angka
+    $sheet->setCellValue('F' . $rowNum, $p['gaji_pokok']);
+    $sheet->setCellValue('G' . $rowNum, $total_tunjangan);
+    $sheet->setCellValue('H' . $rowNum, $denda_telat);
+    $sheet->setCellValue('I' . $rowNum, $total_potongan_lain);
+    $sheet->setCellValue('J' . $rowNum, $thp);
+
+    // Styling Currency untuk kolom duit
+    $sheet->getStyle('F'.$rowNum.':J'.$rowNum)->getNumberFormat()->setFormatCode('#,##0');
+    
+    $rowNum++;
+}
+
+// Auto Size Column
+foreach (range('A', 'J') as $col) {
+    $sheet->getColumnDimension($col)->setAutoSize(true);
+}
+
+// Output File
+header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+header('Content-Disposition: attachment;filename="Laporan_Gaji_'.$bulan.'.xlsx"');
+header('Cache-Control: max-age=0');
+
+$writer = new Xlsx($spreadsheet);
+$writer->save('php://output');
+exit;
+?>
