@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar'; // <--- Import Sidebar Baru
+import Sidebar from '../components/sidebar'; // <--- Import Sidebar Baru
 import '../App.css';
 
 const UserManagement = () => {

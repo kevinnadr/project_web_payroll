@@ -360,3 +360,296 @@ input[type=number]::-webkit-outer-spin-button {
     cursor: pointer;
     font-weight: bold;
 }
+
+/* Container & Table Dasar */
+.table-container-modern {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #edf2f7;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.modern-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.modern-table th {
+    background-color: #f8fafc;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    padding: 16px 20px;
+    border-bottom: 2px solid #edf2f7;
+    text-align: left;
+}
+
+.modern-table td {
+    padding: 16px 20px;
+    border-bottom: 1px solid #edf2f7;
+    vertical-align: middle;
+}
+
+.table-row-hover:hover {
+    background-color: #f9fafb;
+}
+
+/* Profil Pegawai di Tabel */
+.user-profile-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.avatar-circle {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.user-name {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.user-nik {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+/* Badges / Angka Absensi */
+.count-badge {
+    display: inline-block;
+    min-width: 32px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.count-hadir { background: #f0fdf4; color: #16a34a; }
+.count-sakit { background: #eff6ff; color: #2563eb; }
+.count-izin { background: #fffbeb; color: #d97706; }
+.count-alpha { background: #f1f5f9; color: #475569; }
+.count-alpha-danger { background: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; }
+
+/* Tombol Aksi */
+.btn-table-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: white;
+    color: #4f46e5;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-table-edit:hover {
+    background: #4f46e5;
+    color: white;
+    border-color: #4f46e5;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+}
+
+/* State Lainnya */
+.text-center-padding { padding: 40px !important; }
+.no-data { color: #94a3b8; font-style: italic; }
+.loading-state { display: flex; flex-direction: column; align-items: center; gap: 10px; color: #6366f1; }
+
+/* --- Modal Absensi Styling --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.6); /* Overlay gelap transparan */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content-fixed {
+    background: white;
+    border-radius: 16px;
+    width: 90%;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header-modern {
+    padding: 20px 24px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-body-scrollable {
+    padding: 24px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.modal-footer-sticky {
+    padding: 16px 24px;
+    background: #f8fafc;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+}
+
+/* Tombol-tombol di Modal */
+.btn-close-x {
+    background: #f1f5f9;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #64748b;
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-simpan-full {
+    background: #4f46e5;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-batal {
+    background: white;
+    border: 1px solid #e2e8f0;
+    padding: 10px 20px;
+    border-radius: 8px;
+    color: #64748b;
+    cursor: pointer;
+}
+
+/* --- Modal & Overlay --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(2px);
+}
+
+.modal-content-fixed {
+    background: white;
+    border-radius: 12px;
+    width: 95%;
+    max-width: 500px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+
+.modal-header-modern {
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8fafc;
+}
+
+.modal-body-scrollable { padding: 20px; }
+.modal-footer-sticky {
+    padding: 15px 20px;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* --- Utility Classes --- */
+.count-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 12px;
+}
+.count-hadir { background: #dcfce7; color: #166534; }
+.count-sakit { background: #dbeafe; color: #1e40af; }
+.count-izin { background: #fef9c3; color: #854d0e; }
+.count-alpha { background: #f1f5f9; color: #475569; }
+.count-alpha-danger { background: #fee2e2; color: #991b1b; }
+
+.btn-table-edit {
+    background: #4f46e5;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.input-bpjs {
+    border-left: 4px solid #4318ff !important;
+    background: #f0f7ff;
+}
+
+.summary-box-modal {
+    background: #f8fafc;
+    padding: 15px;
+    border-radius: 12px;
+    margin-top: 20px;
+    border: 1px dashed #cbd5e1;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 5px;
+}
+
+.summary-item.total {
+    font-weight: 800;
+    font-size: 16px;
+    margin-top: 5px;
+}
+
+.disabled-input {
+    background: #f1f5f9;
+    color: #94a3b8;
+}

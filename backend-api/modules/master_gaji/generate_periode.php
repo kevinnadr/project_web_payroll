@@ -2,79 +2,57 @@
 require_once '../../config/database.php';
 require_once '../../config/cors.php';
 
-$input = json_decode(file_get_contents("php://input"));
-$bulan = $input->bulan ?? date('Y-m');
+$input = json_decode(file_get_contents("php://input"), true);
+$bulan = $input['bulan'] ?? date('Y-m');
 
 try {
     $db->beginTransaction();
 
-    // 1. Ambil data dasar & BPJS dari komponen_gaji
-    $sql = "SELECT p.id, p.nama_lengkap, g.gaji_pokok, g.ikut_bpjs_tk, g.ikut_bpjs_ks 
+    // Ambil data acuan dari Master (komponen_gaji) dan Absensi
+    $sql = "SELECT p.id, p.nama_lengkap, g.gaji_pokok, g.ikut_bpjs_tk, g.ikut_bpjs_ks,
+                   COALESCE(a.hadir, 0) as hadir,
+                   COALESCE(a.telat_x, 0) as telat_x,
+                   COALESCE(a.telat_m, 0) as telat_m
             FROM data_pegawai p
-            JOIN komponen_gaji g ON p.id = g.pegawai_id";
-    $pegawais = $db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+            LEFT JOIN komponen_gaji g ON p.id = g.pegawai_id
+            LEFT JOIN data_absensi a ON p.id = a.pegawai_id AND a.bulan = ?";
+    
+    $stmt = $db->prepare($sql);
+    $stmt->execute([$bulan]);
+    $pegawais = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($pegawais as $p) {
-        $total_penerimaan = $p['gaji_pokok'];
-        $total_potongan = 0;
-        $rincian_slip = [];
+        // --- LOGIKA POTONGAN BPJS (Fixed Amount sesuai Gambar) ---
+        $potongan_tk = ($p['ikut_bpjs_tk'] == 1) ? 46606 : 0;
+        $potongan_ks = ($p['ikut_bpjs_ks'] == 1) ? 24684 : 0;
 
-        // 2. Ambil Komponen Dinamis (Harian/Mingguan/Bulanan)
-        $stmtK = $db->prepare("SELECT * FROM pegawai_komponen WHERE pegawai_id = ?");
-        $stmtK->execute([$p['id']]);
-        $komponens = $stmtK->fetchAll(PDO::FETCH_ASSOC);
-
-        foreach ($komponens as $k) {
-            $nominal_final = $k['nominal'];
-            
-            // Logika Frekuensi
-            if ($k['tipe_hitungan'] === 'harian') {
-                // Contoh: Ambil data hadir dari tabel absensi (asumsi 22 hari jika belum ada absensi)
-                $nominal_final = $k['nominal'] * 22; 
-            } elseif ($k['tipe_hitungan'] === 'mingguan') {
-                $nominal_final = $k['nominal'] * 4;
-            }
-
-            if ($k['jenis'] === 'penerimaan') {
-                $total_penerimaan += $nominal_final;
-            } else {
-                $total_potongan += $nominal_final;
-            }
-
-            $rincian_slip[] = [
-                "nama" => $k['nama_komponen'] . " (" . $k['tipe_hitungan'] . ")",
-                "jenis" => $k['jenis'],
-                "nilai" => $nominal_final
-            ];
-        }
-
-        // 3. Hitung BPJS Otomatis (Jika Aktif)
-        if ($p['ikut_bpjs_tk']) {
-            $pot_tk = $p['gaji_pokok'] * 0.03; // Contoh 3%
-            $total_potongan += $pot_tk;
-            $rincian_slip[] = ["nama" => "BPJS TK (JHT & JP)", "jenis" => "potongan", "nilai" => $pot_tk];
-        }
-        if ($p['ikut_bpjs_ks']) {
-            $pot_ks = $p['gaji_pokok'] * 0.01; // Contoh 1%
-            $total_potongan += $pot_ks;
-            $rincian_slip[] = ["nama" => "BPJS Kesehatan", "jenis" => "potongan", "nilai" => $pot_ks];
-        }
-
+        // Hitung Denda Telat
+        $denda_telat = ($p['telat_x'] * 5000) + (ceil($p['telat_m'] / 15) * 20000);
+        
+        // Hitung Penerimaan (Contoh: Gaji Pokok + Uang Makan Harian 25rb)
+        $total_uang_makan = $p['hadir'] * 25000;
+        $total_penerimaan = $p['gaji_pokok'] + $total_uang_makan;
+        
+        $total_potongan = $denda_telat + $potongan_tk + $potongan_ks;
         $gaji_bersih = $total_penerimaan - $total_potongan;
 
-        // 4. Simpan Snapshot ke riwayat_gaji
-        $stmtIns = $db->prepare("INSERT INTO riwayat_gaji (pegawai_id, bulan, gaji_pokok, total_penerimaan, total_potongan, gaji_bersih, rincian_komponen) 
-            VALUES (?, ?, ?, ?, ?, ?, ?) 
-            ON DUPLICATE KEY UPDATE gaji_pokok=VALUES(gaji_pokok), total_penerimaan=VALUES(total_penerimaan), 
-            total_potongan=VALUES(total_potongan), gaji_bersih=VALUES(gaji_bersih), rincian_komponen=VALUES(rincian_komponen)");
-        
-        $stmtIns->execute([
-            $p['id'], $bulan, $p['gaji_pokok'], $total_penerimaan, $total_potongan, $gaji_bersih, json_encode($rincian_slip)
+        // 1. Simpan ke riwayat_gaji (Untuk Slip & Tabel Utama)
+        $insGaji = $db->prepare("REPLACE INTO riwayat_gaji 
+            (pegawai_id, bulan, gaji_pokok, total_penerimaan, total_potongan, gaji_bersih, bpjs_tk, bpjs_ks) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $insGaji->execute([
+            $p['id'], $bulan, $p['gaji_pokok'], $total_penerimaan, $total_potongan, $gaji_bersih, $potongan_tk, $potongan_ks
         ]);
+
+        // 2. Simpan ke riwayat_potongan_bpjs (Untuk Laporan BPJS Detail)
+        $insBPJS = $db->prepare("REPLACE INTO riwayat_potongan_bpjs 
+            (pegawai_id, bulan, bpjs_tk_karyawan, bpjs_ks_karyawan) 
+            VALUES (?, ?, ?, ?)");
+        $insBPJS->execute([$p['id'], $bulan, $potongan_tk, $potongan_ks]);
     }
 
     $db->commit();
-    echo json_encode(["status" => "success", "message" => "Gaji berhasil di-generate!"]);
+    echo json_encode(["status" => "success", "message" => "Riwayat Gaji & BPJS periode $bulan berhasil dikunci!"]);
 } catch (Exception $e) {
     $db->rollBack();
     echo json_encode(["status" => "error", "message" => $e->getMessage()]);

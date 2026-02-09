@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
+import Sidebar from '../components/sidebar';
 import '../App.css';
 
 const Absensi = () => {
@@ -12,16 +12,16 @@ const Absensi = () => {
     const [loading, setLoading] = useState(false);
     const [bulanFilter, setBulanFilter] = useState(new Date().toISOString().slice(0, 7));
     
-    // Ref untuk input file import
     const fileInputRef = useRef(null);
-
-    // State untuk Modal Edit
-    const [showModal, setShowModal] = useState(false);
-    const [editData, setEditData] = useState({
-        pegawai_id: '', nama_lengkap: '', hadir: 0, sakit: 0, izin: 0, alpha: 0
-    });
-
     const navigate = useNavigate();
+
+    // State Modal sesuai struktur database data_absensi
+    const [showModal, setShowModal] = useState(false);
+    const [showFormatModal, setShowFormatModal] = useState(false);
+    const [editData, setEditData] = useState({
+        pegawai_id: '', nik: '', nama_lengkap: '', 
+        hadir: 0, sakit: 0, izin: 0, cuti: 0, telat_x: 0, telat_m: 0
+    });
 
     useEffect(() => {
         const userData = localStorage.getItem('user');
@@ -40,18 +40,30 @@ const Absensi = () => {
                 setListAbsensi(res.data.data);
                 setFilteredList(res.data.data);
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Fetch Error:", e); }
         finally { setLoading(false); }
     };
 
-    // --- FUNGSI FORMAT & TEMPLATE ---
-    const handleShowFormat = () => {
-        alert("FORMAT IMPORT CSV:\n1. Kolom harus berurutan: NIK, Nama, Hadir, Sakit, Izin, Alpha\n2. Gunakan pemisah koma (,)\n3. Pastikan NIK sesuai dengan data di sistem.");
+    useEffect(() => {
+        const lower = searchTerm.toLowerCase();
+        setFilteredList(listAbsensi.filter(item => 
+            (item.nama_lengkap?.toLowerCase().includes(lower)) || (item.nik?.includes(lower))
+        ));
+    }, [searchTerm, listAbsensi]);
+
+    // --- LOGIKA PERHITUNGAN DENDA TELAT ---
+    const calculateLatePenalty = (tx, tm) => {
+        const x = parseInt(tx || 0);
+        const m = parseInt(tm || 0);
+        if (x <= 0) return 0;
+        // Aturan: 5rb flat per kejadian + 20rb per kelipatan 15 menit
+        return (x * 5000) + (Math.ceil(m / 15) * 20000);
     };
 
+    // --- FUNGSI EXPORT & TEMPLATE ---
     const handleDownloadTemplate = () => {
-        const header = "NIK,Nama,Hadir,Sakit,Izin,Alpha\n";
-        const rows = listAbsensi.map(p => `${p.nik},${p.nama_lengkap},0,0,0,0`).join("\n");
+        const header = "NIK,Nama,Hadir,Sakit,Izin,Cuti,Telat_Frekuensi,Telat_Menit\n";
+        const rows = listAbsensi.map(p => `${p.nik},${p.nama_lengkap},0,0,0,0,0,0`).join("\n");
         const blob = new Blob([header + rows], { type: 'text/csv' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -60,9 +72,7 @@ const Absensi = () => {
         a.click();
     };
 
-    // --- FUNGSI IMPORT ---
-    const handleImportClick = () => fileInputRef.current.click();
-
+    // --- FUNGSI IMPORT CSV ---
     const handleFileChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -70,33 +80,84 @@ const Absensi = () => {
         const reader = new FileReader();
         reader.onload = async (event) => {
             const text = event.target.result;
-            const rows = text.split("\n").slice(1); // Lewati header
-            
-            setLoading(true);
-            try {
-                // Proses baris demi baris (sederhana)
-                for (let row of rows) {
-                    const cols = row.split(",");
-                    if (cols.length >= 6) {
-                        const nik = cols[0].trim();
-                        // Cari ID pegawai berdasarkan NIK di list
-                        const p = listAbsensi.find(item => item.nik === nik);
-                        if (p) {
-                            await axios.post(`http://localhost/project_web_payroll/backend-api/modules/absensi/save.php`, {
-                                pegawai_id: p.pegawai_id,
-                                bulan: bulanFilter,
-                                hadir: cols[2], sakit: cols[3], izin: cols[4], alpha: cols[5]
-                            });
-                        }
-                    }
+            const rows = text.split("\n").filter(r => r.trim() !== "");
+            if (rows.length < 2) { alert('File kosong atau tidak ada data.'); e.target.value = null; return; }
+
+            // parse header and normalize
+            const header = rows[0].split(",").map(h => h.trim().toLowerCase());
+            // acceptable mappings
+            const mapHeaderToKey = (h) => {
+                h = h.replace(/\s+/g, '_');
+                if (['nik','id_karyawan'].includes(h)) return 'nik';
+                if (['nama','name'].includes(h)) return 'nama_lengkap';
+                if (['hadir','kehadiran'].includes(h)) return 'hadir';
+                if (['sakit'].includes(h)) return 'sakit';
+                if (['izin'].includes(h)) return 'izin';
+                if (['cuti'].includes(h)) return 'cuti';
+                if (['alpha','absen'].includes(h)) return 'alpha';
+                if (['telat_frekuensi','telat_x','telat_frequency'].includes(h)) return 'telat_x';
+                if (['telat_menit','telat_m','telat_minutes'].includes(h)) return 'telat_m';
+                return null;
+            };
+
+            const headerMap = header.map(h=>mapHeaderToKey(h));
+            const required = ['nik','hadir','sakit','izin','cuti','telat_x','telat_m'];
+            const missing = required.filter(rk => !headerMap.includes(rk));
+            if (missing.length > 0) {
+                alert('Header CSV tidak sesuai. Kolom yang hilang: ' + missing.join(', '));
+                e.target.value = null; return;
+            }
+
+            const dataToImport = [];
+            const errors = [];
+
+            for (let i = 1; i < rows.length; i++) {
+                const cols = rows[i].split(",").map(c => c.trim());
+                if (cols.length === 0 || (cols.length === 1 && cols[0]==='')) continue;
+
+                const rowObj = {};
+                for (let c = 0; c < headerMap.length; c++) {
+                    const key = headerMap[c];
+                    if (!key) continue;
+                    rowObj[key] = cols[c] !== undefined ? cols[c] : '';
                 }
-                alert("Import Berhasil!");
-                fetchData();
-            } catch (err) {
-                alert("Terjadi kesalahan saat import.");
-            } finally {
-                setLoading(false);
-                e.target.value = null;
+
+                const rowNum = i+1;
+                if (!rowObj.nik || rowObj.nik === '') { errors.push(`Baris ${rowNum}: kolom NIK kosong`); continue; }
+
+                // validate numeric fields
+                const numFields = ['hadir','sakit','izin','cuti','telat_x','telat_m'];
+                let skip = false;
+                for (const nf of numFields) {
+                    const val = rowObj[nf] === undefined || rowObj[nf] === '' ? '0' : rowObj[nf];
+                    if (isNaN(val)) { errors.push(`Baris ${rowNum}: kolom ${nf} harus angka`); skip = true; break; }
+                    if (Number(val) < 0) { errors.push(`Baris ${rowNum}: kolom ${nf} tidak boleh negatif`); skip = true; break; }
+                    rowObj[nf] = parseInt(Number(val));
+                }
+                if (skip) continue;
+
+                // compute alpha if missing
+                if (rowObj.alpha === undefined || rowObj.alpha === '') {
+                    rowObj.alpha = Math.max(0, 22 - (rowObj.hadir + rowObj.sakit + rowObj.izin + rowObj.cuti));
+                } else {
+                    rowObj.alpha = parseInt(Number(rowObj.alpha));
+                }
+
+                dataToImport.push(rowObj);
+            }
+
+            if (errors.length > 0) { alert('Validasi gagal:\n' + errors.join('\n')); e.target.value = null; return; }
+
+            if (dataToImport.length > 0) {
+                setLoading(true);
+                try {
+                    const res = await axios.post(`http://localhost/project_web_payroll/backend-api/modules/absensi/import_excel.php`, {
+                        bulan: bulanFilter, data: dataToImport
+                    });
+                    alert(res.data.message);
+                    await fetchData();
+                } catch (err) { alert("Gagal Import."); }
+                finally { setLoading(false); e.target.value = null; }
             }
         };
         reader.readAsText(file);
@@ -108,85 +169,79 @@ const Absensi = () => {
             const res = await axios.post(`http://localhost/project_web_payroll/backend-api/modules/absensi/save.php`, {
                 ...editData, bulan: bulanFilter
             });
-            setShowModal(false);
-            fetchData();
-        } catch (e) { alert("Gagal simpan."); }
+            if (res.data.status === 'success') {
+                setShowModal(false);
+                await fetchData(); // Update UI langsung
+            } else { alert(res.data.message); }
+        } catch (e) { alert("Gagal Simpan"); }
     };
 
-    useEffect(() => {
-        const lower = searchTerm.toLowerCase();
-        setFilteredList(listAbsensi.filter(item => 
-            (item.nama_lengkap?.toLowerCase().includes(lower)) || (item.nik?.includes(lower))
-        ));
-    }, [searchTerm, listAbsensi]);
+    const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 
     return (
         <div className="app-layout">
             <Sidebar user={user} />
-            <main className="main-content">
-                <div className="page-header-modern">
+            <main className="main-content" style={{ background: '#f4f7fe', minHeight: '100vh' }}>
+                
+                <div className="page-header-modern" style={{ marginBottom: '20px' }}>
                     <div>
-                        <h1 className="modern-title">Data Kehadiran</h1>
-                        <p className="modern-subtitle">Kelola absensi pegawai periode <b>{bulanFilter}</b></p>
-                    </div>
-                    <div className="periode-wrapper">
-                        <input type="month" className="input-month-modern" value={bulanFilter} onChange={(e) => setBulanFilter(e.target.value)} />
+                        <h1 style={{ fontSize: '2.2rem', fontWeight: '800', color: '#1b2559', margin: 0 }}>Input Absensi</h1>
+                        <p style={{ color: '#a3aed0', fontWeight: '500' }}>Kelola kehadiran dan denda keterlambatan pegawai.</p>
                     </div>
                 </div>
 
-                <div className="absensi-card-top-modern">
-                    <div className="top-toolbar">
-                        <div className="search-box-modern">
-                            <span>🔍</span>
-                            <input type="text" placeholder="Cari Pegawai..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                <div style={{ background: 'white', padding: '12px 20px', borderRadius: '15px', display: 'inline-flex', alignItems: 'center', gap: '12px', boxShadow: '0px 4px 12px rgba(0,0,0,0.03)', marginBottom: '20px' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#1b2559' }}>Periode:</span>
+                    <input type="month" value={bulanFilter} onChange={(e) => setBulanFilter(e.target.value)} style={{ border: 'none', fontWeight: '600', color: '#1b2559', outline: 'none' }} />
+                </div>
+
+                {/* --- CARD IMPORT EXPORT --- */}
+                <div style={{ background: 'white', padding: '25px', borderRadius: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', boxShadow: '0px 10px 30px rgba(0,0,0,0.02)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                        <div style={{ background: '#fff9e6', width: '50px', height: '50px', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem' }}>📂</div>
+                        <div>
+                            <h4 style={{ margin: 0, color: '#1b2559', fontWeight: '700' }}>Import / Export Data</h4>
+                            <p style={{ margin: 0, color: '#a3aed0', fontSize: '0.85rem' }}>Upload CSV untuk update massal kehadiran.</p>
                         </div>
-                        <div className="action-group">
-                            <button className="btn-action-outline" onClick={handleShowFormat}>ℹ️ Format</button>
-                            <button className="btn-action-outline" onClick={handleDownloadTemplate}>📄 Template</button>
-                            <button className="btn-action-danger">📥 Export</button>
-                            
-                            {/* Input File Tersembunyi */}
-                            <input type="file" ref={fileInputRef} style={{display:'none'}} accept=".csv" onChange={handleFileChange} />
-                            <button className="btn-action-primary" onClick={handleImportClick}>📁 Import CSV</button>
-                        </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '15px' }}>
+                        <button className="btn-modern btn-outline" onClick={handleDownloadTemplate}>⬇️ Template CSV</button>
+                        <button className="btn-modern btn-outline" onClick={() => setShowFormatModal(true)}>📋 Format</button>
+                        <button className="btn-modern btn-outline" style={{color: '#22c55e'}} onClick={() => window.open(`http://localhost/project_web_payroll/backend-api/modules/absensi/export_excel.php?bulan=${bulanFilter}`, '_blank')}>📊 Export Excel</button>
+                        <button className="btn-modern btn-primary" style={{background: '#4318ff'}} onClick={() => fileInputRef.current.click()}>⬆️ Import CSV</button>
+                        <input type="file" ref={fileInputRef} style={{display:'none'}} accept=".csv" onChange={handleFileChange} />
                     </div>
                 </div>
 
-                <div className="table-card-modern">
-                    <table className="modern-table">
+                <div className="table-container-modern" style={{ background: 'white', borderRadius: '25px', padding: '10px 25px 25px', boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.02)' }}>
+                    <table className="modern-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
-                            <tr>
-                                <th>Pegawai</th>
-                                <th className="text-center">Hadir</th>
-                                <th className="text-center">Sakit</th>
-                                <th className="text-center">Izin</th>
-                                <th className="text-center">Alpha</th>
-                                <th className="text-center">Aksi</th>
+                            <tr style={{ borderBottom: '1px solid #f4f7fe' }}>
+                                <th style={{ textAlign: 'left', color: '#a3aed0', padding: '20px 10px' }}>Pegawai</th>
+                                <th className="text-center" style={{ color: '#a3aed0' }}>Hadir</th>
+                                <th className="text-center" style={{ color: '#a3aed0' }}>S/I/C</th>
+                                <th className="text-center" style={{ color: '#ee5d50' }}>Telat (x)</th>
+                                <th className="text-center" style={{ color: '#ee5d50' }}>Menit</th>
+                                <th className="text-center" style={{ color: '#ee5d50' }}>Denda</th>
+                                <th className="text-center" style={{ color: '#a3aed0' }}>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {loading ? (
-                                <tr><td colSpan="6" className="text-center-padding">⏳ Memproses data...</td></tr>
-                            ) : filteredList.map((row) => (
-                                <tr key={row.pegawai_id}>
-                                    <td>
-                                        <div className="user-flex">
-                                            <div className="avatar-small">{row.nama_lengkap.charAt(0)}</div>
-                                            <div>
-                                                <div className="u-name">{row.nama_lengkap}</div>
-                                                <div className="u-nik">{row.nik}</div>
-                                            </div>
+                            {!loading && filteredList.map((row) => (
+                                <tr key={row.pegawai_id} style={{ borderBottom: '1px solid #f4f7fe' }}>
+                                    <td style={{ padding: '20px 10px' }}>
+                                        <div className="user-profile">
+                                            <div className="avatar-circle" style={{ background: '#f4f7fe', color: '#4318ff', fontWeight: '700' }}>{row.nama_lengkap?.charAt(0)}</div>
+                                            <div><div className="user-name" style={{ color: '#1b2559', fontWeight: '700' }}>{row.nama_lengkap}</div><div className="user-nik" style={{ color: '#a3aed0', fontSize: '0.8rem' }}>{row.nik}</div></div>
                                         </div>
                                     </td>
-                                    <td className="text-center font-bold text-success">{row.hadir}</td>
-                                    <td className="text-center">{row.sakit}</td>
-                                    <td className="text-center">{row.izin}</td>
-                                    <td className="text-center text-danger font-bold">{row.alpha}</td>
+                                    <td className="text-center"><div style={{ background: '#f4f7fe', padding: '8px 15px', borderRadius: '10px', fontWeight: '700', color: '#1b2559' }}>{row.hadir}</div></td>
+                                    <td className="text-center" style={{ fontWeight: '600' }}>{row.sakit}/{row.izin}/{row.cuti}</td>
+                                    <td className="text-center"><div style={{ color: row.telat_x > 0 ? '#ee5d50' : '#1b2559', fontWeight: '800' }}>{row.telat_x}x</div></td>
+                                    <td className="text-center"><span style={{ fontWeight: '700' }}>{row.telat_m}m</span></td>
+                                    <td className="text-center" style={{ color: '#ee5d50', fontWeight: '800', fontSize: '0.85rem' }}>{row.telat_x > 0 ? formatRp(calculateLatePenalty(row.telat_x, row.telat_m)) : '-'}</td>
                                     <td className="text-center">
-                                        <button className="btn-edit-circle" onClick={() => {
-                                            setEditData({...row});
-                                            setShowModal(true);
-                                        }}>✏️</button>
+                                        <button className="btn-icon-modern edit" onClick={() => { setEditData({...row}); setShowModal(true); }}>⚙️</button>
                                     </td>
                                 </tr>
                             ))}
@@ -195,58 +250,85 @@ const Absensi = () => {
                 </div>
             </main>
 
-            {/* Modal Edit (Gunakan style modal yang sudah ada di App.css) */}
+            {/* MODAL EDIT */}
             {showModal && (
-                <div className="modal-overlay">
-                    <div className="modal-content-fixed" style={{maxWidth:'400px'}}>
-                        <div className="modal-header-modern">
-                            <h3>Edit Absen: {editData.nama_lengkap}</h3>
-                            <button className="btn-close-x" onClick={()=>setShowModal(false)}>&times;</button>
+                <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+                    <div className="modal-content-modern" style={{ background: 'white', width: '450px', borderRadius: '30px', overflow: 'hidden', boxShadow: '0px 20px 40px rgba(0, 0, 0, 0.1)' }}>
+                        <div className="modal-header-modern" style={{ padding: '25px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0, color: '#1b2559', fontWeight: '800' }}>Update Kehadiran</h3>
+                            <button onClick={()=>setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
                         </div>
-                        <form onSubmit={handleSaveAbsensi}>
-                            <div className="modal-body-scrollable">
-                                <div className="form-group-modern">
-                                    <label>Hadir</label>
-                                    <input type="number" className="input-hero-salary" value={editData.hadir} onChange={e=>setEditData({...editData, hadir: e.target.value})} />
-                                </div>
-                                <div className="form-group-modern">
-                                    <label>Sakit</label>
-                                    <input type="number" className="input-hero-salary" value={editData.sakit} onChange={e=>setEditData({...editData, sakit: e.target.value})} />
-                                </div>
-                                <div className="form-group-modern">
-                                    <label>Izin</label>
-                                    <input type="number" className="input-hero-salary" value={editData.izin} onChange={e=>setEditData({...editData, izin: e.target.value})} />
-                                </div>
-                                <div className="form-group-modern">
-                                    <label>Alpha</label>
-                                    <input type="number" className="input-hero-salary" value={editData.alpha} onChange={e=>setEditData({...editData, alpha: e.target.value})} />
+                        <form onSubmit={handleSaveAbsensi} style={{ padding: '20px 30px 30px' }}>
+                            <div className="form-group-modern" style={{ marginBottom: '15px' }}><label>Hadir (Hari)</label><input type="number" value={editData.hadir} onChange={e=>setEditData({...editData, hadir: e.target.value})} /></div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                                <div className="form-group-modern"><label>Sakit</label><input type="number" value={editData.sakit} onChange={e=>setEditData({...editData, sakit: e.target.value})} /></div>
+                                <div className="form-group-modern"><label>Izin</label><input type="number" value={editData.izin} onChange={e=>setEditData({...editData, izin: e.target.value})} /></div>
+                                <div className="form-group-modern"><label>Cuti</label><input type="number" value={editData.cuti} onChange={e=>setEditData({...editData, cuti: e.target.value})} /></div>
+                            </div>
+                            <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '20px', marginBottom: '20px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                    <div className="form-group-modern"><label>Telat (x)</label><input type="number" value={editData.telat_x} onChange={e=>setEditData({...editData, telat_x: e.target.value})} /></div>
+                                    <div className="form-group-modern"><label>Menit (m)</label><input type="number" value={editData.telat_m} onChange={e=>setEditData({...editData, telat_m: e.target.value})} /></div>
                                 </div>
                             </div>
-                            <div className="modal-footer-sticky">
-                                <button type="button" className="btn-batal" onClick={()=>setShowModal(false)}>Batal</button>
-                                <button type="submit" className="btn-simpan-full">Update Data</button>
-                            </div>
+                            <button type="submit" style={{ width: '100%', padding: '16px', borderRadius: '16px', background: '#4318ff', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer' }}>Update Data</button>
                         </form>
                     </div>
                 </div>
             )}
 
+            {showFormatModal && (
+                <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+                    <div className="modal-content-modern" style={{ background: 'white', width: '850px', borderRadius: '30px', overflow: 'hidden', boxShadow: '0px 20px 40px rgba(0, 0, 0, 0.1)', maxHeight: '80vh', overflowY: 'auto' }}>
+                        <div className="modal-header-modern" style={{ padding: '25px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0, color: '#1b2559', fontWeight: '800' }}>📋 Format Import Data Absensi</h3>
+                            <button onClick={()=>setShowFormatModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+                        </div>
+                        <div style={{ padding: '25px' }}>
+                            <p style={{marginBottom:'20px', color:'#64748b', fontSize:'0.95rem'}}>Gunakan format CSV berikut untuk import data absensi. Pastikan semua kolom sesuai dengan urutan dan tipe data yang ditentukan:</p>
+                            <div style={{overflowX:'auto'}}>
+                                <table style={{width:'100%', borderCollapse:'collapse', marginBottom:'25px'}}>
+                                    <thead>
+                                        <tr style={{background:'#4318ff', color:'white'}}>
+                                            <th style={{padding:'12px', textAlign:'left', fontWeight:'700', fontSize:'0.85rem'}}>No</th>
+                                            <th style={{padding:'12px', textAlign:'left', fontWeight:'700', fontSize:'0.85rem'}}>Kolom</th>
+                                            <th style={{padding:'12px', textAlign:'left', fontWeight:'700', fontSize:'0.85rem'}}>Tipe Data</th>
+                                            <th style={{padding:'12px', textAlign:'left', fontWeight:'700', fontSize:'0.85rem'}}>Contoh</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {[
+                                            {no:1, col:'NIK', tipe:'Text (max 20)', contoh:'2024001'},
+                                            {no:2, col:'Hadir', tipe:'Angka (0-30)', contoh:'20'},
+                                            {no:3, col:'Sakit', tipe:'Angka (0-30)', contoh:'1'},
+                                            {no:4, col:'Izin', tipe:'Angka (0-30)', contoh:'0'},
+                                            {no:5, col:'Cuti', tipe:'Angka (0-30)', contoh:'0'},
+                                            {no:6, col:'Alpha', tipe:'Angka (0-30) - auto hitung', contoh:'1'},
+                                            {no:7, col:'Telat_Frekuensi', tipe:'Angka (frekuensi terlambat)', contoh:'2'},
+                                            {no:8, col:'Telat_Menit', tipe:'Angka (total menit terlambat)', contoh:'45'},
+                                        ].map((item) => (
+                                            <tr key={item.no} style={{borderBottom:'1px solid #f1f5f9', background: item.no % 2 === 0 ? '#f8fafc' : 'white'}}>
+                                                <td style={{padding:'12px', fontSize:'0.9rem'}}><strong>{item.no}</strong></td>
+                                                <td style={{padding:'12px', fontSize:'0.9rem', fontWeight:'600', color:'#4318ff'}}>{item.col}</td>
+                                                <td style={{padding:'12px', fontSize:'0.9rem', color:'#64748b'}}>{item.tipe}</td>
+                                                <td style={{padding:'12px', fontSize:'0.9rem', fontFamily:'monospace', background:'#f1f5f9', borderRadius:'4px'}}>{item.contoh}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style={{background:'#fef3c7', border:'1px solid #fcd34d', padding:'15px', borderRadius:'8px', marginBottom:'20px'}}>
+                                <p style={{margin:'0', fontSize:'0.9rem', color:'#92400e'}}><strong>⚠️ Catatan:</strong> Kolom Alpha bisa diisi 0 atau angka jumlah hari yang tidak hadir (sistem akan menghitung otomatis jika kosong). Jumlah hadir + sakit + izin + cuti + alpha harus = 22 hari kerja.</p>
+                            </div>
+                            <button onClick={()=>setShowFormatModal(false)} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: '#4318ff', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer' }}>Mengerti</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <style>{`
-                .absensi-card-top-modern { background: white; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
-                .top-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
-                .search-box-modern { display: flex; align-items: center; background: #f1f5f9; padding: 10px 15px; border-radius: 12px; flex: 1; max-width: 400px; }
-                .search-box-modern input { border: none; background: transparent; outline: none; margin-left: 10px; width: 100%; font-size: 14px; }
-                .action-group { display: flex; gap: 8px; }
-                .btn-action-outline { padding: 10px 15px; border-radius: 10px; border: 1px solid #e2e8f0; background: white; font-weight: 700; font-size: 13px; cursor: pointer; transition: 0.2s; }
-                .btn-action-danger { padding: 10px 15px; border-radius: 10px; border: none; background: #fee2e2; color: #b91c1c; font-weight: 700; font-size: 13px; cursor: pointer; }
-                .btn-action-primary { padding: 10px 20px; border-radius: 10px; border: none; background: #4f46e5; color: white; font-weight: 700; font-size: 13px; cursor: pointer; }
-                
-                .user-flex { display: flex; align-items: center; gap: 12px; }
-                .avatar-small { width: 35px; height: 35px; background: #eff6ff; color: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; }
-                .u-name { font-weight: 700; color: #1e293b; font-size: 14px; }
-                .u-nik { font-size: 12px; color: #64748b; }
-                .btn-edit-circle { width: 32px; height: 32px; border-radius: 50%; border: none; background: #f1f5f9; cursor: pointer; transition: 0.2s; }
-                .btn-edit-circle:hover { background: #e2e8f0; transform: scale(1.1); }
+                .form-group-modern input { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #e0e5f2; outline: none; font-weight: 600; box-sizing: border-box; }
+                .form-group-modern label { display: block; color: #1b2559; font-weight: 700; font-size: 0.8rem; margin-bottom: 5px; }
             `}</style>
         </div>
     );

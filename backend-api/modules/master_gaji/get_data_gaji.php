@@ -1,58 +1,46 @@
 <?php
-// FILE: backend-api/modules/master_gaji/get_data_gaji.php
 require_once '../../config/database.php';
 require_once '../../config/cors.php';
 
+$bulan = $_GET['bulan'] ?? date('Y-m');
+
 try {
-    // Teknik GROUP_CONCAT: Menggabungkan banyak baris komponen menjadi satu string
-    // Format: Nama::Jenis::Nominal::Tipe || Nama::Jenis::Nominal::Tipe
     $sql = "SELECT 
-                p.id, 
-                p.nik, 
-                p.nama_lengkap, 
-                p.jabatan, 
-                COALESCE(i.gaji_pokok, 0) as gaji_pokok,
-                (
-                    SELECT GROUP_CONCAT(
-                        CONCAT(kg.nama_komponen, '::', kg.jenis, '::', pk.nominal, '::', kg.tipe_hitungan)
-                        SEPARATOR '||'
-                    )
-                    FROM pegawai_komponen pk
-                    JOIN komponen_gaji kg ON pk.komponen_id = kg.id
-                    WHERE pk.pegawai_id = p.id
-                ) as raw_komponen
-            FROM pegawai p
-            LEFT JOIN info_finansial i ON p.id = i.pegawai_id
-            ORDER BY p.nik ASC";
+                p.nik, p.nama_lengkap, p.jabatan, p.gaji_pokok, p.tunjangan_jabatan, p.tunjangan_transport,
+                a.hadir, a.sakit, a.izin, a.cuti, a.alpha, a.telat_x, a.telat_m
+            FROM data_pegawai p
+            LEFT JOIN data_absensi a ON p.id = a.pegawai_id AND a.bulan = ?
+            WHERE a.id IS NOT NULL";
+            
+    $stmt = $db->prepare($sql);
+    $stmt->execute([$bulan]);
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $stmt = $db->query($sql);
-    $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $final_data = array_map(function($row) use ($bulan) {
+        // Logika Denda Terlambat: 5rb flat + 20rb per kelipatan 15 menit
+        $denda_flat = $row['telat_x'] * 5000;
+        $denda_menit = ceil($row['telat_m'] / 15) * 20000;
+        $total_denda_telat = $denda_flat + $denda_menit;
 
-    // Parsing String menjadi Array JSON yang rapi untuk Frontend
-    foreach ($data as &$row) {
-        $row['list_komponen'] = [];
-        
-        if (!empty($row['raw_komponen'])) {
-            $items = explode('||', $row['raw_komponen']);
-            foreach ($items as $item) {
-                $parts = explode('::', $item);
-                if (count($parts) === 4) {
-                    $row['list_komponen'][] = [
-                        'nama'    => $parts[0],
-                        'jenis'   => $parts[1], // penerimaan / potongan
-                        'nominal' => $parts[2],
-                        'tipe'    => $parts[3]  // fixed / harian
-                    ];
-                }
-            }
-        }
-        // Hapus raw string agar respons bersih
-        unset($row['raw_komponen']);
-    }
+        // Total Transport: Harian * Kehadiran
+        $total_transport = $row['tunjangan_transport'] * $row['hadir'];
 
-    echo json_encode(["status" => "success", "data" => $data]);
+        // Potongan BPJS (Misal Flat 100rb seperti di gambar)
+        $bpjs = 100000;
 
-} catch (PDOException $e) {
+        // Gaji Bersih
+        $gaji_bersih = ($row['gaji_pokok'] + $row['tunjangan_jabatan'] + $total_transport) - ($bpjs + $total_denda_telat);
+
+        return array_merge($row, [
+            'bulan' => $bulan,
+            'total_transport' => $total_transport,
+            'denda_telat' => $total_denda_telat,
+            'bpjs' => $bpjs,
+            'gaji_bersih' => $gaji_bersih
+        ]);
+    }, $results);
+
+    echo json_encode(["status" => "success", "data" => $final_data]);
+} catch (Exception $e) {
     echo json_encode(["status" => "error", "message" => $e->getMessage()]);
 }
-?>

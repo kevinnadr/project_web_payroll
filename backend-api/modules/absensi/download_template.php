@@ -1,36 +1,14 @@
 <?php
-// FILE: backend-api/modules/absensi/download_template.php
-require_once '../../config/cors.php';
+// backend-api/modules/absensi/download_template.php
+header('Content-Type: text/csv');
+header('Content-Disposition: attachment; filename="template_import_absensi.csv"');
 
-header("Content-Type: application/vnd.ms-excel");
-header("Content-Disposition: attachment; filename=Template_Import_Absensi.xls");
-header("Pragma: no-cache");
-header("Expires: 0");
+$output = fopen('php://output', 'w');
+// Header sesuai urutan yang diharapkan sistem import
+fputcsv($output, ['NIK', 'Nama Lengkap', 'Hadir', 'Sakit', 'Izin', 'Alpha', 'Telat_X', 'Telat_M']);
 
-echo "
-<table border='1'>
-    <thead>
-        <tr style='background-color:#f0f0f0; font-weight:bold;'>
-            <th>NIK (Wajib)</th>
-            <th>Hadir</th>
-            <th>Sakit</th>
-            <th>Izin</th>
-            <th>Cuti</th>
-            <th>Telat (Kali)</th>
-            <th>Menit Telat</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td>CONTOH001</td>
-            <td>20</td>
-            <td>0</td>
-            <td>0</td>
-            <td>0</td>
-            <td>0</td>
-            <td>0</td>
-        </tr>
-    </tbody>
-</table>
-";
-?>
+// Contoh Baris (Opsional)
+fputcsv($output, ['2024000', 'Kevin Adrian', '20', '0', '0', '0', '0', '0']);
+
+fclose($output);
+exit;
