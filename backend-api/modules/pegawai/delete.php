@@ -1,22 +1,26 @@
 <?php
-require_once '../../config/cors.php';
+// FILE: backend-api/modules/pegawai/delete.php
 require_once '../../config/database.php';
+require_once '../../config/cors.php';
 
-$input = json_decode(file_get_contents("php://input"));
+$data = json_decode(file_get_contents("php://input"));
 
-if (!isset($input->id)) {
-    http_response_code(400);
+if (empty($data->id)) {
+    echo json_encode(["status" => "error", "message" => "ID tidak ditemukan"]);
     exit;
 }
 
 try {
-    // Hapus data pegawai (Data Absensi akan ikut terhapus otomatis karena CASCADE)
-    $stmt = $db->prepare("DELETE FROM pegawai WHERE id = :id");
-    $stmt->execute([':id' => $input->id]);
+    // Cukup hapus dari tabel induk 'data_pegawai'
+    // Tabel anak (kontrak, komponen, presensi) akan terhapus otomatis karena ON DELETE CASCADE
+    $sql = "DELETE FROM data_pegawai WHERE id = :id";
+    
+    $stmt = $db->prepare($sql);
+    $stmt->execute([':id' => $data->id]);
 
-    echo json_encode(["status" => "success", "message" => "Pegawai berhasil dihapus."]);
-} catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(["status" => "error", "message" => $e->getMessage()]);
+    echo json_encode(["status" => "success", "message" => "Pegawai berhasil dihapus permanen."]);
+
+} catch (PDOException $e) {
+    echo json_encode(["status" => "error", "message" => "Gagal menghapus: " . $e->getMessage()]);
 }
 ?>

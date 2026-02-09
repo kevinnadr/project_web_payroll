@@ -1,78 +1,96 @@
 <?php
-require_once '../../config/database.php';
+// FILE: backend-api/modules/absensi/import_excel.php
 require_once '../../config/cors.php';
+require_once '../../config/database.php';
 require_once '../../vendor/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
-if (!isset($_FILES['file_excel']['tmp_name'])) {
-    echo json_encode(["status" => "error", "message" => "File tidak ditemukan"]); exit;
+$bulan = $_POST['bulan'] ?? date('Y-m');
+
+if (!isset($_FILES['file_excel']['name'])) {
+    echo json_encode(["status" => "error", "message" => "File Excel wajib diupload"]);
+    exit;
 }
 
-$bulanInput = $_POST['bulan'] ?? date('Y-m'); 
-
 try {
-    $file = $_FILES['file_excel']['tmp_name'];
-    $spreadsheet = IOFactory::load($file);
-    $rows = $spreadsheet->getActiveSheet()->toArray();
-    
-    // Validasi Header (Cek Kolom B=Nama, C=Masuk)
-    $header = array_map(function($h) { return strtoupper(trim($h)); }, $rows[0] ?? []);
-    if (!isset($header[1]) || !str_contains($header[1], 'NAMA') || !isset($header[2]) || $header[2] !== 'MASUK') {
-        echo json_encode(["status" => "error", "message" => "Format Excel Salah!"]); exit;
-    }
+    $file_tmp = $_FILES['file_excel']['tmp_name'];
+    $spreadsheet = IOFactory::load($file_tmp);
+    $sheet = $spreadsheet->getActiveSheet();
+    $rows = $sheet->toArray();
+
+    unset($rows[0]); // Hapus Header
+
+    $berhasil = 0;
+    $gagal = 0;
 
     $db->beginTransaction();
-    $sukses = 0;
 
-    foreach ($rows as $index => $row) {
-        if ($index === 0) continue; 
+    foreach ($rows as $row) {
+        $nik = isset($row[0]) ? trim((string)$row[0]) : '';
+        if (empty($nik)) continue;
 
-        $nama_excel = $row[1];
-        if (empty($nama_excel)) continue;
-
-        // Ambil Data Excel
-        $hadir = !empty($row[2]) ? (int)$row[2] : 0;
-        $cuti  = !empty($row[3]) ? (int)$row[3] : 0;
-        $sakit = !empty($row[4]) ? (int)$row[4] : 0;
-        $izin  = !empty($row[5]) ? (int)$row[5] : 0;
-        $telat_kali = 0; $telat_menit = 0; // Default 0
-
-        // Cari Pegawai & Ambil Hari Kerja Efektifnya
-        $stmt = $db->prepare("SELECT id, hari_kerja_efektif FROM pegawai WHERE TRIM(nama_lengkap) = TRIM(?)");
-        $stmt->execute([$nama_excel]);
-        $pegawai = $stmt->fetch(PDO::FETCH_ASSOC);
+        // 1. Cari Pegawai & Info Finansial (Hari Kerja Efektif)
+        $stmtPeg = $db->prepare("
+            SELECT p.id, COALESCE(i.hari_kerja_efektif, 20) as total_hari 
+            FROM pegawai p 
+            LEFT JOIN info_finansial i ON p.id = i.pegawai_id 
+            WHERE p.nik = ?
+        ");
+        $stmtPeg->execute([$nik]);
+        $pegawai = $stmtPeg->fetch(PDO::FETCH_ASSOC);
 
         if ($pegawai) {
             $pid = $pegawai['id'];
-            $hari_efektif = (int)$pegawai['hari_kerja_efektif'];
+            $total_hari_kerja = intval($pegawai['total_hari']);
+            
+            // 2. Ambil Data Kehadiran (Tanpa Alpha)
+            // Format Baru: A:NIK | B:Hadir | C:Sakit | D:Izin | E:Cuti | F:Telat | G:Menit
+            $hadir = isset($row[1]) ? intval(trim((string)$row[1])) : 0;
+            $sakit = isset($row[2]) ? intval(trim((string)$row[2])) : 0;
+            $izin  = isset($row[3]) ? intval(trim((string)$row[3])) : 0;
+            $cuti  = isset($row[4]) ? intval(trim((string)$row[4])) : 0;
+            
+            // 3. HITUNG ALPHA OTOMATIS
+            $total_masuk = $hadir + $sakit + $izin + $cuti;
+            $alpha = $total_hari_kerja - $total_masuk;
+            
+            // Cegah minus (misal input hadir 25 padahal hari kerja 20)
+            if ($alpha < 0) $alpha = 0; 
 
-            // 1. SIMPAN ABSENSI UTAMA
-            $sqlAbsen = "INSERT INTO absensi (pegawai_id, bulan, hadir, sakit, izin, cuti, terlambat, `menit terlambat`) 
-                         VALUES (:pid, :bln, :h, :s, :i, :c, :t, :m)
-                         ON DUPLICATE KEY UPDATE 
-                         hadir=:h, sakit=:s, izin=:i, cuti=:c, terlambat=:t, `menit terlambat`=:m";
-            $db->prepare($sqlAbsen)->execute([
-                ':pid'=>$pid, ':bln'=>$bulanInput, ':h'=>$hadir, ':s'=>$sakit, ':i'=>$izin, 
-                ':c'=>$cuti, ':t'=>$telat_kali, ':m'=>$telat_menit
+            // Geser index karena kolom Alpha dihapus dari Excel
+            $telat = isset($row[5]) ? intval(trim((string)$row[5])) : 0; 
+            $menit = isset($row[6]) ? intval(trim((string)$row[6])) : 0;
+
+            // 4. Update Absensi
+            $sql = "INSERT INTO absensi (pegawai_id, bulan, hadir, sakit, izin, cuti, terlambat, `menit terlambat`)
+                    VALUES (:pid, :bln, :h, :s, :i, :c, :t, :mt)
+                    ON DUPLICATE KEY UPDATE 
+                    hadir=:h, sakit=:s, izin=:i, cuti=:c, terlambat=:t, `menit terlambat`=:mt";
+            
+            $stmt = $db->prepare($sql);
+            $stmt->execute([
+                ':pid' => $pid, ':bln' => $bulan,
+                ':h' => $hadir, ':s' => $sakit, ':i' => $izin, ':c' => $cuti,
+                ':t' => $telat, ':mt' => $menit
             ]);
 
-            // 2. HITUNG & SIMPAN ALPHA KE TABEL BARU
-            // Rumus: Alpha = Hari Efektif - (Total Kehadiran & Izin Sah)
-            $total_masuk = $hadir + $sakit + $izin + $cuti;
-            $alpha = $hari_efektif - $total_masuk;
-            if ($alpha < 0) $alpha = 0; // Jangan sampai minus
+            // 5. Update Alpha (Hasil Hitungan)
+            $sqlA = "INSERT INTO absensi_alpha (pegawai_id, bulan, jumlah_alpha)
+                     VALUES (:pid, :bln, :a)
+                     ON DUPLICATE KEY UPDATE jumlah_alpha=:a";
+            
+            $stmtA = $db->prepare($sqlA);
+            $stmtA->execute([':pid' => $pid, ':bln' => $bulan, ':a' => $alpha]);
 
-            $sqlAlpha = "INSERT INTO absensi_alpha (pegawai_id, bulan, jumlah_alpha) VALUES (:pid, :bln, :a)
-                         ON DUPLICATE KEY UPDATE jumlah_alpha = :a";
-            $db->prepare($sqlAlpha)->execute([':pid'=>$pid, ':bln'=>$bulanInput, ':a'=>$alpha]);
-
-            $sukses++;
+            $berhasil++;
+        } else {
+            $gagal++;
         }
     }
 
     $db->commit();
-    echo json_encode(["status" => "success", "message" => "Sukses import & hitung alpha: $sukses data"]);
+    echo json_encode(["status" => "success", "message" => "Import Selesai. Sukses: $berhasil, Gagal: $gagal"]);
 
 } catch (Exception $e) {
     $db->rollBack();

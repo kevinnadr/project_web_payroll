@@ -1,89 +1,97 @@
 <?php
-// FILE: backend-api/modules/pegawai/save.php
+// FILE: backend-api/modules/pegawai/update.php
 require_once '../../config/database.php';
 require_once '../../config/cors.php';
 
-// Matikan display error agar JSON tidak rusak
-ini_set('display_errors', 0);
-error_reporting(E_ALL);
+$data = json_decode(file_get_contents("php://input"));
 
-$input = file_get_contents("php://input");
-$data = json_decode($input);
-
-if (!$data) {
-    echo json_encode(["status" => "error", "message" => "Data tidak valid"]);
+if (empty($data->id) || empty($data->nik)) {
+    echo json_encode(["status" => "error", "message" => "ID Pegawai tidak valid!"]);
     exit;
 }
 
 try {
     $db->beginTransaction();
 
-    // --- DATA DARI FRONTEND ---
-    $id = $data->id ?? null; // Jika ada ID = Edit, Jika null = Baru
+    // 1. UPDATE TABEL 'DATA_PEGAWAI'
+    $sql1 = "UPDATE data_pegawai SET 
+                nik = :nik, 
+                nama_lengkap = :nama, 
+                email = :email, 
+                status_ptkp = :ptkp,
+                npwp = :npwp
+             WHERE id = :id";
     
-    // Data Tabel PEGAWAI
-    $nik = $data->nik;
-    $nama = strtoupper($data->nama_lengkap);
-    $jabatan = $data->jabatan;
-    $email = $data->email ?? null;
-    $tgl_masuk = $data->tanggal_masuk ?? date('Y-m-d');
+    $stmt1 = $db->prepare($sql1);
+    $stmt1->execute([
+        ':nik'   => $data->nik,
+        ':nama'  => $data->nama_lengkap,
+        ':email' => $data->email ?? '',
+        ':ptkp'  => $data->status_ptkp ?? 'TK/0',
+        ':npwp'  => $data->npwp ?? '',
+        ':id'    => $data->id
+    ]);
 
-    // Data Tabel INFO_FINANSIAL
-    $gaji = (float)($data->gaji_pokok ?? 0);
-    $ptkp = $data->status_ptkp ?? 'TK/0';
-    $status_peg = $data->status_kepegawaian ?? 'Pegawai Tetap';
-    $hari_kerja = (int)($data->hari_kerja_efektif ?? 20);
-    $bank = $data->bank_nama ?? null;
-    $rekening = $data->bank_rekening ?? null;
-
-    if ($id) {
-        // === MODE UPDATE (EDIT) ===
-        
-        // 1. Update Tabel Induk (Pegawai)
-        $sql1 = "UPDATE pegawai SET nik=?, nama_lengkap=?, jabatan=?, email=?, tanggal_masuk=? WHERE id=?";
-        $db->prepare($sql1)->execute([$nik, $nama, $jabatan, $email, $tgl_masuk, $id]);
-
-        // 2. Update Tabel Anak (Info Finansial)
-        // Cek dulu apakah data finansialnya sudah ada?
-        $cek = $db->prepare("SELECT id FROM info_finansial WHERE pegawai_id=?");
-        $cek->execute([$id]);
-        
-        if ($cek->rowCount() > 0) {
-            $sql2 = "UPDATE info_finansial SET 
-                     gaji_pokok=?, status_ptkp=?, status_kepegawaian=?, hari_kerja_efektif=?, bank_nama=?, bank_rekening=? 
-                     WHERE pegawai_id=?";
-            $db->prepare($sql2)->execute([$gaji, $ptkp, $status_peg, $hari_kerja, $bank, $rekening, $id]);
-        } else {
-            // Jika belum ada (kasus data lama), kita Insert baru
-            $sql2 = "INSERT INTO info_finansial (pegawai_id, gaji_pokok, status_ptkp, status_kepegawaian, hari_kerja_efektif, bank_nama, bank_rekening)
-                     VALUES (?, ?, ?, ?, ?, ?, ?)";
-            $db->prepare($sql2)->execute([$id, $gaji, $ptkp, $status_peg, $hari_kerja, $bank, $rekening]);
-        }
-
-        $msg = "Data Pegawai Berhasil Diupdate!";
-
+    // 2. UPDATE TABEL 'KONTRAK_PEGAWAI'
+    // Cek dulu apakah data kontrak ada? Jika tidak (kasus data lama), insert baru.
+    $cek2 = $db->prepare("SELECT id FROM kontrak_pegawai WHERE pegawai_id = ?");
+    $cek2->execute([$data->id]);
+    
+    if ($cek2->rowCount() > 0) {
+        $sql2 = "UPDATE kontrak_pegawai SET 
+                    jenis_kontrak = :kontrak, 
+                    jabatan = :jabatan, 
+                    tanggal_masuk = :tgl_masuk, 
+                    tanggal_berakhir = :tgl_akhir 
+                 WHERE pegawai_id = :id";
     } else {
-        // === MODE INSERT (BARU) ===
-        
-        // 1. Insert Tabel Induk (Pegawai)
-        $sql1 = "INSERT INTO pegawai (nik, nama_lengkap, jabatan, email, tanggal_masuk) VALUES (?, ?, ?, ?, ?)";
-        $db->prepare($sql1)->execute([$nik, $nama, $jabatan, $email, $tgl_masuk]);
-        
-        $new_id = $db->lastInsertId(); // Ambil ID pegawai yang baru dibuat
-
-        // 2. Insert Tabel Anak (Info Finansial)
-        $sql2 = "INSERT INTO info_finansial (pegawai_id, gaji_pokok, status_ptkp, status_kepegawaian, hari_kerja_efektif, bank_nama, bank_rekening)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)";
-        $db->prepare($sql2)->execute([$new_id, $gaji, $ptkp, $status_peg, $hari_kerja, $bank, $rekening]);
-
-        $msg = "Pegawai Baru Berhasil Ditambahkan!";
+        $sql2 = "INSERT INTO kontrak_pegawai (pegawai_id, jenis_kontrak, jabatan, tanggal_masuk, tanggal_berakhir) 
+                 VALUES (:id, :kontrak, :jabatan, :tgl_masuk, :tgl_akhir)";
     }
 
-    $db->commit();
-    echo json_encode(["status" => "success", "message" => $msg]);
+    $stmt2 = $db->prepare($sql2);
+    $stmt2->execute([
+        ':kontrak'   => $data->jenis_kontrak ?? 'PKWTT',
+        ':jabatan'   => $data->jabatan ?? 'Staff',
+        ':tgl_masuk' => $data->tanggal_masuk ?? date('Y-m-d'),
+        ':tgl_akhir' => !empty($data->tanggal_berakhir) ? $data->tanggal_berakhir : NULL,
+        ':id'        => $data->id
+    ]);
 
-} catch (Exception $e) {
+    // 3. UPDATE TABEL 'KOMPONEN_GAJI'
+    $cek3 = $db->prepare("SELECT id FROM komponen_gaji WHERE pegawai_id = ?");
+    $cek3->execute([$data->id]);
+
+    if ($cek3->rowCount() > 0) {
+        $sql3 = "UPDATE komponen_gaji SET 
+                    gaji_pokok = :gapok, 
+                    tunjangan_jabatan = :tunj_jab, 
+                    tunjangan_transport = :tunj_trans, 
+                    tunjangan_makan = :tunj_makan,
+                    ikut_bpjs_tk = :bpjs_tk,
+                    ikut_bpjs_ks = :bpjs_ks
+                 WHERE pegawai_id = :id";
+    } else {
+        $sql3 = "INSERT INTO komponen_gaji (pegawai_id, gaji_pokok, tunjangan_jabatan, tunjangan_transport, tunjangan_makan, ikut_bpjs_tk, ikut_bpjs_ks) 
+                 VALUES (:id, :gapok, :tunj_jab, :tunj_trans, :tunj_makan, :bpjs_tk, :bpjs_ks)";
+    }
+
+    $stmt3 = $db->prepare($sql3);
+    $stmt3->execute([
+        ':gapok'      => $data->gaji_pokok ?? 0,
+        ':tunj_jab'   => $data->tunjangan_jabatan ?? 0,
+        ':tunj_trans' => $data->tunjangan_transport ?? 0,
+        ':tunj_makan' => $data->tunjangan_makan ?? 0,
+        ':bpjs_tk'    => isset($data->ikut_bpjs_tk) ? $data->ikut_bpjs_tk : 1,
+        ':bpjs_ks'    => isset($data->ikut_bpjs_ks) ? $data->ikut_bpjs_ks : 1,
+        ':id'         => $data->id
+    ]);
+
+    $db->commit();
+    echo json_encode(["status" => "success", "message" => "Data Pegawai Berhasil Diupdate!"]);
+
+} catch (PDOException $e) {
     $db->rollBack();
-    echo json_encode(["status" => "error", "message" => "Gagal: " . $e->getMessage()]);
+    echo json_encode(["status" => "error", "message" => "Update Gagal: " . $e->getMessage()]);
 }
 ?>

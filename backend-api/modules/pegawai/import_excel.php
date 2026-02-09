@@ -1,75 +1,67 @@
 <?php
-// backend-api/modules/pegawai/import_excel.php
+// FILE: backend-api/modules/pegawai/import_excel.php
 require_once '../../config/cors.php';
 require_once '../../config/database.php';
 require_once '../../vendor/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
-// 1. Cek Token JWT (Opsional: Nanti kita amankan, sekarang los dulu biar jalan)
-
-// 2. Cek apakah ada file yang diupload
 if (!isset($_FILES['file_excel']['name'])) {
-    http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "File Excel belum diupload"]);
+    echo json_encode(["status" => "error", "message" => "File wajib diupload"]);
     exit;
 }
 
 try {
-    // 3. Baca File Excel
     $file_tmp = $_FILES['file_excel']['tmp_name'];
     $spreadsheet = IOFactory::load($file_tmp);
-    $sheet = $spreadsheet->getActiveSheet();
-    $rows = $sheet->toArray(); // Konversi Excel ke Array PHP
+    $rows = $spreadsheet->getActiveSheet()->toArray();
+    unset($rows[0]); // Hapus header
 
-    // Hapus header (Baris pertama biasanya Judul Kolom: NIK, NAMA, dll)
-    unset($rows[0]);
-
-    $berhasil = 0;
-    $gagal = 0;
-
-    // 4. Looping data baris per baris
-    $sql = "INSERT INTO pegawai (nik, nama_lengkap, jabatan, gaji_pokok, email, tanggal_masuk) 
-            VALUES (:nik, :nama, :jabatan, :gaji, :email, :tgl)
-            ON DUPLICATE KEY UPDATE 
-            nama_lengkap = :nama, jabatan = :jabatan, gaji_pokok = :gaji"; // Update jika NIK sama
-
-    $stmt = $db->prepare($sql);
+    $berhasil = 0; $gagal = 0;
+    $db->beginTransaction();
 
     foreach ($rows as $row) {
-        // Asumsi format Excel: Kolom A=NIK, B=Nama, C=Jabatan, D=Gaji, E=Email, F=Tgl Masuk
-        // Pastikan Excelnya nanti urutannya begini ya!
-        $nik = $row[0];
-        $nama = $row[1];
-        $jabatan = $row[2];
-        $gaji = $row[3];
-        $email = $row[4];
-        $tgl = date('Y-m-d', strtotime($row[5])); // Format tanggal Excel kadang aneh, kita standarkan
+        $nik = isset($row[0]) ? trim((string)$row[0]) : '';
+        $nama = isset($row[1]) ? trim((string)$row[1]) : '';
+        
+        if (empty($nik) || empty($nama)) continue;
 
-        if (!empty($nik) && !empty($nama)) {
-            try {
-                $stmt->execute([
-                    ':nik' => $nik,
-                    ':nama' => $nama,
-                    ':jabatan' => $jabatan,
-                    ':gaji' => $gaji,
-                    ':email' => $email,
-                    ':tgl' => $tgl
-                ]);
-                $berhasil++;
-            } catch (Exception $e) {
-                $gagal++;
-            }
-        }
+        // 1. DATA PEGAWAI (Upsert)
+        $stmt1 = $db->prepare("INSERT INTO data_pegawai (nik, nama_lengkap, email, status_ptkp) VALUES (?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE nama_lengkap=?, email=?, status_ptkp=?");
+        $stmt1->execute([
+            $nik, $nama, $row[2]??'', $row[3]??'TK/0', // Values
+            $nama, $row[2]??'', $row[3]??'TK/0' // Update Values
+        ]);
+
+        // Ambil ID Pegawai
+        $stmtId = $db->prepare("SELECT id FROM data_pegawai WHERE nik = ?");
+        $stmtId->execute([$nik]);
+        $pid = $stmtId->fetchColumn();
+
+        // 2. KONTRAK PEGAWAI
+        $stmt2 = $db->prepare("INSERT INTO kontrak_pegawai (pegawai_id, jabatan, jenis_kontrak, tanggal_masuk) 
+            VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE jabatan=?, jenis_kontrak=?, tanggal_masuk=?");
+        $stmt2->execute([
+            $pid, $row[4]??'Staff', $row[5]??'PKWTT', $row[6]??date('Y-m-d'),
+            $row[4]??'Staff', $row[5]??'PKWTT', $row[6]??date('Y-m-d')
+        ]);
+
+        // 3. KOMPONEN GAJI
+        $stmt3 = $db->prepare("INSERT INTO komponen_gaji (pegawai_id, gaji_pokok) 
+            VALUES (?, ?) ON DUPLICATE KEY UPDATE gaji_pokok=?");
+        $stmt3->execute([
+            $pid, intval($row[7]??0), intval($row[7]??0)
+        ]);
+
+        $berhasil++;
     }
 
-    echo json_encode([
-        "status" => "success", 
-        "message" => "Import Selesai! Data Masuk: $berhasil, Gagal: $gagal"
-    ]);
+    $db->commit();
+    echo json_encode(["status" => "success", "message" => "Import Selesai! Sukses: $berhasil"]);
 
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Error baca file: " . $e->getMessage()]);
+    $db->rollBack();
+    echo json_encode(["status" => "error", "message" => $e->getMessage()]);
 }
 ?>

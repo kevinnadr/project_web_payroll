@@ -1,16 +1,25 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import Sidebar from '../components/Sidebar';
 import { useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar'; // Import Sidebar Terpisah
 import '../App.css';
 
 const Dashboard = () => {
-    // --- STATE ---
-    const [stats, setStats] = useState({ total_pegawai: 0, total_budget: 0, total_alpha: 0 });
     const [user, setUser] = useState(null);
+    const [stats, setStats] = useState({
+        total_pegawai: 0,
+        hadir: 0,
+        sakit: 0,
+        izin: 0,
+        cuti: 0,
+        alpha: 0,
+        telat: 0
+    });
+    
+    // Default Bulan Ini
+    const [bulanFilter, setBulanFilter] = useState(new Date().toISOString().slice(0, 7));
     const navigate = useNavigate();
 
-    // --- INITIAL LOAD ---
     useEffect(() => {
         const userData = localStorage.getItem('user');
         if (!userData) {
@@ -19,80 +28,157 @@ const Dashboard = () => {
             setUser(JSON.parse(userData));
             fetchStats();
         }
-    }, [navigate]);
+    }, [navigate, bulanFilter]);
 
     const fetchStats = async () => {
         try {
-            const res = await axios.get('http://localhost/project_web_payroll/backend-api/modules/master/get_stats.php');
-            if (res.data.status === 'success') setStats(res.data.data);
-        } catch (e) { console.error(e); }
+            const res = await axios.get(`http://localhost/project_web_payroll/backend-api/modules/dashboard/stats.php?bulan=${bulanFilter}`);
+            if (res.data.status === 'success') {
+                setStats(res.data.data);
+            }
+        } catch (error) {
+            console.error("Gagal load statistik:", error);
+        }
     };
 
     return (
         <div className="app-layout">
-            
-            {/* Panggil Komponen Sidebar */}
             <Sidebar user={user} />
-
             <main className="main-content">
-                {/* Header */}
-                <div className="page-header">
-                    <h1 className="page-title">Dashboard Overview</h1>
-                    <p className="page-subtitle">Selamat datang kembali, <strong>{user?.nama}</strong>!</p>
-                </div>
-
-                {/* Widget Statistik */}
-                <div className="stats-grid">
-                    <div className="stat-card">
-                        <div className="stat-icon bg-blue">👥</div>
-                        <div className="stat-info">
-                            <h4>Total Pegawai</h4>
-                            <p>{stats.total_pegawai} Orang</p>
-                        </div>
+                
+                {/* HEADER */}
+                <div className="page-header-modern">
+                    <div>
+                        <h1 className="modern-title">Dashboard Overview</h1>
+                        <p className="modern-subtitle">Ringkasan data kepegawaian & absensi.</p>
                     </div>
-                    <div className="stat-card">
-                        <div className="stat-icon bg-green">💰</div>
-                        <div className="stat-info">
-                            <h4>Estimasi Gaji</h4>
-                            <p>Rp {parseInt(stats.total_budget).toLocaleString('id-ID')}</p>
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-icon bg-red">⚠️</div>
-                        <div className="stat-info">
-                            <h4>Total Alpha</h4>
-                            <p>{stats.total_alpha} Hari</p>
-                        </div>
+                    <div className="date-picker-container">
+                        <span className="label-periode">Periode:</span>
+                        <input type="month" className="modern-input-date" 
+                            value={bulanFilter} onChange={(e) => setBulanFilter(e.target.value)} />
                     </div>
                 </div>
 
-                {/* Shortcut Menu Cepat */}
-                <h3 style={{marginTop:'30px', color:'#334155'}}>Akses Cepat</h3>
-                <div style={{display:'flex', gap:'20px', flexWrap:'wrap'}}>
-                    
-                    <div className="card hover-card" onClick={()=>navigate('/data-pegawai')} style={{padding:'25px', flex:'1', minWidth:'250px', cursor:'pointer', borderLeft:'5px solid #3b82f6'}}>
-                        <div style={{fontSize:'24px', marginBottom:'10px'}}>👥</div>
-                        <h3 style={{margin:0, fontSize:'16px'}}>Kelola Pegawai</h3>
-                        <p style={{margin:'5px 0 0 0', fontSize:'13px', color:'#64748b'}}>Tambah, Edit biodata & Cek masa kerja.</p>
+                {/* CARDS GRID */}
+                <div className="dashboard-grid">
+                    {/* Card Total Pegawai */}
+                    <div className="stat-card blue-card">
+                        <div className="icon-wrapper">👥</div>
+                        <div className="stat-info">
+                            <h3>Total Pegawai</h3>
+                            <div className="stat-number">{stats.total_pegawai}</div>
+                            <span className="stat-desc">Aktif bekerja</span>
+                        </div>
                     </div>
 
-                    <div className="card hover-card" onClick={()=>navigate('/absensi')} style={{padding:'25px', flex:'1', minWidth:'250px', cursor:'pointer', borderLeft:'5px solid #f59e0b'}}>
-                        <div style={{fontSize:'24px', marginBottom:'10px'}}>📅</div>
-                        <h3 style={{margin:0, fontSize:'16px'}}>Input Absensi</h3>
-                        <p style={{margin:'5px 0 0 0', fontSize:'13px', color:'#64748b'}}>Update kehadiran bulanan pegawai.</p>
+                    {/* Card Kehadiran */}
+                    <div className="stat-card green-card">
+                        <div className="icon-wrapper">✅</div>
+                        <div className="stat-info">
+                            <h3>Total Hadir</h3>
+                            <div className="stat-number">{stats.hadir}</div>
+                            <span className="stat-desc">Hari kehadiran bulan ini</span>
+                        </div>
                     </div>
 
-                    <div className="card hover-card" onClick={()=>navigate('/master-gaji')} style={{padding:'25px', flex:'1', minWidth:'250px', cursor:'pointer', borderLeft:'5px solid #10b981'}}>
-                        <div style={{fontSize:'24px', marginBottom:'10px'}}>💰</div>
-                        <h3 style={{margin:0, fontSize:'16px'}}>Atur Gaji</h3>
-                        <p style={{margin:'5px 0 0 0', fontSize:'13px', color:'#64748b'}}>Seting Gaji Pokok & Komponen Tunjangan.</p>
+                    {/* Card Alpha (Mangkir) */}
+                    <div className="stat-card red-card">
+                        <div className="icon-wrapper">❌</div>
+                        <div className="stat-info">
+                            <h3>Total Alpha</h3>
+                            <div className="stat-number">{stats.alpha}</div>
+                            <span className="stat-desc" style={{color:'#fca5a5'}}>Tanpa Keterangan</span>
+                        </div>
                     </div>
 
+                    {/* Card Sakit/Izin/Cuti */}
+                    <div className="stat-card yellow-card">
+                        <div className="icon-wrapper">📝</div>
+                        <div className="stat-info">
+                            <h3>Absen Lainnya</h3>
+                            <div className="mini-stats">
+                                <span>🤒 Sakit: <strong>{stats.sakit}</strong></span>
+                                <span>📨 Izin: <strong>{stats.izin}</strong></span>
+                                <span>🏖️ Cuti: <strong>{stats.cuti}</strong></span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                {/* WELCOME SECTION */}
+                <div className="welcome-section">
+                    <h2>👋 Selamat Datang, {user?.nama_lengkap}!</h2>
+                    <p>
+                        Sistem Payroll ini membantu Anda mengelola Absensi, Gaji, dan Data Pegawai dengan lebih mudah.
+                        Pastikan data absensi bulan <strong>{bulanFilter}</strong> sudah diinput sebelum mencetak slip gaji.
+                    </p>
+                </div>
+
             </main>
 
             <style>{`
-                .hover-card:hover { transform: translateY(-3px); transition: transform 0.2s; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+                /* GRID LAYOUT */
+                .dashboard-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                    gap: 20px;
+                    margin-bottom: 30px;
+                }
+
+                /* CARD STYLES */
+                .stat-card {
+                    background: white;
+                    border-radius: 16px;
+                    padding: 20px;
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+                    transition: transform 0.2s;
+                    border: 1px solid rgba(0,0,0,0.05);
+                }
+                .stat-card:hover { transform: translateY(-5px); }
+
+                .stat-info h3 { margin: 0; font-size: 0.9rem; color: rgba(255,255,255,0.9); font-weight: 500; }
+                .stat-number { font-size: 2.2rem; font-weight: 800; line-height: 1.2; margin: 5px 0; color: white; }
+                .stat-desc { font-size: 0.8rem; color: rgba(255,255,255,0.8); }
+
+                .icon-wrapper {
+                    width: 50px; height: 50px;
+                    background: rgba(255,255,255,0.2);
+                    border-radius: 12px;
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: 1.5rem;
+                }
+
+                /* COLOR VARIANTS */
+                .blue-card { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+                .green-card { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+                .red-card { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+                .yellow-card { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+
+                /* MINI STATS (Untuk Card Kuning) */
+                .mini-stats { display: flex; flex-direction: column; gap: 2px; margin-top: 5px; font-size: 0.85rem; color: white; }
+
+                /* WELCOME SECTION */
+                .welcome-section {
+                    background: white;
+                    padding: 30px;
+                    border-radius: 16px;
+                    border: 1px solid #e2e8f0;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+                }
+                .welcome-section h2 { margin-top: 0; color: #1e293b; }
+                .welcome-section p { color: #64748b; line-height: 1.6; }
+
+                /* HEADER STYLES (Sama seperti Absensi) */
+                .page-header-modern { display: flex; justify-content: space-between; align-items: end; margin-bottom: 25px; }
+                .modern-title { font-size: 1.8rem; font-weight: 700; color: #1e293b; margin: 0; }
+                .modern-subtitle { color: #64748b; margin: 5px 0 0; font-size: 0.95rem; }
+                
+                .date-picker-container { background: white; padding: 5px 10px 5px 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 10px; border: 1px solid #e2e8f0; }
+                .label-periode { font-weight: 600; color: #475569; font-size: 0.9rem; }
+                .modern-input-date { border: none; font-family: inherit; color: #0f172a; font-weight: 600; cursor: pointer; outline: none; }
             `}</style>
         </div>
     );
