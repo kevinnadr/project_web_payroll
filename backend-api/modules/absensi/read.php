@@ -21,7 +21,8 @@ try {
                 SUM(IFNULL(a.cuti, 0)) as cuti,
                 SUM(IFNULL(a.hari_terlambat, 0)) as hari_terlambat,
                 SUM(IFNULL(a.menit_terlambat, 0)) as menit_terlambat,
-                SUM(IFNULL(a.hari_efektif, 0) - (IFNULL(a.hadir, 0) + IFNULL(a.izin, 0) + IFNULL(a.sakit, 0) + IFNULL(a.cuti, 0))) as alpha
+                MAX(IFNULL(a.hari_efektif, 20)) as hari_efektif,
+                GREATEST(0, SUM(IFNULL(a.hari_efektif, 20) - (IFNULL(a.hadir, 0) + IFNULL(a.izin, 0) + IFNULL(a.sakit, 0) + IFNULL(a.cuti, 0)))) as alpha
             FROM pegawai p
             LEFT JOIN absensi a ON p.id_pegawai = a.id_pegawai AND DATE_FORMAT(a.date, '%Y-%m') = ?
             GROUP BY p.id_pegawai, p.nik, p.nama_lengkap
@@ -31,10 +32,18 @@ try {
     $stmt->execute([$bulan]);
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Get hari_efektif for this period (from any existing record, or default 20)
+    $sqlHE = "SELECT hari_efektif FROM absensi WHERE DATE_FORMAT(date, '%Y-%m') = ? LIMIT 1";
+    $stmtHE = $db->prepare($sqlHE);
+    $stmtHE->execute([$bulan]);
+    $rowHE = $stmtHE->fetch(PDO::FETCH_ASSOC);
+    $hariEfektif = $rowHE ? (int)$rowHE['hari_efektif'] : 20;
+
     echo json_encode([
         "status" => "success", 
         "data" => $data,
-        "bulan" => $bulan
+        "bulan" => $bulan,
+        "hari_efektif" => $hariEfektif
     ]);
 } catch (Exception $e) {
     http_response_code(500);

@@ -14,7 +14,7 @@ $hadir          = (int)($input['hadir'] ?? 0);
 $sakit          = (int)($input['sakit'] ?? 0);
 $izin           = (int)($input['izin'] ?? 0);
 $cuti           = (int)($input['cuti'] ?? 0);
-$hari_efektif   = (int)($input['hari_efektif'] ?? 22);
+$hari_efektif   = (int)($input['hari_efektif'] ?? 20);
 $hari_terlambat = (int)($input['hari_terlambat'] ?? $input['telat_x'] ?? 0);
 $menit_terlambat= (int)($input['menit_terlambat'] ?? $input['telat_m'] ?? 0);
 

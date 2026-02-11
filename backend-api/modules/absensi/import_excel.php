@@ -50,7 +50,7 @@ try {
         $cuti = (int)($row['cuti'] ?? 0);
         $hari_terlambat = (int)($row['hariterlambat'] ?? $row['hari_terlambat'] ?? $row['telat_frekuensi'] ?? $row['telat_x'] ?? 0);
         $menit_terlambat = (int)($row['menitterlambat'] ?? $row['menit_terlambat'] ?? $row['telat_menit'] ?? $row['telat_m'] ?? 0);
-        $hari_efektif = (int)($row['hari_efektif'] ?? 22); // Default 22 working days
+        $hari_efektif = (int)($row['hari_efektif'] ?? $input['hari_efektif'] ?? 20); // Default 20 working days
 
         // Insert or update absensi
         $sql = "INSERT INTO absensi 
