@@ -204,7 +204,7 @@ const KontrakPegawai = () => {
             <main className="main-content">
                 <div className="page-header-modern">
                     <div>
-                        <h1 className="modern-title">Kontrak Pegawai</h1>
+                        <h1 className="modern-title">Kontrak Kerja</h1>
                         <p className="modern-subtitle">Kelola data kontrak kerja dan komponen gaji pegawai.</p>
                     </div>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>

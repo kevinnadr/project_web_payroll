@@ -16,14 +16,15 @@ try {
             foto VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
-        "kontrak_pegawai" => "CREATE TABLE IF NOT EXISTS kontrak_pegawai (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            pegawai_id INT NOT NULL,
-            jenis_kontrak VARCHAR(50),
+        "kontrak_kerja" => "CREATE TABLE IF NOT EXISTS kontrak_kerja (
+            id_kontrak INT AUTO_INCREMENT PRIMARY KEY,
+            id_pegawai INT NOT NULL,
+            no_kontrak VARCHAR(50),
             jabatan VARCHAR(100),
-            tanggal_masuk DATE,
+            tanggal_mulai DATE,
             tanggal_berakhir DATE,
-            FOREIGN KEY (pegawai_id) REFERENCES data_pegawai(id) ON DELETE CASCADE
+            jenis_kontrak VARCHAR(20) DEFAULT 'TETAP',
+            FOREIGN KEY (id_pegawai) REFERENCES data_pegawai(id) ON DELETE CASCADE
         )",
         "komponen_gaji" => "CREATE TABLE IF NOT EXISTS komponen_gaji (
             id INT AUTO_INCREMENT PRIMARY KEY,

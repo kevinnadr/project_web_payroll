@@ -27,15 +27,15 @@ const Sidebar = ({ user }) => {
                 <button className={isActive('/dashboard')} onClick={() => navigate('/dashboard')}>
                     <span>📊</span> <span>Dashboard Overview</span>
                 </button>
-                
+
                 <button className={isActive('/data-pegawai')} onClick={() => navigate('/data-pegawai')}>
                     <span>👥</span> <span>Data Pegawai</span>
                 </button>
-                
+
                 <button className={isActive('/kontrak-pegawai')} onClick={() => navigate('/kontrak-pegawai')}>
-                    <span>📋</span> <span>Kontrak Pegawai</span>
+                    <span>📋</span> <span>Kontrak Kerja</span>
                 </button>
-                
+
                 <button className={isActive('/absensi')} onClick={() => navigate('/absensi')}>
                     <span>📅</span> <span>Absensi</span>
                 </button>
@@ -55,9 +55,9 @@ const Sidebar = ({ user }) => {
             <div className="sidebar-footer">
                 <div className="user-profile">
                     <div className="avatar">{user?.nama?.charAt(0) || 'A'}</div>
-                    <div style={{display:'flex', flexDirection:'column'}}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <span style={{ fontSize: '0.8rem', color: '#cbd5e1' }}>Halo,</span>
-                        <strong style={{ color: 'white', fontSize:'0.9rem' }}>{user?.nama || 'User'}</strong>
+                        <strong style={{ color: 'white', fontSize: '0.9rem' }}>{user?.nama || 'User'}</strong>
                     </div>
                 </div>
                 <button onClick={handleLogout} className="btn btn-logout">

@@ -138,14 +138,14 @@ try {
             }
 
             // 2. UPSERT KONTRAK - cek apakah sudah ada
-            $cekKontrak = $db->prepare("SELECT id FROM kontrak_pegawai WHERE pegawai_id = ?");
+            $cekKontrak = $db->prepare("SELECT id_kontrak FROM kontrak_kerja WHERE id_pegawai = ?");
             $cekKontrak->execute([$pid]);
             
             if ($cekKontrak->rowCount() > 0) {
-                $stmt2 = $db->prepare("UPDATE kontrak_pegawai SET jabatan=?, jenis_kontrak=?, tanggal_masuk=? WHERE pegawai_id=?");
+                $stmt2 = $db->prepare("UPDATE kontrak_kerja SET jabatan=?, jenis_kontrak=?, tanggal_mulai=? WHERE id_pegawai=?");
                 $stmt2->execute([$jabatan, $kontrak, $tgl_masuk, $pid]);
             } else {
-                $stmt2 = $db->prepare("INSERT INTO kontrak_pegawai (pegawai_id, jabatan, jenis_kontrak, tanggal_masuk) VALUES (?, ?, ?, ?)");
+                $stmt2 = $db->prepare("INSERT INTO kontrak_kerja (id_pegawai, jabatan, jenis_kontrak, tanggal_mulai) VALUES (?, ?, ?, ?)");
                 $stmt2->execute([$pid, $jabatan, $kontrak, $tgl_masuk]);
             }
 

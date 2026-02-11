@@ -14,7 +14,7 @@ try {
                 p.nik, p.nama_lengkap, k.jabatan
             FROM riwayat_gaji r
             JOIN data_pegawai p ON r.pegawai_id = p.id
-            LEFT JOIN kontrak_pegawai k ON p.id = k.pegawai_id
+            LEFT JOIN kontrak_kerja k ON p.id = k.id_pegawai
             WHERE r.bulan = ?
             ORDER BY p.nama_lengkap ASC";
             

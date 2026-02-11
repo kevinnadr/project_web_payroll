@@ -12,9 +12,9 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 try {
     $sql = "SELECT p.nik, p.nama_lengkap, p.email, p.status_ptkp, 
-                   k.jabatan, k.jenis_kontrak, k.tanggal_masuk, g.gaji_pokok 
+                   k.jabatan, k.jenis_kontrak, k.tanggal_mulai, g.gaji_pokok 
             FROM data_pegawai p
-            LEFT JOIN kontrak_pegawai k ON p.id = k.pegawai_id
+            LEFT JOIN kontrak_kerja k ON p.id = k.id_pegawai
             LEFT JOIN komponen_gaji g ON p.id = g.pegawai_id
             ORDER BY p.id ASC";
     $stmt = $db->query($sql);
@@ -49,7 +49,7 @@ try {
         $sheet->setCellValue('D' . $rowNum, $row['status_ptkp'] ?? 'TK/0');
         $sheet->setCellValue('E' . $rowNum, $row['jabatan'] ?? 'Staff');
         $sheet->setCellValue('F' . $rowNum, $row['jenis_kontrak'] ?? 'TETAP');
-        $sheet->setCellValue('G' . $rowNum, $row['tanggal_masuk'] ?? '');
+        $sheet->setCellValue('G' . $rowNum, $row['tanggal_mulai'] ?? '');
         $sheet->setCellValue('H' . $rowNum, intval($row['gaji_pokok'] ?? 0));
         $rowNum++;
     }

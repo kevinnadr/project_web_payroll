@@ -26,7 +26,7 @@ const DataPegawai = () => {
     // FORM STATE
     const [formData, setFormData] = useState({
         id: '', nik: '', nama_lengkap: '', email: '', status_ptkp: 'TK/0', npwp: '',
-        jenis_kontrak: 'TETAP', jabatan: '', tanggal_masuk: new Date().toISOString().split('T')[0], tanggal_berakhir: ''
+        jenis_kontrak: 'TETAP', jabatan: '', tanggal_mulai: new Date().toISOString().split('T')[0], tanggal_berakhir: ''
     });
 
     useEffect(() => {
@@ -143,13 +143,13 @@ const DataPegawai = () => {
             setIsEdit(true);
             setFormData({
                 id: row.id, nik: row.nik, nama_lengkap: row.nama_lengkap, email: row.email, status_ptkp: row.status_ptkp || 'TK/0', npwp: row.npwp || '',
-                jenis_kontrak: row.jenis_kontrak || 'TETAP', jabatan: row.jabatan, tanggal_masuk: row.tanggal_masuk, tanggal_berakhir: row.tanggal_berakhir || ''
+                jenis_kontrak: row.jenis_kontrak || 'TETAP', jabatan: row.jabatan, tanggal_mulai: row.tanggal_mulai, tanggal_berakhir: row.tanggal_berakhir || ''
             });
         } else {
             setIsEdit(false);
             setFormData({
                 id: '', nik: '', nama_lengkap: '', email: '', status_ptkp: 'TK/0', npwp: '',
-                jenis_kontrak: 'TETAP', jabatan: '', tanggal_masuk: new Date().toISOString().split('T')[0], tanggal_berakhir: ''
+                jenis_kontrak: 'TETAP', jabatan: '', tanggal_mulai: new Date().toISOString().split('T')[0], tanggal_berakhir: ''
             });
         }
         setShowModal(true);
@@ -250,11 +250,11 @@ const DataPegawai = () => {
                                 <div className="form-grid-2">
                                     <div className="form-group"><label>Jabatan</label><input type="text" name="jabatan" value={formData.jabatan} onChange={handleChange} /></div>
                                     <div className="form-group"><label>Status</label><select name="jenis_kontrak" value={formData.jenis_kontrak} onChange={handleChange}><option value="TETAP">TETAP</option><option value="TIDAK TETAP">TIDAK TETAP</option><option value="LEPAS">LEPAS</option><option value="PART TIME">PART TIME</option></select></div>
-                                    <div className="form-group"><label>Tgl Masuk</label><input type="date" name="tanggal_masuk" value={formData.tanggal_masuk} onChange={handleChange} /></div>
+                                    <div className="form-group"><label>Tgl Masuk</label><input type="date" name="tanggal_mulai" value={formData.tanggal_mulai} onChange={handleChange} /></div>
                                 </div>
                                 <div style={{ background: '#eff6ff', padding: '15px', borderRadius: '8px', marginTop: '15px', borderLeft: '4px solid #3b82f6' }}>
                                     <p style={{ margin: '0 0 10px 0', fontSize: '0.85rem', fontWeight: '700', color: '#3b82f6' }}>💡 Kontrak & Gaji</p>
-                                    <p style={{ margin: '0', fontSize: '0.9rem', color: '#475569' }}>Detail kontrak, gaji pokok, tunjangan, dan BPJS dikelola di menu <strong>Kontrak Pegawai</strong></p>
+                                    <p style={{ margin: '0', fontSize: '0.9rem', color: '#475569' }}>Detail kontrak, gaji pokok, tunjangan, dan BPJS dikelola di menu <strong>Kontrak Kerja</strong></p>
                                 </div>
                                 <div className="modal-footer-modern" style={{ marginTop: '20px' }}>
                                     <button type="button" onClick={() => setShowModal(false)} className="btn-cancel">Batal</button>

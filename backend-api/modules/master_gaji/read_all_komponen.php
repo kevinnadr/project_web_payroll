@@ -12,7 +12,7 @@ try {
                    COALESCE(a.telat_x, 0) as telat_x, 
                    COALESCE(a.telat_m, 0) as telat_m
             FROM data_pegawai p
-            LEFT JOIN kontrak_pegawai k ON p.id = k.pegawai_id
+            LEFT JOIN kontrak_kerja k ON p.id = k.id_pegawai
             LEFT JOIN komponen_gaji g ON p.id = g.pegawai_id
             LEFT JOIN data_absensi a ON p.id = a.pegawai_id AND a.bulan = ?
             ORDER BY p.nik ASC";

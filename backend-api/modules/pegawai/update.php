@@ -32,20 +32,20 @@ try {
         ':id'    => $data->id
     ]);
 
-    // 2. UPDATE TABEL 'KONTRAK_PEGAWAI'
+    // 2. UPDATE TABEL 'KONTRAK_KERJA'
     // Cek dulu apakah data kontrak ada? Jika tidak (kasus data lama), insert baru.
-    $cek2 = $db->prepare("SELECT id FROM kontrak_pegawai WHERE pegawai_id = ?");
+    $cek2 = $db->prepare("SELECT id_kontrak FROM kontrak_kerja WHERE id_pegawai = ?");
     $cek2->execute([$data->id]);
     
     if ($cek2->rowCount() > 0) {
-        $sql2 = "UPDATE kontrak_pegawai SET 
+        $sql2 = "UPDATE kontrak_kerja SET 
                     jenis_kontrak = :kontrak, 
                     jabatan = :jabatan, 
-                    tanggal_masuk = :tgl_masuk, 
+                    tanggal_mulai = :tgl_masuk, 
                     tanggal_berakhir = :tgl_akhir 
-                 WHERE pegawai_id = :id";
+                 WHERE id_pegawai = :id";
     } else {
-        $sql2 = "INSERT INTO kontrak_pegawai (pegawai_id, jenis_kontrak, jabatan, tanggal_masuk, tanggal_berakhir) 
+        $sql2 = "INSERT INTO kontrak_kerja (id_pegawai, jenis_kontrak, jabatan, tanggal_mulai, tanggal_berakhir) 
                  VALUES (:id, :kontrak, :jabatan, :tgl_masuk, :tgl_akhir)";
     }
 
@@ -53,7 +53,7 @@ try {
     $stmt2->execute([
         ':kontrak'   => $data->jenis_kontrak ?? 'PKWTT',
         ':jabatan'   => $data->jabatan ?? 'Staff',
-        ':tgl_masuk' => $data->tanggal_masuk ?? date('Y-m-d'),
+        ':tgl_masuk' => $data->tanggal_mulai ?? date('Y-m-d'),
         ':tgl_akhir' => !empty($data->tanggal_berakhir) ? $data->tanggal_berakhir : NULL,
         ':id'        => $data->id
     ]);

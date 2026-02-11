@@ -14,7 +14,7 @@ try {
     // 1. Ambil semua data riwayat gaji pada bulan tersebut
     $sql = "SELECT p.nama_lengkap, p.nik, k.jabatan, r.* FROM riwayat_gaji r
             JOIN data_pegawai p ON r.pegawai_id = p.id
-            JOIN kontrak_pegawai k ON p.id = k.pegawai_id
+            JOIN kontrak_kerja k ON p.id = k.id_pegawai
             WHERE r.bulan = ?
             ORDER BY p.nama_lengkap ASC";
     

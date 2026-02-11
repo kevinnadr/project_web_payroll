@@ -13,12 +13,13 @@ try {
                 p.email, 
                 p.npwp,
                 p.status_ptkp,
+                k.no_kontrak,
                 k.jabatan, 
                 k.jenis_kontrak, 
-                k.tanggal_masuk,
+                k.tanggal_mulai,
                 k.tanggal_berakhir
             FROM data_pegawai p
-            LEFT JOIN kontrak_pegawai k ON p.id = k.pegawai_id
+            LEFT JOIN kontrak_kerja k ON p.id = k.id_pegawai
             ORDER BY p.id ASC";
 
     $stmt = $db->prepare($sql);

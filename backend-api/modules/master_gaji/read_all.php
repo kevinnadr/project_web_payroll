@@ -6,7 +6,7 @@ $bulan = $_GET['bulan'] ?? date('Y-m');
 
 try {
     // 1. Ambil data pegawai, kontrak, dan komponen utama (Gaji Pokok & BPJS)
-            // Use aggregated subqueries for kontrak_pegawai and komponen_gaji to avoid duplicate JOIN rows
+            // Use aggregated subqueries for kontrak_kerja and komponen_gaji to avoid duplicate JOIN rows
             $sql = "SELECT p.id, p.nik, p.nama_lengkap, k.jabatan, 
                  g.gaji_pokok, g.tunjangan_makan, g.tunjangan_transport, g.tunjangan_jabatan, g.ikut_bpjs_tk, g.ikut_bpjs_ks,
                  COALESCE(a.hadir, 0) as hadir,
@@ -14,10 +14,10 @@ try {
                  COALESCE(a.telat_m, 0) as telat_m
              FROM data_pegawai p
             LEFT JOIN (
-                SELECT pegawai_id, MAX(jabatan) AS jabatan
-                FROM kontrak_pegawai
-                GROUP BY pegawai_id
-            ) k ON p.id = k.pegawai_id
+                SELECT id_pegawai, MAX(jabatan) AS jabatan
+                FROM kontrak_kerja
+                GROUP BY id_pegawai
+            ) k ON p.id = k.id_pegawai
             LEFT JOIN (
                 SELECT pegawai_id, 
                        MAX(gaji_pokok) AS gaji_pokok, 

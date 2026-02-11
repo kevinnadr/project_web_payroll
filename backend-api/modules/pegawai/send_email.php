@@ -20,7 +20,7 @@ try {
     // 1. AMBIL DATA DARI RIWAYAT GAJI (Snapshot)
     $sql = "SELECT p.nama_lengkap, p.email, p.nik, k.jabatan, r.* FROM riwayat_gaji r
             JOIN data_pegawai p ON r.pegawai_id = p.id
-            JOIN kontrak_pegawai k ON p.id = k.pegawai_id
+            JOIN kontrak_kerja k ON p.id = k.id_pegawai
             WHERE p.id = :id AND r.bulan = :bulan";
     $stmt = $db->prepare($sql);
     $stmt->execute([':id' => $id, ':bulan' => $bulan]);

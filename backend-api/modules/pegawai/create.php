@@ -29,15 +29,15 @@ try {
     // Ambil ID Pegawai yang baru saja dibuat
     $pegawai_id = $db->lastInsertId();
 
-    // 2. INSERT KE TABEL 'KONTRAK_PEGAWAI' (Status Kerja)
-    $sql2 = "INSERT INTO kontrak_pegawai (pegawai_id, jenis_kontrak, jabatan, tanggal_masuk, tanggal_berakhir) 
+    // 2. INSERT KE TABEL 'KONTRAK_KERJA' (Status Kerja)
+    $sql2 = "INSERT INTO kontrak_kerja (id_pegawai, jenis_kontrak, jabatan, tanggal_mulai, tanggal_berakhir) 
              VALUES (:pid, :kontrak, :jabatan, :tgl_masuk, :tgl_akhir)";
     $stmt2 = $db->prepare($sql2);
     $stmt2->execute([
         ':pid'       => $pegawai_id,
         ':kontrak'   => $data->jenis_kontrak ?? 'PKWTT',
         ':jabatan'   => $data->jabatan ?? 'Staff',
-        ':tgl_masuk' => $data->tanggal_masuk ?? date('Y-m-d'),
+        ':tgl_masuk' => $data->tanggal_mulai ?? date('Y-m-d'),
         ':tgl_akhir' => !empty($data->tanggal_berakhir) ? $data->tanggal_berakhir : NULL
     ]);
 
