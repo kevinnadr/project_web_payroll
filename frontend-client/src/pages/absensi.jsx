@@ -15,12 +15,12 @@ const Absensi = () => {
     const fileInputRef = useRef(null);
     const navigate = useNavigate();
 
-    // State Modal sesuai struktur database data_absensi
+    // State Modal sesuai struktur database absensi
     const [showModal, setShowModal] = useState(false);
     const [showFormatModal, setShowFormatModal] = useState(false);
     const [editData, setEditData] = useState({
         pegawai_id: '', nik: '', nama_lengkap: '', 
-        hadir: 0, sakit: 0, izin: 0, cuti: 0, telat_x: 0, telat_m: 0
+        hadir: 0, sakit: 0, izin: 0, cuti: 0, hari_terlambat: 0, menit_terlambat: 0
     });
 
     useEffect(() => {
@@ -52,9 +52,9 @@ const Absensi = () => {
     }, [searchTerm, listAbsensi]);
 
     // --- LOGIKA PERHITUNGAN DENDA TELAT ---
-    const calculateLatePenalty = (tx, tm) => {
-        const x = parseInt(tx || 0);
-        const m = parseInt(tm || 0);
+    const calculateLatePenalty = (hari_telat, menit_telat) => {
+        const x = parseInt(hari_telat || 0);
+        const m = parseInt(menit_telat || 0);
         if (x <= 0) return 0;
         // Aturan: 5rb flat per kejadian + 20rb per kelipatan 15 menit
         return (x * 5000) + (Math.ceil(m / 15) * 20000);
@@ -62,7 +62,7 @@ const Absensi = () => {
 
     // --- FUNGSI EXPORT & TEMPLATE ---
     const handleDownloadTemplate = () => {
-        const header = "NIK,Nama,Hadir,Sakit,Izin,Cuti,Telat_Frekuensi,Telat_Menit\n";
+        const header = "NIK,Nama,Hadir,Sakit,Izin,Cuti,HariTerlambat,MenitTerlambat\n";
         const rows = listAbsensi.map(p => `${p.nik},${p.nama_lengkap},0,0,0,0,0,0`).join("\n");
         const blob = new Blob([header + rows], { type: 'text/csv' });
         const url = window.URL.createObjectURL(blob);
@@ -95,13 +95,13 @@ const Absensi = () => {
                 if (['izin'].includes(h)) return 'izin';
                 if (['cuti'].includes(h)) return 'cuti';
                 if (['alpha','absen'].includes(h)) return 'alpha';
-                if (['telat_frekuensi','telat_x','telat_frequency'].includes(h)) return 'telat_x';
-                if (['telat_menit','telat_m','telat_minutes'].includes(h)) return 'telat_m';
+                if (['hariterlambat','hari_terlambat','telat_frekuensi','telat_x','telat_frequency'].includes(h)) return 'hari_terlambat';
+                if (['menitterlambat','menit_terlambat','telat_menit','telat_m','telat_minutes'].includes(h)) return 'menit_terlambat';
                 return null;
             };
 
             const headerMap = header.map(h=>mapHeaderToKey(h));
-            const required = ['nik','hadir','sakit','izin','cuti','telat_x','telat_m'];
+            const required = ['nik','hadir','sakit','izin','cuti','hari_terlambat','menit_terlambat'];
             const missing = required.filter(rk => !headerMap.includes(rk));
             if (missing.length > 0) {
                 alert('Header CSV tidak sesuai. Kolom yang hilang: ' + missing.join(', '));
@@ -126,7 +126,7 @@ const Absensi = () => {
                 if (!rowObj.nik || rowObj.nik === '') { errors.push(`Baris ${rowNum}: kolom NIK kosong`); continue; }
 
                 // validate numeric fields
-                const numFields = ['hadir','sakit','izin','cuti','telat_x','telat_m'];
+                const numFields = ['hadir','sakit','izin','cuti','hari_terlambat','menit_terlambat'];
                 let skip = false;
                 for (const nf of numFields) {
                     const val = rowObj[nf] === undefined || rowObj[nf] === '' ? '0' : rowObj[nf];
@@ -219,9 +219,11 @@ const Absensi = () => {
                             <tr style={{ borderBottom: '1px solid #f4f7fe' }}>
                                 <th style={{ textAlign: 'left', color: '#a3aed0', padding: '20px 10px' }}>Pegawai</th>
                                 <th className="text-center" style={{ color: '#a3aed0' }}>Hadir</th>
-                                <th className="text-center" style={{ color: '#a3aed0' }}>S/I/C</th>
-                                <th className="text-center" style={{ color: '#ee5d50' }}>Telat (x)</th>
-                                <th className="text-center" style={{ color: '#ee5d50' }}>Menit</th>
+                                <th className="text-center" style={{ color: '#a3aed0' }}>Sakit</th>
+                                <th className="text-center" style={{ color: '#a3aed0' }}>Izin</th>
+                                <th className="text-center" style={{ color: '#a3aed0' }}>Cuti</th>
+                                <th className="text-center" style={{ color: '#ee5d50' }}>Hari Terlambat</th>
+                                <th className="text-center" style={{ color: '#ee5d50' }}>Menit Terlambat</th>
                                 <th className="text-center" style={{ color: '#ee5d50' }}>Denda</th>
                                 <th className="text-center" style={{ color: '#a3aed0' }}>Aksi</th>
                             </tr>
@@ -236,10 +238,12 @@ const Absensi = () => {
                                         </div>
                                     </td>
                                     <td className="text-center"><div style={{ background: '#f4f7fe', padding: '8px 15px', borderRadius: '10px', fontWeight: '700', color: '#1b2559' }}>{row.hadir}</div></td>
-                                    <td className="text-center" style={{ fontWeight: '600' }}>{row.sakit}/{row.izin}/{row.cuti}</td>
-                                    <td className="text-center"><div style={{ color: row.telat_x > 0 ? '#ee5d50' : '#1b2559', fontWeight: '800' }}>{row.telat_x}x</div></td>
-                                    <td className="text-center"><span style={{ fontWeight: '700' }}>{row.telat_m}m</span></td>
-                                    <td className="text-center" style={{ color: '#ee5d50', fontWeight: '800', fontSize: '0.85rem' }}>{row.telat_x > 0 ? formatRp(calculateLatePenalty(row.telat_x, row.telat_m)) : '-'}</td>
+                                    <td className="text-center"><div style={{ background: '#f4f7fe', padding: '8px 15px', borderRadius: '10px', fontWeight: '700', color: '#1b2559' }}>{row.sakit}</div></td>
+                                    <td className="text-center"><div style={{ background: '#f4f7fe', padding: '8px 15px', borderRadius: '10px', fontWeight: '700', color: '#1b2559' }}>{row.izin}</div></td>
+                                    <td className="text-center"><div style={{ background: '#f4f7fe', padding: '8px 15px', borderRadius: '10px', fontWeight: '700', color: '#1b2559' }}>{row.cuti}</div></td>
+                                    <td className="text-center"><div style={{ color: row.hari_terlambat > 0 ? '#ee5d50' : '#1b2559', fontWeight: '800' }}>{row.hari_terlambat}</div></td>
+                                    <td className="text-center"><span style={{ fontWeight: '700' }}>{row.menit_terlambat}</span></td>
+                                    <td className="text-center" style={{ color: '#ee5d50', fontWeight: '800', fontSize: '0.85rem' }}>{row.hari_terlambat > 0 ? formatRp(calculateLatePenalty(row.hari_terlambat, row.menit_terlambat)) : '-'}</td>
                                     <td className="text-center">
                                         <button className="btn-icon-modern edit" onClick={() => { setEditData({...row}); setShowModal(true); }}>⚙️</button>
                                     </td>
@@ -267,8 +271,8 @@ const Absensi = () => {
                             </div>
                             <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '20px', marginBottom: '20px' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                    <div className="form-group-modern"><label>Telat (x)</label><input type="number" value={editData.telat_x} onChange={e=>setEditData({...editData, telat_x: e.target.value})} /></div>
-                                    <div className="form-group-modern"><label>Menit (m)</label><input type="number" value={editData.telat_m} onChange={e=>setEditData({...editData, telat_m: e.target.value})} /></div>
+                                    <div className="form-group-modern"><label>Hari Terlambat</label><input type="number" value={editData.hari_terlambat} onChange={e=>setEditData({...editData, hari_terlambat: e.target.value})} /></div>
+                                    <div className="form-group-modern"><label>Menit Terlambat</label><input type="number" value={editData.menit_terlambat} onChange={e=>setEditData({...editData, menit_terlambat: e.target.value})} /></div>
                                 </div>
                             </div>
                             <button type="submit" style={{ width: '100%', padding: '16px', borderRadius: '16px', background: '#4318ff', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer' }}>Update Data</button>
@@ -303,9 +307,8 @@ const Absensi = () => {
                                             {no:3, col:'Sakit', tipe:'Angka (0-30)', contoh:'1'},
                                             {no:4, col:'Izin', tipe:'Angka (0-30)', contoh:'0'},
                                             {no:5, col:'Cuti', tipe:'Angka (0-30)', contoh:'0'},
-                                            {no:6, col:'Alpha', tipe:'Angka (0-30) - auto hitung', contoh:'1'},
-                                            {no:7, col:'Telat_Frekuensi', tipe:'Angka (frekuensi terlambat)', contoh:'2'},
-                                            {no:8, col:'Telat_Menit', tipe:'Angka (total menit terlambat)', contoh:'45'},
+                                            {no:6, col:'HariTerlambat', tipe:'Angka (jumlah hari terlambat)', contoh:'2'},
+                                            {no:7, col:'MenitTerlambat', tipe:'Angka (total menit terlambat)', contoh:'45'},
                                         ].map((item) => (
                                             <tr key={item.no} style={{borderBottom:'1px solid #f1f5f9', background: item.no % 2 === 0 ? '#f8fafc' : 'white'}}>
                                                 <td style={{padding:'12px', fontSize:'0.9rem'}}><strong>{item.no}</strong></td>
@@ -318,7 +321,7 @@ const Absensi = () => {
                                 </table>
                             </div>
                             <div style={{background:'#fef3c7', border:'1px solid #fcd34d', padding:'15px', borderRadius:'8px', marginBottom:'20px'}}>
-                                <p style={{margin:'0', fontSize:'0.9rem', color:'#92400e'}}><strong>⚠️ Catatan:</strong> Kolom Alpha bisa diisi 0 atau angka jumlah hari yang tidak hadir (sistem akan menghitung otomatis jika kosong). Jumlah hadir + sakit + izin + cuti + alpha harus = 22 hari kerja.</p>
+                                <p style={{margin:'0', fontSize:'0.9rem', color:'#92400e'}}><strong>⚠️ Catatan:</strong> Kolom HariTerlambat adalah jumlah hari pegawai terlambat. MenitTerlambat adalah total menit keterlambatan. Jumlah hadir + sakit + izin + cuti harus = 22 hari kerja (atau sesuai hari efektif bulan tersebut).</p>
                             </div>
                             <button onClick={()=>setShowFormatModal(false)} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: '#4318ff', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer' }}>Mengerti</button>
                         </div>

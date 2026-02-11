@@ -32,12 +32,16 @@ const Sidebar = ({ user }) => {
                     <span>👥</span> <span>Data Pegawai</span>
                 </button>
                 
-                <button className={isActive('/master-gaji')} onClick={() => navigate('/master-gaji')}>
-                    <span>💰</span> <span>Master Gaji</span>
+                <button className={isActive('/kontrak-pegawai')} onClick={() => navigate('/kontrak-pegawai')}>
+                    <span>📋</span> <span>Kontrak Pegawai</span>
                 </button>
                 
                 <button className={isActive('/absensi')} onClick={() => navigate('/absensi')}>
                     <span>📅</span> <span>Absensi</span>
+                </button>
+
+                <button className={isActive('/pph-ter')} onClick={() => navigate('/pph-ter')}>
+                    <span>💳</span> <span>PPH TER Management</span>
                 </button>
 
                 {/* Menu Khusus Admin */}

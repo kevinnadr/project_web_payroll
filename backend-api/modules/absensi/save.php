@@ -1,37 +1,59 @@
 <?php
+// FILE: backend-api/modules/absensi/save.php
+// Updated to match latihan123 database schema
 require_once '../../config/database.php';
 require_once '../../config/cors.php';
 
+header("Content-Type: application/json");
+
 $input = json_decode(file_get_contents("php://input"), true);
 
-$pegawai_id = $input['pegawai_id'];
-$bulan      = $input['bulan'];
-$hadir      = $input['hadir'] ?? 0;
-$sakit      = $input['sakit'] ?? 0;
-$izin       = $input['izin'] ?? 0;
-$cuti       = $input['cuti'] ?? 0;
-$alpha      = $input['alpha'] ?? 0;
-$telat_x    = $input['telat_x'] ?? 0; // Ambil data telat x
-$telat_m    = $input['telat_m'] ?? 0; // Ambil data telat m
+$id_pegawai     = $input['id_pegawai'] ?? $input['pegawai_id'] ?? null;
+$bulan          = $input['bulan'] ?? date('Y-m');
+$hadir          = (int)($input['hadir'] ?? 0);
+$sakit          = (int)($input['sakit'] ?? 0);
+$izin           = (int)($input['izin'] ?? 0);
+$cuti           = (int)($input['cuti'] ?? 0);
+$hari_efektif   = (int)($input['hari_efektif'] ?? 22);
+$hari_terlambat = (int)($input['hari_terlambat'] ?? $input['telat_x'] ?? 0);
+$menit_terlambat= (int)($input['menit_terlambat'] ?? $input['telat_m'] ?? 0);
+
+if (!$id_pegawai) {
+    http_response_code(400);
+    echo json_encode(["status" => "error", "message" => "ID Pegawai harus diisi"]);
+    exit;
+}
 
 try {
-    // Gunakan ON DUPLICATE KEY UPDATE agar jika data periode sudah ada, dia mengupdate, jika belum ada dia insert baru.
-    $sql = "INSERT INTO data_absensi (pegawai_id, bulan, hadir, sakit, izin, cuti, alpha, telat_x, telat_m) 
+    // Create date from bulan (using first day of month)
+    $date = $bulan . '-01';
+    
+    // Insert or update absensi record for this employee and date
+    // For monthly data, we store one record per employee per month
+    $sql = "INSERT INTO absensi 
+            (id_pegawai, hari_efektif, hadir, sakit, izin, cuti, hari_terlambat, menit_terlambat, date)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE 
+                hari_efektif = VALUES(hari_efektif),
                 hadir = VALUES(hadir),
                 sakit = VALUES(sakit),
                 izin = VALUES(izin),
                 cuti = VALUES(cuti),
-                alpha = VALUES(alpha),
-                telat_x = VALUES(telat_x),
-                telat_m = VALUES(telat_m)";
+                hari_terlambat = VALUES(hari_terlambat),
+                menit_terlambat = VALUES(menit_terlambat)";
     
     $stmt = $db->prepare($sql);
-    $stmt->execute([$pegawai_id, $bulan, $hadir, $sakit, $izin, $cuti, $alpha, $telat_x, $telat_m]);
+    $stmt->execute([$id_pegawai, $hari_efektif, $hadir, $sakit, $izin, $cuti, $hari_terlambat, $menit_terlambat, $date]);
 
-    echo json_encode(["status" => "success", "message" => "Data terupdate"]);
-} catch (Exception $e) {
-    echo json_encode(["status" => "error", "message" => $e->getMessage()]);
+    echo json_encode([
+        "status" => "success", 
+        "message" => "Data absensi berhasil disimpan"
+    ]);
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode([
+        "status" => "error", 
+        "message" => "Error: " . $e->getMessage()
+    ]);
 }
 ?>
