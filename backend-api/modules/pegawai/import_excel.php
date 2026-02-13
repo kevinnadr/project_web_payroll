@@ -137,17 +137,8 @@ try {
                 continue;
             }
 
-            // 2. UPSERT KONTRAK - cek apakah sudah ada
-            $cekKontrak = $db->prepare("SELECT id_kontrak FROM kontrak_kerja WHERE id_pegawai = ?");
-            $cekKontrak->execute([$pid]);
-            
-            if ($cekKontrak->rowCount() > 0) {
-                $stmt2 = $db->prepare("UPDATE kontrak_kerja SET jabatan=?, jenis_kontrak=?, tanggal_mulai=? WHERE id_pegawai=?");
-                $stmt2->execute([$jabatan, $kontrak, $tgl_masuk, $pid]);
-            } else {
-                $stmt2 = $db->prepare("INSERT INTO kontrak_kerja (id_pegawai, jabatan, jenis_kontrak, tanggal_mulai) VALUES (?, ?, ?, ?)");
-                $stmt2->execute([$pid, $jabatan, $kontrak, $tgl_masuk]);
-            }
+            // 2. KONTRAK KERJA - dikelola terpisah via halaman Kontrak Kerja
+            // (FK kontrak_kerja.id_pegawai → pegawai.id_pegawai, bukan data_pegawai.id)
 
             // 3. UPSERT KOMPONEN GAJI - cek apakah sudah ada
             $cekGaji = $db->prepare("SELECT id FROM komponen_gaji WHERE pegawai_id = ?");

@@ -11,13 +11,23 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 try {
-    $sql = "SELECT p.nik, p.nama_lengkap, p.email, p.status_ptkp, 
-                   k.jabatan, k.jenis_kontrak, k.tanggal_mulai, g.gaji_pokok 
-            FROM data_pegawai p
-            LEFT JOIN kontrak_kerja k ON p.id = k.id_pegawai
-            LEFT JOIN komponen_gaji g ON p.id = g.pegawai_id
-            ORDER BY p.id ASC";
-    $stmt = $db->query($sql);
+    // Updated query to match new schema: pegawai, kontrak_kerja, nominal_kontrak
+    $sql = "SELECT p.nik, p.nama_lengkap, p.email, sp.status_ptkp, 
+                   k.jabatan, k.jenis_kontrak, k.tanggal_mulai, 
+                   (
+                        SELECT nk.nominal 
+                        FROM nominal_kontrak nk 
+                        JOIN komponen_penghasilan kp ON nk.id_komponen = kp.id_komponen 
+                        WHERE nk.id_kontrak = k.id_kontrak AND kp.nama_komponen = 'Gaji Pokok' 
+                        LIMIT 1
+                   ) as gaji_pokok
+            FROM pegawai p
+            LEFT JOIN status_ptkp sp ON p.id_ptkp = sp.id_ptkp
+            LEFT JOIN kontrak_kerja k ON p.id_pegawai = k.id_pegawai
+            ORDER BY p.id_pegawai ASC";
+    
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $spreadsheet = new Spreadsheet();
@@ -50,7 +60,7 @@ try {
         $sheet->setCellValue('E' . $rowNum, $row['jabatan'] ?? 'Staff');
         $sheet->setCellValue('F' . $rowNum, $row['jenis_kontrak'] ?? 'TETAP');
         $sheet->setCellValue('G' . $rowNum, $row['tanggal_mulai'] ?? '');
-        $sheet->setCellValue('H' . $rowNum, intval($row['gaji_pokok'] ?? 0));
+        $sheet->setCellValue('H' . $rowNum, $row['gaji_pokok'] ? intval($row['gaji_pokok']) : 0);
         $rowNum++;
     }
 

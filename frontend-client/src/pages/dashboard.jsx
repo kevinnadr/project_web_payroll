@@ -15,7 +15,7 @@ const Dashboard = () => {
         alpha: 0,
         telat: 0
     });
-    
+
     // Default Bulan Ini
     const [bulanFilter, setBulanFilter] = useState(new Date().toISOString().slice(0, 7));
     const navigate = useNavigate();
@@ -45,7 +45,7 @@ const Dashboard = () => {
         <div className="app-layout">
             <Sidebar user={user} />
             <main className="main-content">
-                
+
                 {/* HEADER */}
                 <div className="page-header-modern">
                     <div>
@@ -54,7 +54,7 @@ const Dashboard = () => {
                     </div>
                     <div className="date-picker-container">
                         <span className="label-periode">Periode:</span>
-                        <input type="month" className="modern-input-date" 
+                        <input type="month" className="modern-input-date"
                             value={bulanFilter} onChange={(e) => setBulanFilter(e.target.value)} />
                     </div>
                 </div>
@@ -71,15 +71,7 @@ const Dashboard = () => {
                         </div>
                     </div>
 
-                    {/* Card Kehadiran */}
-                    <div className="stat-card green-card">
-                        <div className="icon-wrapper">✅</div>
-                        <div className="stat-info">
-                            <h3>Total Hadir</h3>
-                            <div className="stat-number">{stats.hadir}</div>
-                            <span className="stat-desc">Hari kehadiran bulan ini</span>
-                        </div>
-                    </div>
+
 
                     {/* Card Alpha (Mangkir) */}
                     <div className="stat-card red-card">
@@ -87,7 +79,7 @@ const Dashboard = () => {
                         <div className="stat-info">
                             <h3>Total Alpha</h3>
                             <div className="stat-number">{stats.alpha}</div>
-                            <span className="stat-desc" style={{color:'#fca5a5'}}>Tanpa Keterangan</span>
+                            <span className="stat-desc" style={{ color: '#fca5a5' }}>Tanpa Keterangan</span>
                         </div>
                     </div>
 

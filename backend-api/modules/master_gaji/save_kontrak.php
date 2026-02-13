@@ -1,8 +1,7 @@
 <?php
 /**
  * FILE: backend-api/modules/master_gaji/save_kontrak.php
- * Purpose: Save employee contract information
- * Updated to match latihan123 database schema
+ * Save employee contract + komponen penghasilan via nominal_kontrak
  */
 
 header("Access-Control-Allow-Origin: *");
@@ -10,179 +9,153 @@ header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
-// Handle preflight
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(["status" => "error", "message" => "Method not allowed"]);
-    exit;
-}
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(["status" => "error", "message" => "Method not allowed"]); exit; }
 
 require_once '../../config/database.php';
 
 try {
-    $input = file_get_contents("php://input");
-    $data = json_decode($input, true);
+    $data = json_decode(file_get_contents("php://input"), true);
+    if (!$data) { http_response_code(400); echo json_encode(["status" => "error", "message" => "Invalid JSON"]); exit; }
 
-    if (!$data) {
-        http_response_code(400);
-        echo json_encode(["status" => "error", "message" => "Invalid JSON"]);
-        exit;
-    }
-
-    $id_pegawai = $data['id_pegawai'] ?? null;
-    $jabatan = $data['jabatan'] ?? '';
-    $tanggal_mulai = $data['tanggal_mulai'] ?? null;
+    $id_pegawai      = $data['id_pegawai'] ?? null;
+    $jabatan         = $data['jabatan'] ?? '';
+    $tanggal_mulai   = $data['tanggal_mulai'] ?? null;
     $tanggal_berakhir = $data['tanggal_berakhir'] ?? null;
-    $jenis_kontrak = $data['jenis_kontrak'] ?? 'TETAP';
-    $gaji_pokok = (float)($data['gaji_pokok'] ?? 0);
-    $tunjangan = (float)($data['tunjangan'] ?? 0);
-    $id_kontrak = $data['id_kontrak'] ?? null;
+    $jenis_kontrak   = $data['jenis_kontrak'] ?? 'TETAP';
+    $gaji_pokok      = (float)($data['gaji_pokok'] ?? 0);
+    $tunjangan       = (float)($data['tunjangan'] ?? 0);
+    $id_kontrak      = $data['id_kontrak'] ?? null;
+    $komponen_tambahan = $data['komponen_tambahan'] ?? [];
 
-    // Validate required fields
-    if (!$id_pegawai) {
-        http_response_code(400);
-        echo json_encode(["status" => "error", "message" => "ID Pegawai tidak boleh kosong"]);
+    if (!$id_pegawai) { http_response_code(400); echo json_encode(["status" => "error", "message" => "ID Pegawai harus diisi"]); exit; }
+    if (!$tanggal_mulai) { http_response_code(400); echo json_encode(["status" => "error", "message" => "Tanggal Mulai harus diisi"]); exit; }
+    if (!$jabatan) { http_response_code(400); echo json_encode(["status" => "error", "message" => "Jabatan harus diisi"]); exit; }
+
+    // Normalize empty string to null for logic comparison and DB storage
+    if (empty($tanggal_berakhir)) {
+        $tanggal_berakhir = null;
+    }
+
+    // Check for Overlapping Contracts
+    try {
+        $checkSql = "SELECT id_kontrak, tanggal_mulai, tanggal_berakhir FROM kontrak_kerja WHERE id_pegawai = ?";
+        $checkParams = [$id_pegawai];
+        
+        if ($id_kontrak) {
+            $checkSql .= " AND id_kontrak != ?";
+            $checkParams[] = $id_kontrak;
+        }
+        
+        $stmtCheck = $db->prepare($checkSql);
+        $stmtCheck->execute($checkParams);
+        $existingContracts = $stmtCheck->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($existingContracts as $ex) {
+            $exStart = $ex['tanggal_mulai'];
+            $exEnd   = $ex['tanggal_berakhir']; // null means indefinite/present
+            
+            // Overlap logic: (StartA <= EndB) AND (EndA >= StartB)
+            // Treating NULL as Infinity
+            
+            // Check 1: New Start <= Existing End
+            // If Existing End is NULL (Infinity), then New Start is definitely <= Infinity (Always True)
+            // Otherwise check string comparison
+            $cond1 = ($exEnd === null) || ($tanggal_mulai <= $exEnd);
+            
+            // Check 2: New End >= Existing Start
+            // If New End is NULL (Infinity), then Infinity >= Existing Start (Always True)
+            // Otherwise check string comparison
+            $cond2 = ($tanggal_berakhir === null) || ($tanggal_berakhir >= $exStart);
+            
+            if ($cond1 && $cond2) {
+                // Formatting date for error message
+                $exEndStr = $exEnd ? date('d M Y', strtotime($exEnd)) : 'Sekarang';
+                $exStartStr = date('d M Y', strtotime($exStart));
+                
+                http_response_code(400);
+                echo json_encode([
+                    "status" => "error",
+                    "message" => "Periode kontrak tumpang tindih dengan kontrak lain ($exStartStr - $exEndStr)."
+                ]);
+                exit;
+            }
+        }
+    } catch (Exception $checkEx) {
+        // Continue, or handle error? If check fails, safe to fail secure
+        http_response_code(500);
+        echo json_encode(["status" => "error", "message" => "Error checking overlap: " . $checkEx->getMessage()]);
         exit;
     }
 
-    if (!$tanggal_mulai) {
-        http_response_code(400);
-        echo json_encode(["status" => "error", "message" => "Tanggal Mulai harus diisi"]);
-        exit;
-    }
-
-    if (!$jabatan) {
-        http_response_code(400);
-        echo json_encode(["status" => "error", "message" => "Jabatan harus diisi"]);
-        exit;
-    }
-
-    // Start transaction
     $db->beginTransaction();
-
-    // Check if contract exists for this period (no overlapping dates)
-    // Exclude current contract if updating
-    // Overlapping means: new start <= existing end AND (new end IS NULL OR new end >= existing start)
-    $checkSql = "SELECT COUNT(*) as count FROM kontrak_kerja 
-                 WHERE id_pegawai = ? 
-                 AND tanggal_mulai <= ?
-                 AND (tanggal_berakhir IS NULL OR tanggal_berakhir >= ?)";
-    
-    if ($id_kontrak) {
-        $checkSql .= " AND id_kontrak != ?";
-        $checkStmt = $db->prepare($checkSql);
-        $checkStmt->execute([$id_pegawai, $tanggal_berakhir ?? '2099-12-31', $tanggal_mulai, $id_kontrak]);
-    } else {
-        $checkStmt = $db->prepare($checkSql);
-        $checkStmt->execute([$id_pegawai, $tanggal_berakhir ?? '2099-12-31', $tanggal_mulai]);
-    }
-    
-    $existing = $checkStmt->fetch(PDO::FETCH_OBJ)->count ?? 0;
-
-    if ($existing > 0) {
-        $db->rollBack();
-        http_response_code(400);
-        echo json_encode(["status" => "error", "message" => "Tanggal kontrak saling tumpang tindih dengan kontrak yang sudah ada"]);
-        exit;
-    }
 
     // Save or update kontrak
     if ($id_kontrak) {
-        // Update existing
-        $updateSql = "UPDATE kontrak_kerja 
-                      SET jabatan = ?, tanggal_mulai = ?, tanggal_berakhir = ?, jenis_kontrak = ?
-                      WHERE id_kontrak = ? AND id_pegawai = ?";
-        $updateStmt = $db->prepare($updateSql);
-        $updateStmt->execute([$jabatan, $tanggal_mulai, $tanggal_berakhir, $jenis_kontrak, $id_kontrak, $id_pegawai]);
+        $updateSql = "UPDATE kontrak_kerja SET jabatan = ?, tanggal_mulai = ?, tanggal_berakhir = ?, jenis_kontrak = ? WHERE id_kontrak = ? AND id_pegawai = ?";
+        $db->prepare($updateSql)->execute([$jabatan, $tanggal_mulai, $tanggal_berakhir, $jenis_kontrak, $id_kontrak, $id_pegawai]);
         $finalId = $id_kontrak;
     } else {
-        // Insert new
-        $insertSql = "INSERT INTO kontrak_kerja (id_pegawai, jabatan, tanggal_mulai, tanggal_berakhir, jenis_kontrak, no_kontrak) 
-                      VALUES (?, ?, ?, ?, ?, ?)";
-        $insertStmt = $db->prepare($insertSql);
         $noKontrak = "NK/" . $id_pegawai . "/" . date('Y') . "-" . rand(1000, 9999);
-        $insertStmt->execute([$id_pegawai, $jabatan, $tanggal_mulai, $tanggal_berakhir, $jenis_kontrak, $noKontrak]);
+        $insertSql = "INSERT INTO kontrak_kerja (id_pegawai, jabatan, tanggal_mulai, tanggal_berakhir, jenis_kontrak, no_kontrak) VALUES (?, ?, ?, ?, ?, ?)";
+        $db->prepare($insertSql)->execute([$id_pegawai, $jabatan, $tanggal_mulai, $tanggal_berakhir, $jenis_kontrak, $noKontrak]);
         $finalId = $db->lastInsertId();
     }
 
-    // Clear existing components
-    $delCompSql = "DELETE FROM nominal_kontrak WHERE id_kontrak = ?";
-    $delCompStmt = $db->prepare($delCompSql);
-    $delCompStmt->execute([$finalId]);
+    // Clear existing nominal_kontrak for this contract
+    $db->prepare("DELETE FROM nominal_kontrak WHERE id_kontrak = ?")->execute([$finalId]);
 
-    // Save Gaji Pokok component
-    if ($gaji_pokok > 0) {
-        $checkKompSql = "SELECT id_komponen FROM komponen_penghasilan WHERE LOWER(nama_komponen) = 'gaji pokok'";
-        $kompStmt = $db->prepare($checkKompSql);
-        $kompStmt->execute();
-        $kompResult = $kompStmt->fetch(PDO::FETCH_OBJ);
+    // Helper: get or create komponen_penghasilan by name
+    $getOrCreateKomponen = function($nama, $jenis = 'BULANAN') use ($db) {
+        $stmt = $db->prepare("SELECT id_komponen FROM komponen_penghasilan WHERE LOWER(nama_komponen) = LOWER(?) LIMIT 1");
+        $stmt->execute([$nama]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) return $row['id_komponen'];
         
-        if ($kompResult) {
-            $id_komponen = $kompResult->id_komponen;
-        } else {
-            $insertKompSql = "INSERT INTO komponen_penghasilan (nama_komponen, jenis_komponen) VALUES ('Gaji Pokok', 'BULANAN')";
-            $insertKompStmt = $db->prepare($insertKompSql);
-            $insertKompStmt->execute();
-            $id_komponen = $db->lastInsertId();
-        }
+        $db->prepare("INSERT INTO komponen_penghasilan (nama_komponen, jenis_komponen) VALUES (?, ?)")->execute([$nama, $jenis]);
+        return $db->lastInsertId();
+    };
 
-        $saveCompSql = "INSERT INTO nominal_kontrak (id_kontrak, id_komponen, nominal) VALUES (?, ?, ?)";
-        $saveCompStmt = $db->prepare($saveCompSql);
-        $saveCompStmt->execute([$finalId, $id_komponen, $gaji_pokok]);
+    // Save Gaji Pokok
+    if ($gaji_pokok > 0) {
+        $idKomp = $getOrCreateKomponen('Gaji Pokok', 'BULANAN');
+        $db->prepare("INSERT INTO nominal_kontrak (id_kontrak, id_komponen, nominal) VALUES (?, ?, ?)")->execute([$finalId, $idKomp, $gaji_pokok]);
     }
 
-    // Save Tunjangan component
+    // Save Tunjangan Tetap
     if ($tunjangan > 0) {
-        $checkKompSql = "SELECT id_komponen FROM komponen_penghasilan WHERE LOWER(nama_komponen) = 'tunjangan'";
-        $kompStmt = $db->prepare($checkKompSql);
-        $kompStmt->execute();
-        $kompResult = $kompStmt->fetch(PDO::FETCH_OBJ);
-        
-        if ($kompResult) {
-            $id_komponen = $kompResult->id_komponen;
-        } else {
-            $insertKompSql = "INSERT INTO komponen_penghasilan (nama_komponen, jenis_komponen) VALUES ('Tunjangan', 'BULANAN')";
-            $insertKompStmt = $db->prepare($insertKompSql);
-            $insertKompStmt->execute();
-            $id_komponen = $db->lastInsertId();
-        }
+        $idKomp = $getOrCreateKomponen('Tunjangan Tetap', 'BULANAN');
+        $db->prepare("INSERT INTO nominal_kontrak (id_kontrak, id_komponen, nominal) VALUES (?, ?, ?)")->execute([$finalId, $idKomp, $tunjangan]);
+    }
 
-        $saveCompSql = "INSERT INTO nominal_kontrak (id_kontrak, id_komponen, nominal) VALUES (?, ?, ?)";
-        $saveCompStmt = $db->prepare($saveCompSql);
-        $saveCompStmt->execute([$finalId, $id_komponen, $tunjangan]);
+    // Save Komponen Tambahan (Uang Makan, etc.)
+    if (is_array($komponen_tambahan)) {
+        foreach ($komponen_tambahan as $komp) {
+            $nama = $komp['nama'] ?? '';
+            $nominal = (float)($komp['nominal'] ?? 0);
+            $tipe = strtoupper($komp['tipe'] ?? 'BULANAN');
+            if ($nama && $nominal > 0) {
+                $idKomp = $getOrCreateKomponen($nama, $tipe);
+                $db->prepare("INSERT INTO nominal_kontrak (id_kontrak, id_komponen, nominal) VALUES (?, ?, ?)")->execute([$finalId, $idKomp, $nominal]);
+            }
+        }
     }
 
     $db->commit();
 
     echo json_encode([
         "status" => "success",
-        "message" => "Kontrak telah disimpan",
+        "message" => "Kontrak berhasil disimpan",
         "data" => ["id_kontrak" => $finalId]
     ]);
-    exit;
 
 } catch (PDOException $e) {
     @$db->rollBack();
     http_response_code(500);
-    echo json_encode([
-        "status" => "error",
-        "message" => "Database Error: " . $e->getMessage(),
-        "code" => $e->getCode()
-    ]);
-    exit;
+    echo json_encode(["status" => "error", "message" => "Database Error: " . $e->getMessage()]);
 } catch (Exception $e) {
     @$db->rollBack();
     http_response_code(500);
-    echo json_encode([
-        "status" => "error",
-        "message" => "Error: " . $e->getMessage(),
-        "code" => $e->getCode()
-    ]);
-    exit;
+    echo json_encode(["status" => "error", "message" => "Error: " . $e->getMessage()]);
 }
 ?>

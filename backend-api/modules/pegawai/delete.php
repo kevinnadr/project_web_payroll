@@ -5,20 +5,26 @@ require_once '../../config/cors.php';
 
 $data = json_decode(file_get_contents("php://input"));
 
-if (empty($data->id)) {
+// Frontend sends 'id_pegawai'
+$id = $data->id_pegawai ?? $data->id ?? null;
+
+if (empty($id)) {
     echo json_encode(["status" => "error", "message" => "ID tidak ditemukan"]);
     exit;
 }
 
 try {
-    // Cukup hapus dari tabel induk 'data_pegawai'
-    // Tabel anak (kontrak, komponen, presensi) akan terhapus otomatis karena ON DELETE CASCADE
-    $sql = "DELETE FROM data_pegawai WHERE id = :id";
+    // Delete from 'pegawai' table (cascade will handle child tables if foreign keys set up correctly)
+    $sql = "DELETE FROM pegawai WHERE id_pegawai = :id";
     
     $stmt = $db->prepare($sql);
-    $stmt->execute([':id' => $data->id]);
+    $stmt->execute([':id' => $id]);
 
-    echo json_encode(["status" => "success", "message" => "Pegawai berhasil dihapus permanen."]);
+    if ($stmt->rowCount() > 0) {
+        echo json_encode(["status" => "success", "message" => "Pegawai berhasil dihapus permanen."]);
+    } else {
+        echo json_encode(["status" => "error", "message" => "Data tidak ditemukan."]);
+    }
 
 } catch (PDOException $e) {
     echo json_encode(["status" => "error", "message" => "Gagal menghapus: " . $e->getMessage()]);

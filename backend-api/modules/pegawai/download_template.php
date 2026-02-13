@@ -14,44 +14,36 @@ $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
 $sheet->setTitle('Template Import Pegawai');
 
-// Header
-$headers = ['NIK', 'Nama Lengkap', 'Email', 'PTKP', 'Jabatan', 'Status Kontrak', 'Tgl Masuk', 'Gaji Pokok'];
-foreach ($headers as $col => $header) {
-    $cell = chr(65 + $col) . '1';
-    $sheet->setCellValue($cell, $header);
-}
+    // Header
+    $headers = ['NIK', 'Nama Lengkap', 'Email', 'NPWP'];
+    foreach ($headers as $col => $header) {
+        $cell = chr(65 + $col) . '1';
+        $sheet->setCellValue($cell, $header);
+    }
 
-// Style Header
-$headerRange = 'A1:H1';
-$sheet->getStyle($headerRange)->applyFromArray([
-    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
-    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '3B82F6']],
-    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-]);
+    // Style Header
+    $headerRange = 'A1:D1';
+    $sheet->getStyle($headerRange)->applyFromArray([
+        'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '3B82F6']],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+    ]);
 
-// Contoh data baris 2
-$sheet->setCellValueExplicit('A2', '2024001', DataType::TYPE_STRING);
-$sheet->setCellValue('B2', 'John Doe');
-$sheet->setCellValue('C2', 'john@email.com');
-$sheet->setCellValue('D2', 'TK/0');
-$sheet->setCellValue('E2', 'Staff IT');
-$sheet->setCellValue('F2', 'TETAP');
-$sheet->setCellValue('G2', '2024-01-15');
-$sheet->setCellValue('H2', 5000000);
+    // Contoh data baris 2
+    $sheet->setCellValueExplicit('A2', '2024001', DataType::TYPE_STRING);
+    $sheet->setCellValue('B2', 'John Doe');
+    $sheet->setCellValue('C2', 'john@email.com');
+    $sheet->setCellValueExplicit('D2', '12.345.678.9-012.000', DataType::TYPE_STRING);
 
 // Contoh data baris 3
 $sheet->setCellValueExplicit('A3', '2024002', DataType::TYPE_STRING);
 $sheet->setCellValue('B3', 'Jane Smith');
 $sheet->setCellValue('C3', 'jane@email.com');
-$sheet->setCellValue('D3', 'K/1');
-$sheet->setCellValue('E3', 'Manager');
-$sheet->setCellValue('F3', 'TIDAK TETAP');
-$sheet->setCellValue('G3', '2024-02-01');
-$sheet->setCellValue('H3', 7000000);
+$sheet->setCellValueExplicit('D3', '12.345.678.9-013.000', DataType::TYPE_STRING);
 
 // Style data contoh (warna kuning muda)
-$sheet->getStyle('A2:H3')->applyFromArray([
+$sheet->getStyle('A2:D3')->applyFromArray([
     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFF9C4']],
     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
 ]);
@@ -60,11 +52,10 @@ $sheet->getStyle('A2:H3')->applyFromArray([
 $sheet->setCellValue('A5', '📌 CATATAN:');
 $sheet->getStyle('A5')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF0000'));
 $sheet->setCellValue('A6', '- NIK harus unik, jika NIK sudah ada maka data akan di-UPDATE');
-$sheet->setCellValue('A7', '- PTKP: TK/0, K/0, K/1, K/2, K/3');
-$sheet->setCellValue('A8', '- Status Kontrak: TETAP, TIDAK TETAP, LEPAS, PART TIME');
-$sheet->setCellValue('A9', '- Format tanggal: YYYY-MM-DD (contoh: 2024-01-15)');
-$sheet->setCellValue('A10', '- Gaji Pokok: angka tanpa titik/koma (contoh: 5000000)');
-$sheet->setCellValue('A11', '- Hapus baris contoh (kuning) sebelum import');
+$sheet->setCellValue('A7', '- Nama Lengkap wajib diisi');
+$sheet->setCellValue('A8', '- Urutan Kolom: NIK | Nama Lengkap | Email | NPWP');
+$sheet->setCellValue('A9', '- Hapus baris contoh (kuning) sebelum import');
+$sheet->setCellValue('A10', '- Data Detail Kontrak & Gaji diimport terpisah via menu Kontrak Kerja');
 
 // Auto-size
 foreach (range('A', 'H') as $col) {

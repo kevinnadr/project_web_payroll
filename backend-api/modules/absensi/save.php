@@ -28,11 +28,13 @@ try {
     // Create date from bulan (using first day of month)
     $date = $bulan . '-01';
     
+    $jam_lembur     = (int)($input['jam_lembur'] ?? 0);
+    
     // Insert or update absensi record for this employee and date
     // For monthly data, we store one record per employee per month
     $sql = "INSERT INTO absensi 
-            (id_pegawai, hari_efektif, hadir, sakit, izin, cuti, hari_terlambat, menit_terlambat, date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (id_pegawai, hari_efektif, hadir, sakit, izin, cuti, hari_terlambat, menit_terlambat, jam_lembur, date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE 
                 hari_efektif = VALUES(hari_efektif),
                 hadir = VALUES(hadir),
@@ -40,10 +42,11 @@ try {
                 izin = VALUES(izin),
                 cuti = VALUES(cuti),
                 hari_terlambat = VALUES(hari_terlambat),
-                menit_terlambat = VALUES(menit_terlambat)";
+                menit_terlambat = VALUES(menit_terlambat),
+                jam_lembur = VALUES(jam_lembur)";
     
     $stmt = $db->prepare($sql);
-    $stmt->execute([$id_pegawai, $hari_efektif, $hadir, $sakit, $izin, $cuti, $hari_terlambat, $menit_terlambat, $date]);
+    $stmt->execute([$id_pegawai, $hari_efektif, $hadir, $sakit, $izin, $cuti, $hari_terlambat, $menit_terlambat, $jam_lembur, $date]);
 
     echo json_encode([
         "status" => "success", 
