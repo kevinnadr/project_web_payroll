@@ -28,8 +28,7 @@ try {
                 nama_lengkap = :nama, 
                 email = :email, 
                 npwp = :npwp,
-                id_ptkp = :id_ptkp,
-                hari_efektif = :hari_efektif
+                id_ptkp = :id_ptkp
              WHERE id_pegawai = :id";
     
     $stmt1 = $db->prepare($sql1);
@@ -39,7 +38,6 @@ try {
         ':email'   => $data->email ?? '',
         ':npwp'    => $data->npwp ?? '',
         ':id_ptkp' => $id_ptkp,
-        ':hari_efektif' => isset($data->hari_efektif) ? (int)$data->hari_efektif : 25,
         ':id'      => $data->id_pegawai
     ]);
 

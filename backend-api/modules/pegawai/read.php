@@ -11,7 +11,7 @@ try {
                 p.nama_lengkap, 
                 p.email, 
                 p.npwp,
-                p.hari_efektif,
+                p.npwp,
                 sp.status_ptkp,
                 k.id_kontrak,
                 k.no_kontrak,
@@ -38,7 +38,7 @@ try {
                 'nama_lengkap' => $row['nama_lengkap'],
                 'email' => $row['email'],
                 'npwp' => $row['npwp'],
-                'hari_efektif' => $row['hari_efektif'],
+                'npwp' => $row['npwp'],
                 'status_ptkp' => $row['status_ptkp'],
                 'contracts' => []
             ];

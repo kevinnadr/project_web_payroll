@@ -1,185 +1,315 @@
 <?php
 // FILE: backend-api/modules/pegawai/import_excel.php
+// FORCE DISPLAY ERRORS OFF TO PREVENT HTML IN JSON RESPONSE
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/import_error.log');
+
+// Increase limits for processing large files
+ini_set('memory_limit', '512M');
+set_time_limit(300);
+
+// ALWAYS START OUTPUT BUFFERING TO CATCH STRAY OUTPUT
+ob_start();
+
+// CORS HEADERS MUST BE FIRST
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    ob_end_clean();
     http_response_code(200);
     exit;
 }
 
-require_once '../../config/database.php';
-require_once '../../vendor/autoload.php';
-
-use PhpOffice\PhpSpreadsheet\IOFactory;
-
-if (!isset($_FILES['file_excel']) || $_FILES['file_excel']['error'] !== UPLOAD_ERR_OK) {
-    echo json_encode(["status" => "error", "message" => "File wajib diupload atau file rusak."]);
-    exit;
-}
-
-try {
-    $file_tmp = $_FILES['file_excel']['tmp_name'];
-    $spreadsheet = IOFactory::load($file_tmp);
-    $rows = $spreadsheet->getActiveSheet()->toArray();
-    
-    // ============================================================
-    // VALIDASI HEADER KOLOM
-    // ============================================================
-    if (count($rows) < 2) {
-        echo json_encode(["status" => "error", "message" => "File kosong atau hanya berisi header tanpa data."]);
+// SHUTDOWN HANDLER FOR FATAL ERRORS
+function shutdown_handler() {
+    $error = error_get_last();
+    // Only catch fatal errors that stop execution
+    if ($error && ($error['type'] === E_ERROR || $error['type'] === E_PARSE || $error['type'] === E_CORE_ERROR || $error['type'] === E_COMPILE_ERROR)) {
+        ob_clean(); // Discard any partial output
+        // Send headers again just in case
+        if (!headers_sent()) {
+            header("Access-Control-Allow-Origin: *");
+            header("Content-Type: application/json");
+            http_response_code(500); 
+        }
+        echo json_encode([
+            "status" => "error", 
+            "message" => "Fatal Error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']
+        ]);
         exit;
     }
+}
+register_shutdown_function('shutdown_handler');
 
-    $headerRow = $rows[0]; // Baris pertama = header
+try {
+    // Check extensions
+    if (!extension_loaded('pdo_mysql')) throw new Exception("Ekstensi PHP 'pdo_mysql' tidak aktif.");
 
-    // Definisi kolom yang diharapkan (index => [nama_resmi, alias yang diterima])
-    $expectedHeaders = [
-        0 => ['label' => 'NIK',             'aliases' => ['nik']],
-        1 => ['label' => 'Nama Lengkap',    'aliases' => ['nama lengkap', 'nama', 'nama pegawai', 'nama karyawan', 'nama_lengkap']],
-        2 => ['label' => 'Email',           'aliases' => ['email', 'e-mail', 'alamat email', 'email pegawai']],
-        3 => ['label' => 'PTKP',            'aliases' => ['ptkp', 'status ptkp', 'status_ptkp']],
-        4 => ['label' => 'Jabatan',         'aliases' => ['jabatan', 'posisi', 'position']],
-        5 => ['label' => 'Status Kontrak',  'aliases' => ['status kontrak', 'status_kontrak', 'jenis kontrak', 'jenis_kontrak', 'kontrak', 'tipe kontrak']],
-        6 => ['label' => 'Tanggal Masuk',   'aliases' => ['tanggal masuk', 'tanggal_masuk', 'tgl masuk', 'tgl_masuk', 'tanggal mulai', 'mulai kerja', 'join date']],
-        7 => ['label' => 'Gaji Pokok',      'aliases' => ['gaji pokok', 'gaji_pokok', 'gaji', 'salary', 'basic salary']],
+    // REQUIRE DEPENDENCIES
+    require_once __DIR__ . '/../../config/database.php';
+    
+    if (!file_exists(__DIR__ . '/../../vendor/autoload.php')) {
+        throw new Exception("Vendor autoload tidak ditemukan. Jalankan 'composer install'.");
+    }
+    require_once __DIR__ . '/../../vendor/autoload.php';
+
+    if (!class_exists('\PhpOffice\PhpSpreadsheet\IOFactory')) {
+        throw new Exception("Library PhpSpreadsheet tidak terinstall via Composer.");
+    }
+
+    if (!isset($_FILES['file_excel']) || $_FILES['file_excel']['error'] !== UPLOAD_ERR_OK) {
+        throw new Exception("File wajib diupload atau file rusak (Error Code: " . ($_FILES['file_excel']['error'] ?? 'unknown') . ")");
+    }
+
+    $originalName = $_FILES['file_excel']['name'];
+    $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+
+    // Specific check: .xlsx REQUIRES zip extension
+    if ($ext === 'xlsx' && !extension_loaded('zip')) {
+         throw new Exception("Server XAMPP Anda belum mengaktifkan ekstensi 'ZIP'.\n\n📌 SOLUSI CEPAT:\nBuka file Excel Anda, pilih **File > Save As**, lalu ubah format menjadi **Excel 97-2003 Workbook (.xls)**.\nUpload file .xls tersebut (tidak butuh Zip).");
+    }
+
+    $file_tmp = $_FILES['file_excel']['tmp_name'];
+    
+    try {
+        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file_tmp);
+    } catch (Exception $e) {
+        throw new Exception("Gagal membaca file Excel: " . $e->getMessage());
+    }
+    
+    $rows = $spreadsheet->getActiveSheet()->toArray();
+
+    // ============================================================
+    // DYNAMIC HEADER MAPPING
+    // ============================================================
+    if (count($rows) < 2) {
+        throw new Exception("File kosong atau hanya berisi header tanpa data.");
+    }
+
+    $headerRow = $rows[0];
+    array_shift($rows); // Remove header row
+
+    // Normalize headers
+    $normalizedHeaders = [];
+    foreach ($headerRow as $idx => $val) {
+        if ($val === null) continue;
+        $clean = mb_strtolower(trim((string)$val));
+        $clean = preg_replace('/[\x00-\x1F\x7F\xA0]/u', '', $clean);
+        $normalizedHeaders[$idx] = $clean;
+    }
+
+    // Define known columns and their aliases
+    $columnDefs = [
+        'nik'           => ['nik', 'nomor induk', 'nip'],
+        'nama_lengkap'  => ['nama', 'nama lengkap', 'nama pegawai', 'full name'],
+        'email'         => ['email', 'alamat email', 'e-mail'],
+        'npwp'          => ['npwp', 'no npwp', 'nomor pajak'],
+        'ptkp'          => ['ptkp', 'status ptkp'],
+        'jabatan'       => ['jabatan', 'posisi', 'role'],
+        'status_kontrak'=> ['status kontrak', 'jenis kontrak', 'kontrak'],
+        'tanggal_masuk' => ['tanggal masuk', 'tgl masuk', 'join date', 'mulai kerja'],
+        'gaji_pokok'    => ['gaji', 'gaji pokok', 'basic salary', 'salary']
     ];
 
-    $headerErrors = [];
-    $headerMapping = []; // Untuk mapping posisi kolom jika urutan berbeda
-
-    foreach ($expectedHeaders as $colIdx => $config) {
-        $actualHeader = isset($headerRow[$colIdx]) ? mb_strtolower(trim((string)$headerRow[$colIdx])) : '';
-        
-        // Hapus karakter tersembunyi / non-printable
-        $actualHeader = preg_replace('/[\x00-\x1F\x7F\xA0]/u', '', $actualHeader);
-        
-        if (empty($actualHeader)) {
-            $headerErrors[] = "Kolom " . ($colIdx + 1) . " (kosong) → seharusnya: \"" . $config['label'] . "\"";
-            continue;
-        }
-        
-        // Cek apakah header cocok dengan salah satu alias
-        $matched = false;
-        foreach ($config['aliases'] as $alias) {
-            if ($actualHeader === $alias) {
-                $matched = true;
+    // Map found columns
+    $colMap = [];
+    foreach ($normalizedHeaders as $idx => $headerName) {
+        foreach ($columnDefs as $key => $aliases) {
+            if (in_array($headerName, $aliases)) {
+                $colMap[$key] = $idx;
                 break;
             }
         }
-        
-        if (!$matched) {
-            $headerErrors[] = "Kolom " . ($colIdx + 1) . " \"" . trim((string)$headerRow[$colIdx]) . "\" → seharusnya: \"" . $config['label'] . "\"";
-        }
     }
 
-    if (!empty($headerErrors)) {
-        $errorMsg = "Header kolom tidak sesuai format!\n\n";
-        $errorMsg .= "Kesalahan ditemukan:\n";
-        foreach ($headerErrors as $he) {
-            $errorMsg .= "• $he\n";
-        }
-        $errorMsg .= "\nFormat yang benar (urutan): NIK | Nama Lengkap | Email | PTKP | Jabatan | Status Kontrak | Tanggal Masuk | Gaji Pokok";
-        $errorMsg .= "\n\nTips: Download template dari tombol 'Format' untuk mendapatkan format yang benar.";
-        
-        echo json_encode(["status" => "error", "message" => $errorMsg]);
-        exit;
+    // Validate Required Columns
+    if (!isset($colMap['nik']) || !isset($colMap['nama_lengkap'])) {
+        throw new Exception("Format file tidak valid. Kolom REQUIRED tidak ditemukan: NIK dan Nama Lengkap.");
     }
-
-    // Header valid, hapus header row dan lanjutkan proses
-    array_shift($rows);
 
     $berhasil = 0;
     $gagal = 0;
     $errors = [];
+    
     $db->beginTransaction();
 
+    // Cache PTKP
+    $ptkpCache = [];
+    try {
+        $stmtPtkpAll = $db->query("SELECT id_ptkp, status_ptkp FROM status_ptkp");
+        while ($rowPtkp = $stmtPtkpAll->fetch(PDO::FETCH_ASSOC)) {
+            $ptkpCache[strtoupper($rowPtkp['status_ptkp'])] = $rowPtkp['id_ptkp'];
+        }
+    } catch (Throwable $e) { /* Ignore */ }
+
+    // Fallback PTKP ID
+    $fallbackPtkpId = null;
+    if (empty($ptkpCache)) {
+        try {
+            $stmtFallback = $db->query("SELECT id_ptkp FROM status_ptkp LIMIT 1");
+            $fallbackPtkpId = $stmtFallback->fetchColumn() ?: null;
+        } catch (Throwable $e) { /* Ignore */ }
+    } else {
+        $fallbackPtkpId = reset($ptkpCache);
+    }
+
     foreach ($rows as $idx => $row) {
-        $rowNum = $idx + 2; // Baris di Excel (1-indexed + header)
-        $nik = isset($row[0]) ? trim((string)$row[0]) : '';
-        $nama = isset($row[1]) ? trim((string)$row[1]) : '';
+        $rowNum = $idx + 2;
         
+        // Helper to safely get value from row
+        $getVal = function($key, $default = '') use ($row, $colMap) {
+            if (isset($colMap[$key]) && isset($row[$colMap[$key]])) {
+                $val = trim((string)$row[$colMap[$key]]);
+                return ($val === '') ? $default : $val;
+            }
+            return $default;
+        };
+
+        $nik = $getVal('nik');
+        $nama = $getVal('nama_lengkap');
+
         if (empty($nik) || empty($nama)) {
+            // Only count as error if row is not entirely empty
             if (!empty($nik) || !empty($nama)) {
                 $gagal++;
-                $errors[] = "Baris $rowNum: NIK atau Nama kosong";
+                $errors[] = "Baris $rowNum: NIK atau Nama Lengkap kosong.";
             }
             continue;
         }
 
-        $email = isset($row[2]) ? trim((string)$row[2]) : '';
-        $ptkp = isset($row[3]) ? trim((string)$row[3]) : 'TK/0';
-        $jabatan = isset($row[4]) ? trim((string)$row[4]) : 'Staff';
-        $kontrak = isset($row[5]) ? trim((string)$row[5]) : 'TETAP';
-        $tgl_masuk = isset($row[6]) ? trim((string)$row[6]) : date('Y-m-d');
-        $gaji_pokok = isset($row[7]) ? intval(str_replace(['.', ',', ' '], '', $row[7])) : 0;
+        $email = $getVal('email');
+        $npwp = $getVal('npwp');
+        $ptkpStr = strtoupper($getVal('ptkp', 'TK/0'));
+        $jabatan = $getVal('jabatan', 'Staff');
+        $kontrak = $getVal('status_kontrak', 'TETAP');
+        
+        // Date handling
+        $tgl_masuk_raw = isset($colMap['tanggal_masuk']) ? $row[$colMap['tanggal_masuk']] : null;
+        $tgl_masuk = date('Y-m-d'); // Default today
+        if (!empty($tgl_masuk_raw)) {
+            if (is_numeric($tgl_masuk_raw)) {
+                try {
+                    $tgl_masuk = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($tgl_masuk_raw)->format('Y-m-d');
+                } catch(Throwable $e) {}
+            } else {
+                $ts = strtotime($tgl_masuk_raw);
+                if ($ts) $tgl_masuk = date('Y-m-d', $ts);
+            }
+        }
+
+        // Salary
+        $gaji_raw = isset($colMap['gaji_pokok']) ? $row[$colMap['gaji_pokok']] : 0;
+        $gaji_pokok = (int)preg_replace('/[^0-9]/', '', (string)$gaji_raw);
+
+        // PTKP ID Resolution
+        $id_ptkp = $ptkpCache[$ptkpStr] ?? $ptkpCache['TK/0'] ?? $fallbackPtkpId ?? null;
 
         try {
-            // 1. UPSERT DATA PEGAWAI (nik is UNIQUE)
-            $stmt1 = $db->prepare("INSERT INTO data_pegawai (nik, nama_lengkap, email, status_ptkp) 
-                VALUES (:nik, :nama, :email, :ptkp)
-                ON DUPLICATE KEY UPDATE nama_lengkap=:nama2, email=:email2, status_ptkp=:ptkp2");
-            $stmt1->execute([
-                ':nik' => $nik, ':nama' => $nama, ':email' => $email, ':ptkp' => $ptkp,
-                ':nama2' => $nama, ':email2' => $email, ':ptkp2' => $ptkp
-            ]);
+            // 1. UPSERT PEGAWAI
+            $stmtCek = $db->prepare("SELECT id_pegawai FROM pegawai WHERE nik = ?");
+            $stmtCek->execute([$nik]);
+            $existingId = $stmtCek->fetchColumn();
 
-            // Ambil ID Pegawai
-            $stmtId = $db->prepare("SELECT id FROM data_pegawai WHERE nik = ?");
-            $stmtId->execute([$nik]);
-            $pid = $stmtId->fetchColumn();
-
-            if (!$pid) {
-                $gagal++;
-                $errors[] = "Baris $rowNum: Gagal ambil ID pegawai";
-                continue;
+            if ($existingId) {
+                 // UPDATE
+                 // Try updating all fields first. If npwp column missing, this might fail.
+                 try {
+                     $sqlUp = "UPDATE pegawai SET nama_lengkap = ?, email = ?, id_ptkp = ?, npwp = ? WHERE id_pegawai = ?";
+                     $stmtUpdate = $db->prepare($sqlUp);
+                     $stmtUpdate->execute([$nama, $email, $id_ptkp, $npwp, $existingId]);
+                 } catch (Exception $eUpdate) {
+                     // If update fails (e.g. Unknown column 'npwp'), try simpler update?
+                     // Let's just rethrow with clearer message for now, OR ignore npwp if it fails.
+                     // But assuming column exists based on user screenshots.
+                     throw $eUpdate;
+                 }
+                 $pid = $existingId;
+            } else {
+                 // INSERT
+                 $sqlIns = "INSERT INTO pegawai (nik, nama_lengkap, email, id_ptkp, npwp) VALUES (?, ?, ?, ?, ?)";
+                 $stmtInsert = $db->prepare($sqlIns);
+                 $stmtInsert->execute([$nik, $nama, $email, $id_ptkp, $npwp]);
+                 $pid = $db->lastInsertId();
             }
 
-            // 2. KONTRAK KERJA - dikelola terpisah via halaman Kontrak Kerja
-            // (FK kontrak_kerja.id_pegawai → pegawai.id_pegawai, bukan data_pegawai.id)
+            // 2. KONTRAK KERJA
+            // Use try-catch for safety
+            try {
+                $stmtCekKontrak = $db->prepare("SELECT id_kontrak FROM kontrak_kerja WHERE id_pegawai = ? ORDER BY tanggal_mulai DESC LIMIT 1");
+                $stmtCekKontrak->execute([$pid]);
+                $kontrakId = $stmtCekKontrak->fetchColumn();
 
-            // 3. UPSERT KOMPONEN GAJI - cek apakah sudah ada
-            $cekGaji = $db->prepare("SELECT id FROM komponen_gaji WHERE pegawai_id = ?");
-            $cekGaji->execute([$pid]);
-            
-            if ($cekGaji->rowCount() > 0) {
-                $stmt3 = $db->prepare("UPDATE komponen_gaji SET gaji_pokok=? WHERE pegawai_id=?");
-                $stmt3->execute([$gaji_pokok, $pid]);
-            } else {
-                $stmt3 = $db->prepare("INSERT INTO komponen_gaji (pegawai_id, gaji_pokok) VALUES (?, ?)");
-                $stmt3->execute([$pid, $gaji_pokok]);
+                if ($kontrakId) {
+                    $stmtUpKontrak = $db->prepare("UPDATE kontrak_kerja SET jabatan = ?, jenis_kontrak = ?, tanggal_mulai = ? WHERE id_kontrak = ?");
+                    $stmtUpKontrak->execute([$jabatan, $kontrak, $tgl_masuk, $kontrakId]);
+                } else {
+                    $noKontrak = "NK/" . $pid . "/" . date('Y') . "-" . rand(1000, 9999);
+                    $stmtInsKontrak = $db->prepare("INSERT INTO kontrak_kerja (id_pegawai, no_kontrak, jabatan, jenis_kontrak, tanggal_mulai) VALUES (?, ?, ?, ?, ?)");
+                    $stmtInsKontrak->execute([$pid, $noKontrak, $jabatan, $kontrak, $tgl_masuk]);
+                    $kontrakId = $db->lastInsertId();
+                }
+
+                // 3. KOMPONEN GAJI
+                if ($gaji_pokok > 0 && $kontrakId) {
+                     $stmtCekGaji = $db->prepare("SELECT id_nominal FROM nominal_kontrak WHERE id_kontrak = ? AND id_komponen = 1");
+                     $stmtCekGaji->execute([$kontrakId]);
+                     $nominalId = $stmtCekGaji->fetchColumn();
+
+                     if ($nominalId) {
+                         $stmtUpGaji = $db->prepare("UPDATE nominal_kontrak SET nominal = ? WHERE id_nominal = ?");
+                         $stmtUpGaji->execute([$gaji_pokok, $nominalId]);
+                     } else {
+                         $stmtInsGaji = $db->prepare("INSERT INTO nominal_kontrak (id_kontrak, id_komponen, nominal) VALUES (?, 1, ?)");
+                         $stmtInsGaji->execute([$kontrakId, $gaji_pokok]);
+                     }
+                }
+            } catch (Throwable $eKontrak) {
+                // Log contract error but allow employee update to succeed?
+                // No, rollback for consistency per row.
+                throw $eKontrak;
             }
 
             $berhasil++;
-        } catch (Exception $rowErr) {
-            $gagal++;
-            $errors[] = "Baris $rowNum: " . $rowErr->getMessage();
+        } catch (Throwable $rowErr) {
+             $gagal++;
+             $errors[] = "Baris $rowNum: " . $rowErr->getMessage();
         }
     }
 
     $db->commit();
     
     $msg = "Import selesai! Berhasil: $berhasil";
-    if ($gagal > 0) {
-        $msg .= ", Gagal: $gagal";
-    }
+    if ($gagal > 0) $msg .= ", Gagal: $gagal";
+    
+    // Clear buffer before output
+    ob_end_clean();
     
     echo json_encode([
         "status" => "success", 
         "message" => $msg,
-        "detail" => [
-            "berhasil" => $berhasil,
-            "gagal" => $gagal,
-            "errors" => $errors
-        ]
+        "detail" => ["berhasil" => $berhasil, "gagal" => $gagal, "errors" => $errors]
     ]);
 
-} catch (Exception $e) {
-    if ($db->inTransaction()) {
+} catch (Throwable $e) {
+    if (isset($db) && $db->inTransaction()) {
         $db->rollBack();
     }
-    echo json_encode(["status" => "error", "message" => "Import gagal: " . $e->getMessage()]);
+    
+    // Log invalid imports
+    error_log("Import Error: " . $e->getMessage());
+    
+    ob_end_clean(); // Discard noise
+    
+    // Return 200 OK with error status to avoid CORS blocking on strict clients
+    if (!headers_sent()) {
+        header("Access-Control-Allow-Origin: *");
+        http_response_code(200); 
+    }
+    
+    echo json_encode(["status" => "error", "message" => "Import Gagal: " . $e->getMessage()]);
 }
 ?>

@@ -23,16 +23,15 @@ try {
     }
 
     // 2. INSERT ke tabel PEGAWAI
-    $sql1 = "INSERT INTO pegawai (nik, nama_lengkap, email, npwp, id_ptkp, hari_efektif) 
-             VALUES (:nik, :nama, :email, :npwp, :id_ptkp, :hari_efektif)";
+    $sql1 = "INSERT INTO pegawai (nik, nama_lengkap, email, npwp, id_ptkp) 
+             VALUES (:nik, :nama, :email, :npwp, :id_ptkp)";
     $stmt1 = $db->prepare($sql1);
     $stmt1->execute([
         ':nik'     => $data->nik,
         ':nama'    => $data->nama_lengkap,
         ':email'   => $data->email ?? '',
         ':npwp'    => $data->npwp ?? '',
-        ':id_ptkp' => $id_ptkp,
-        ':hari_efektif' => isset($data->hari_efektif) ? (int)$data->hari_efektif : 25
+        ':id_ptkp' => $id_ptkp
     ]);
     
     $pegawai_id = $db->lastInsertId();

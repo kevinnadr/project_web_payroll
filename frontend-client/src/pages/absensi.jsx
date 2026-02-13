@@ -67,78 +67,108 @@ const Absensi = () => {
     const handleDownloadTemplate = () => window.open('http://localhost/project_web_payroll/backend-api/modules/absensi/download_template.php', '_blank'); // Using simple template for now
 
     // --- IMPORT CSV ---
-    const handleFileChange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = async (event) => {
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+        try {
             const text = event.target.result;
-            const rows = text.split("\n").filter(r => r.trim() !== "");
+
+            // Bersihkan BOM + support CRLF Windows
+            const rows = text
+                .replace(/^\uFEFF/, '')
+                .split(/\r?\n/)
+                .filter(r => r.trim() !== "");
+
             if (rows.length < 2) {
                 setErrorMessage("File kosong atau tidak memiliki data.");
                 setShowErrorModal(true);
                 return;
             }
 
-            const header = rows[0].split(",").map(h => h.trim().toLowerCase());
-            const requiredHeaders = ['nik', 'hadir', 'sakit', 'izin', 'cuti', 'hari_terlambat', 'menit_terlambat', 'jam_lembur'];
+            // Support koma & titik koma
+            const header = rows[0]
+                .split(/[;,]/)
+                .map(h => h.trim().replace(/\r/g, '').toLowerCase());
 
-            // Check if all required headers are present
+             const requiredHeaders = [
+                'nik',
+                'hadir',
+                'sakit',
+                'izin',
+                'cuti',
+                'hari_terlambat',
+                'menit_terlambat'
+            ];
+
             const missingHeaders = requiredHeaders.filter(h => !header.includes(h));
+
             if (missingHeaders.length > 0) {
-                const msg = `Header kolom tidak sesuai format! Kesalahan ditemukan: • Kolom ${missingHeaders.length} (hilang) → seharusnya ada: "${missingHeaders.join(", ")}". Format yang benar (urutan): NIK | Hadir | Sakit | Izin | Cuti | Telat (Hari) | Telat (Menit) | Lembur (Jam). Tips: Download template dari tombol 'Format' untuk mendapatkan format yang benar.`;
-                setErrorMessage(msg);
+                setErrorMessage(
+                    `Header tidak sesuai format! Kolom hilang: ${missingHeaders.join(", ")}`
+                );
                 setShowErrorModal(true);
                 e.target.value = null;
                 return;
             }
 
-            const mapHeader = (h) => {
-                if (h.includes('nik')) return 'nik';
-                if (h.includes('hadir')) return 'hadir';
-                if (h.includes('sakit')) return 'sakit';
-                if (h.includes('izin')) return 'izin';
-                if (h.includes('cuti')) return 'cuti';
-                if (h.includes('telat') && h.includes('hari')) return 'hari_terlambat';
-                if (h.includes('telat') && h.includes('menit')) return 'menit_terlambat';
-                if (h.includes('lembur')) return 'jam_lembur';
-                return null;
-            };
-
-            const keys = header.map(mapHeader);
             const dataToImport = [];
 
-            // Validate mapping
-            if (keys.some(k => k === null && header[keys.indexOf(k)] !== "")) {
-                // Optional: warn about unmapped columns, or simple logic above is enough
-            }
-
             for (let i = 1; i < rows.length; i++) {
-                const cols = rows[i].split(",");
-                if (cols.length < 2) continue;
+                const cols = rows[i]
+                    .split(/[;,]/)
+                    .map(c => c.trim().replace(/\r/g, ''));
+
+                if (cols.length < header.length) continue;
+
                 const obj = {};
-                keys.forEach((k, idx) => { if (k) obj[k] = cols[idx]?.trim() });
-                if (obj.nik) dataToImport.push(obj);
+                header.forEach((key, index) => {
+                    obj[key] = cols[index] || 0;
+                });
+
+                if (obj.nik) {
+                    dataToImport.push(obj);
+                }
             }
 
-            if (dataToImport.length > 0) {
-                setLoading(true);
-                try {
-                    await axios.post(`http://localhost/project_web_payroll/backend-api/modules/absensi/import_excel.php`, {
-                        bulan: bulanFilter, data: dataToImport, hari_efektif: 25
-                    });
-                    alert("Import Berhasil");
-                    fetchData();
-                } catch (err) {
-                    setErrorMessage(err.response?.data?.message || "Gagal Import Data. Silakan cek kembali file Anda.");
-                    setShowErrorModal(true);
-                }
-                finally { setLoading(false); e.target.value = null; }
+            if (dataToImport.length === 0) {
+                setErrorMessage("Tidak ada data valid untuk diimport.");
+                setShowErrorModal(true);
+                return;
             }
-        };
-        reader.readAsText(file);
+
+            setLoading(true);
+
+            await axios.post(
+                `http://localhost/project_web_payroll/backend-api/modules/absensi/import_excel.php`,
+                {
+                    bulan: bulanFilter,
+                    data: dataToImport
+                    
+                }
+            );
+
+            alert("Import Berhasil ✅");
+            fetchData();
+
+        } catch (err) {
+            setErrorMessage(
+                err.response?.data?.message ||
+                "Gagal Import Data. Silakan cek kembali file Anda."
+            );
+            setShowErrorModal(true);
+        } finally {
+            setLoading(false);
+            e.target.value = null;
+        }
     };
+
+    reader.readAsText(file);
+};
+
 
     const handleSaveAbsensi = async (e) => {
         e.preventDefault();

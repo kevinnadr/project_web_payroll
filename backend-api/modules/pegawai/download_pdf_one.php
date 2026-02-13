@@ -15,9 +15,10 @@ if (!$id_pegawai) die("ID Pegawai tidak ditemukan.");
     
     // 1. Ambil Data Pegawai & Kontrak
     $stmt = $db->prepare("
-        SELECT p.*, sp.status_ptkp, sp.kategori_ter, k.id_kontrak, k.jabatan, k.jenis_kontrak, k.tanggal_mulai
+        SELECT p.*, sp.status_ptkp, pt.kategori_ter, k.id_kontrak, k.jabatan, k.jenis_kontrak, k.tanggal_mulai
         FROM pegawai p
         LEFT JOIN status_ptkp sp ON p.id_ptkp = sp.id_ptkp
+        LEFT JOIN pph_ter pt ON sp.id_ter_reff = pt.id_ter
         LEFT JOIN kontrak_kerja k ON p.id_pegawai = k.id_pegawai
         WHERE p.id_pegawai = ?
     ");

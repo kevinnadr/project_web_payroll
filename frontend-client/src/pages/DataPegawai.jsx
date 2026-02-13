@@ -36,8 +36,7 @@ const DataPegawai = () => {
         jenis_kontrak: 'TETAP',
         jabatan: '',
         tanggal_mulai: new Date().toISOString().split('T')[0],
-        tanggal_berakhir: '',
-        hari_efektif: 25
+        tanggal_berakhir: ''
     });
 
     useEffect(() => {
@@ -202,14 +201,14 @@ const DataPegawai = () => {
                 jenis_kontrak: latestContract.jenis_kontrak || 'TETAP',
                 jabatan: latestContract.jabatan || '',
                 tanggal_mulai: latestContract.tanggal_mulai || '',
-                tanggal_berakhir: latestContract.tanggal_berakhir || '',
-                hari_efektif: row.hari_efektif || 25
+                tanggal_berakhir: latestContract.tanggal_berakhir || ''
+                
             });
         } else {
             setIsEdit(false);
             setFormData({
                 id_pegawai: '', nik: '', nama_lengkap: '', email: '', status_ptkp: 'TK/0', npwp: '',
-                jenis_kontrak: 'TETAP', jabatan: '', tanggal_mulai: new Date().toISOString().split('T')[0], tanggal_berakhir: '', hari_efektif: 25
+                jenis_kontrak: 'TETAP', jabatan: '', tanggal_mulai: new Date().toISOString().split('T')[0], tanggal_berakhir: ''
             });
         }
         setShowModal(true);

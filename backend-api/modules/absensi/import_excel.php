@@ -32,8 +32,8 @@ try {
             $row[strtolower(trim($k))] = $v; 
         }
 
-        // Get id_pegawai and default hari_efektif from nik
-        $nikSql = "SELECT id_pegawai, hari_efektif FROM pegawai WHERE nik = ? LIMIT 1";
+        // Get id_pegawai from nik
+        $nikSql = "SELECT id_pegawai FROM pegawai WHERE nik = ? LIMIT 1";
         $nikStmt = $db->prepare($nikSql);
         $nikStmt->execute([$row['nik'] ?? '']);
         $pegawaiResult = $nikStmt->fetch(PDO::FETCH_OBJ);
@@ -43,7 +43,7 @@ try {
         }
 
         $id_pegawai = $pegawaiResult->id_pegawai;
-        $default_hari_efektif = $pegawaiResult->hari_efektif ?? 25;
+        $default_hari_efektif = 25;
 
         // ... fields ...
         $hadir = (int)($row['hadir'] ?? 0);
@@ -61,21 +61,21 @@ try {
         $hari_efektif = (int)($row['hari_efektif'] ?? $input['hari_efektif'] ?? $default_hari_efektif ?? 25);
 
         // Insert or update absensi
+
+        // Insert or update absensi
         $sql = "INSERT INTO absensi 
-                (id_pegawai, hari_efektif, hadir, sakit, izin, cuti, hari_terlambat, menit_terlambat, jam_lembur, date)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (id_pegawai, hadir, sakit, izin, cuti, hari_terlambat, menit_terlambat, date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE 
-                    hari_efektif = VALUES(hari_efektif),
                     hadir = VALUES(hadir),
                     sakit = VALUES(sakit),
                     izin = VALUES(izin),
                     cuti = VALUES(cuti),
                     hari_terlambat = VALUES(hari_terlambat),
-                    menit_terlambat = VALUES(menit_terlambat),
-                    jam_lembur = VALUES(jam_lembur)";
+                    menit_terlambat = VALUES(menit_terlambat)";
         
         $stmt = $db->prepare($sql);
-        $stmt->execute([$id_pegawai, $hari_efektif, $hadir, $sakit, $izin, $cuti, $hari_terlambat, $menit_terlambat, $jam_lembur, $date]);
+        $stmt->execute([$id_pegawai, $hadir, $sakit, $izin, $cuti, $hari_terlambat, $menit_terlambat, $date]);
     }
 
     $db->commit();
@@ -92,7 +92,4 @@ try {
         "message" => "Error: " . $e->getMessage()
     ]);
 }
-?>} catch (Exception $e) {
-    $db->rollBack();
-    echo json_encode(["status" => "error", "message" => $e->getMessage()]);
-}
+?>
