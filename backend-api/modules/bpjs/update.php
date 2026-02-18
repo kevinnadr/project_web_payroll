@@ -11,38 +11,26 @@ if (empty($data->id_pegawai)) {
 }
 
 try {
-    // Check for active contract first, then latest
-    $sqlContract = "SELECT id_kontrak FROM kontrak_kerja WHERE id_pegawai = ? ORDER BY (tanggal_berakhir IS NULL) DESC, tanggal_mulai DESC LIMIT 1";
-    $cek = $db->prepare($sqlContract);
-    $cek->execute([$data->id_pegawai]);
-    $contract = $cek->fetch(PDO::FETCH_ASSOC);
+    $periode = $data->periode ?? date('Y-m');
+
+    // UPSERT (Insert or Update if exists)
+    $sql = "INSERT INTO data_bpjs (id_pegawai, periode, bpjs_tk, bpjs_ks, dasar_upah)
+            VALUES (:id, :periode, :tk, :ks, :upah)
+            ON DUPLICATE KEY UPDATE
+            bpjs_tk = VALUES(bpjs_tk),
+            bpjs_ks = VALUES(bpjs_ks),
+            dasar_upah = VALUES(dasar_upah)";
     
-    if ($contract) {
-        $id_kontrak = $contract['id_kontrak'];
-        
-        // Update specific contract
-        $sql = "UPDATE kontrak_kerja SET 
-                bpjs_tk = :tk, 
-                bpjs_ks = :ks, 
-                dasar_upah = :upah 
-                WHERE id_kontrak = :id_kontrak";
-        
-        $stmt = $db->prepare($sql);
-        $stmt->execute([
-            ':tk'   => $data->bpjs_tk ?? 0,
-            ':ks'   => $data->bpjs_ks ?? 0,
-            ':upah' => $data->dasar_upah ?? 0,
-            ':id_kontrak' => $id_kontrak
-        ]);
-        
-        echo json_encode(["status" => "success", "message" => "Data BPJS Updated!"]);
-    } else {
-        // If no contract found, maybe create a placeholder contract or just return error
-        // Typically every employee should have a contract record.
-        // For now, let's create a dummy contract entry if missing or return error.
-        // Assuming every employee has a contract created upon registration.
-        echo json_encode(["status" => "error", "message" => "Kontrak Kerja not found for this employee."]);
-    }
+    $stmt = $db->prepare($sql);
+    $stmt->execute([
+        ':id' => $data->id_pegawai,
+        ':periode' => $periode,
+        ':tk' => $data->bpjs_tk ?? 0,
+        ':ks' => $data->bpjs_ks ?? 0,
+        ':upah' => $data->dasar_upah ?? 0
+    ]);
+    
+    echo json_encode(["status" => "success", "message" => "Data BPJS Periode $periode Disimpan!"]);
 
 } catch (PDOException $e) {
     echo json_encode(["status" => "error", "message" => "Error: " . $e->getMessage()]);

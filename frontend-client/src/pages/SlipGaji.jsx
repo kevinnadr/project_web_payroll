@@ -177,7 +177,9 @@ const SlipGaji = () => {
                             {loading ? <tr><td colSpan="6" className="text-center p-4">⏳ Memuat...</td></tr> :
                                 filteredList.map((row) => (
                                     <tr key={row.id_pegawai}>
-                                        <td><div className="user-profile"><div className="avatar-circle">{row.nama_lengkap.charAt(0)}</div><div><div className="user-name-modern">{row.nama_lengkap}</div><div className="user-nik-modern">{row.nik}</div></div></div></td>
+                                        <td onClick={() => navigate('/data-pegawai', { state: { search: row.nik } })} style={{ cursor: 'pointer' }} title="Klik untuk lihat detail pegawai">
+                                            <div className="user-profile"><div className="avatar-circle">{row.nama_lengkap.charAt(0)}</div><div><div className="user-name-modern">{row.nama_lengkap}</div><div className="user-nik-modern">{row.nik}</div></div></div>
+                                        </td>
                                         <td style={{ fontSize: '0.9rem' }}>{row.email || '-'}</td>
                                         <td style={{ fontWeight: '600', fontSize: '0.85rem' }}>{row.npwp || '-'}</td>
                                         <td style={{ verticalAlign: 'middle' }}>

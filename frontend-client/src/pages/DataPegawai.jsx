@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/sidebar';
 import '../App.css';
 
@@ -8,7 +8,8 @@ const DataPegawai = () => {
     const [user, setUser] = useState(null);
     const [pegawaiList, setPegawaiList] = useState([]);
     const [filteredList, setFilteredList] = useState([]);
-    const [searchTerm, setSearchTerm] = useState('');
+    const location = useLocation();
+    const [searchTerm, setSearchTerm] = useState(location.state?.search || '');
     const [loading, setLoading] = useState(false);
 
     // File Upload State

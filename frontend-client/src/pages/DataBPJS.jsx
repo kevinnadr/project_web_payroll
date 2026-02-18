@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/sidebar';
@@ -6,20 +6,23 @@ import '../App.css';
 
 const DataBPJS = () => {
     const [user, setUser] = useState(null);
-    const [bpjsList, setBpjsList] = useState([]);
-    const [filteredList, setFilteredList] = useState([]);
+    const [rawList, setRawList] = useState([]); // Store raw API data (with nested contracts)
+    const [filteredList, setFilteredList] = useState([]); // Store display data (flattened with BPJS info)
     const [searchTerm, setSearchTerm] = useState('');
+    const [periodFilter, setPeriodFilter] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
     const [loading, setLoading] = useState(false);
 
     // Modal State
     const [showModal, setShowModal] = useState(false);
     const [formData, setFormData] = useState({
         id_pegawai: '',
+        id_kontrak: '', // New field for specific contract update
         bpjs_tk: 0,
         bpjs_ks: 0,
         dasar_upah: 0
     });
 
+    const periodInputRef = useRef(null);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -28,36 +31,45 @@ const DataBPJS = () => {
         else {
             setUser(JSON.parse(userData));
             fetchData();
+            // Initial fetch is now handled by the periodFilter useEffect
         }
     }, [navigate]);
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            const res = await axios.get('http://localhost/project_web_payroll/backend-api/modules/bpjs/read.php');
+            const res = await axios.get(`http://localhost/project_web_payroll/backend-api/modules/bpjs/read.php?periode=${periodFilter}`);
             const data = Array.isArray(res.data.data) ? res.data.data : [];
-            const sorted = data.sort((a, b) => parseInt(a.nik) - parseInt(b.nik));
-            setBpjsList(sorted);
+            const sorted = data.sort((a, b) => (parseInt(a.nik) || 0) - (parseInt(b.nik) || 0));
+            setRawList(sorted); // Using rawList as the main list now
+            setFilteredList(sorted);
         } catch (error) { console.error(error); }
         finally { setLoading(false); }
     };
 
+    // Refetch when period changes
+    useEffect(() => {
+        fetchData();
+    }, [periodFilter]);
+
+    // Search Filter
     useEffect(() => {
         if (searchTerm) {
             const lower = searchTerm.toLowerCase();
-            const filtered = bpjsList.filter(item =>
+            const filtered = rawList.filter(item =>
                 item.nama_lengkap.toLowerCase().includes(lower) ||
                 String(item.nik).includes(lower)
             );
             setFilteredList(filtered);
         } else {
-            setFilteredList(bpjsList);
+            setFilteredList(rawList);
         }
-    }, [searchTerm, bpjsList]);
+    }, [searchTerm, rawList]);
 
     const openModal = (row) => {
         setFormData({
             id_pegawai: row.id_pegawai,
+            periode: periodFilter,
             bpjs_tk: row.bpjs_tk || 0,
             bpjs_ks: row.bpjs_ks || 0,
             dasar_upah: row.dasar_upah || 0
@@ -73,9 +85,12 @@ const DataBPJS = () => {
     const handleSave = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/bpjs/update.php', formData);
+            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/bpjs/update.php', {
+                ...formData,
+                periode: periodFilter // Ensure period is sent
+            });
             if (res.data.status === 'success') {
-                alert('✅ Data BPJS Disimpan!');
+                alert(`✅ Data BPJS (${periodFilter}) Disimpan!`);
                 setShowModal(false);
                 fetchData();
             } else {
@@ -101,9 +116,8 @@ const DataBPJS = () => {
         }
     };
 
-    // Helper for formatting currency
     const formatRupiah = (num) => {
-        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
+        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
     };
 
     return (
@@ -118,14 +132,39 @@ const DataBPJS = () => {
                 </div>
 
                 <div className="toolbar-modern">
-                    <div className="search-box">
-                        <span className="search-icon">🔍</span>
-                        <input
-                            type="text"
-                            placeholder="Cari Nama / NIK..."
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                        />
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <div className="search-box">
+                            <span className="search-icon">🔍</span>
+                            <input
+                                type="text"
+                                placeholder="Cari Nama / NIK..."
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Period Picker */}
+                        <div
+                            style={{ background: 'white', padding: '0 15px', borderRadius: '10px', border: '1px solid #e2e8f0', height: '44px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+                            onClick={() => {
+                                try {
+                                    if (periodInputRef.current && typeof periodInputRef.current.showPicker === 'function') {
+                                        periodInputRef.current.showPicker();
+                                    } else {
+                                        periodInputRef.current?.focus();
+                                    }
+                                } catch (error) { console.error("Error opening picker:", error); }
+                            }}
+                        >
+                            <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Periode:</span>
+                            <input
+                                ref={periodInputRef}
+                                type="month"
+                                value={periodFilter}
+                                onChange={(e) => setPeriodFilter(e.target.value)}
+                                style={{ border: 'none', outline: 'none', fontWeight: 600, color: '#0f172a', fontSize: '0.9rem' }}
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -160,7 +199,9 @@ const DataBPJS = () => {
                                         <td>{formatRupiah(row.dasar_upah)}</td>
                                         <td className="text-center aksi-full">
                                             <button onClick={() => openModal(row)} className="btn-icon-modern edit" title="Edit">✏️</button>
-                                            <button onClick={() => handleDelete(row.id_pegawai, row.nama_lengkap)} className="btn-icon-modern delete" title="Reset">🗑️</button>
+                                            {/* Delete currently just resets, maybe we should hide it or make it reset the specific contract values? 
+                                                For now keeping it but usually delete is rarely used for BPJS specific fields only. 
+                                            */}
                                         </td>
                                     </tr>
                                 ))
@@ -179,6 +220,9 @@ const DataBPJS = () => {
                             <button onClick={() => setShowModal(false)}>✕</button>
                         </div>
                         <div style={{ padding: '20px' }}>
+                            <div style={{ marginBottom: '10px', fontSize: '0.85rem', color: '#64748b' }}>
+                                Mengubah data untuk periode: <strong>{periodFilter}</strong>
+                            </div>
                             <form onSubmit={handleSave}>
                                 <div className="form-group" style={{ marginBottom: '15px' }}>
                                     <label>BPJS Ketenagakerjaan (Rp)</label>
