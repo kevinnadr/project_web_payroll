@@ -19,7 +19,7 @@ try {
                 p.id_pegawai,
                 p.nik,
                 p.nama_lengkap,
-                sp.status_ptkp,
+                COALESCE(sp_k.status_ptkp, sp_p.status_ptkp) as status_ptkp,
                 k.id_kontrak,
                 k.no_kontrak,
                 k.jabatan,
@@ -27,8 +27,9 @@ try {
                 k.tanggal_berakhir,
                 k.jenis_kontrak
             FROM pegawai p
-            LEFT JOIN status_ptkp sp ON p.id_ptkp = sp.id_ptkp
+            LEFT JOIN status_ptkp sp_p ON p.id_ptkp = sp_p.id_ptkp
             LEFT JOIN kontrak_kerja k ON p.id_pegawai = k.id_pegawai
+            LEFT JOIN status_ptkp sp_k ON k.id_ptkp = sp_k.id_ptkp
             ORDER BY p.nik ASC";
 
     $stmt = $db->prepare($sql);
@@ -61,6 +62,13 @@ try {
          LIMIT 1"
     );
 
+    // Fetch Hari Efektif from Absensi
+    $stmtAbsensi = $db->prepare("
+        SELECT COALESCE(MAX(hari_efektif), 0) as hari_efektif
+        FROM absensi 
+        WHERE id_pegawai = ? AND date LIKE ?
+    ");
+
     foreach ($data as &$row) {
         $komponen = [];
         $gajiPokok = 0;
@@ -91,15 +99,18 @@ try {
         $bpjs = $stmtBpjs->fetch(PDO::FETCH_ASSOC);
         
         if (!$bpjs) {
-             // If not found in current month, try finding ANY latest BPJS setting to display
-             // This might be debated: should we show '0' or 'latest'? 
-             // Usually for master data, users want to see "Current Settings".
              $stmtBpjsFallback->execute([$row['id_pegawai']]);
              $bpjs = $stmtBpjsFallback->fetch(PDO::FETCH_ASSOC);
         }
 
         $row['bpjs_tk'] = $bpjs ? (float)$bpjs['bpjs_tk'] : 0;
         $row['bpjs_ks'] = $bpjs ? (float)$bpjs['bpjs_ks'] : 0;
+
+        // Working Days (Hari Efektif)
+        $stmtAbsensi->execute([$row['id_pegawai'], $bulanFilter . '%']);
+        $abs = $stmtAbsensi->fetch(PDO::FETCH_ASSOC);
+        // If Absensi has explicit 'hari_efektif', use it. Else default 22.
+        $row['hari_kerja_efektif'] = ($abs && $abs['hari_efektif'] > 0) ? (int)$abs['hari_efektif'] : 22;
     }
 
     echo json_encode([

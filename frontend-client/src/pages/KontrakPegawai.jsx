@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/sidebar';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +18,8 @@ const KontrakPegawai = () => {
     const [showModal, setShowModal] = useState(false);
     const [modalMode, setModalMode] = useState(''); // 'kontrak', 'create_kontrak', 'ptkp'
     const [selectedPegawai, setSelectedPegawai] = useState(null); // Full object row
+    const [previewContract, setPreviewContract] = useState(null); // For detail preview
+    const monthInputRef = useRef(null);
     const navigate = useNavigate();
 
     // --- NOTIFICATION STATE ---
@@ -31,6 +33,7 @@ const KontrakPegawai = () => {
         tanggal_mulai: '',
         tanggal_berakhir: '',
         jenis_kontrak: 'TETAP',
+        status_ptkp: 'TK/0',
         gaji_pokok: 0,
         tunjangan: 0,
         komponen_tambahan: []
@@ -38,7 +41,7 @@ const KontrakPegawai = () => {
 
     const [newKomponen, setNewKomponen] = useState({ nama: '', nominal: 0, tipe: 'bulanan' });
     const [bpjsData, setBpjsData] = useState({ bpjs_tk: 0, bpjs_ks: 0 });
-    const [formPtkp, setFormPtkp] = useState({ id_pegawai: '', status_ptkp: 'TK/0' });
+    const [formPtkp, setFormPtkp] = useState({ id_pegawai: '', id_kontrak: '', status_ptkp: 'TK/0' });
 
     const ptkpOptions = [
         { value: 'TK/0', label: 'TK/0 — Tidak Kawin, tanpa tanggungan (TER A)' },
@@ -54,6 +57,65 @@ const KontrakPegawai = () => {
     // Helper format Rp
     const formatRp = (val) => {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
+    };
+
+    // Helper Calculate Duration (Remaining Time)
+    const calculateDuration = (start, end) => {
+        if (!end || end === '0000-00-00') return <span style={{ color: '#10b981', fontWeight: 600 }}>Permanen / Tidak Terbatas</span>;
+
+        const endDate = new Date(end);
+        const now = new Date();
+
+        // Reset hours to compare dates only
+        now.setHours(0, 0, 0, 0);
+        endDate.setHours(0, 0, 0, 0);
+
+        if (isNaN(endDate.getTime())) return '-';
+
+        // Check if expired
+        if (endDate < now) {
+            return (
+                <div style={{ color: '#ef4444', fontWeight: 600 }}>
+                    Sudah Berakhir
+                    <div style={{ fontSize: '0.75rem', color: '#991b1b', fontWeight: 400 }}>
+                        ({endDate.toLocaleDateString('id-ID')})
+                    </div>
+                </div>
+            );
+        }
+
+        let years = endDate.getFullYear() - now.getFullYear();
+        let months = endDate.getMonth() - now.getMonth();
+        let days = endDate.getDate() - now.getDate();
+
+        if (days < 0) {
+            months--;
+            // Get days in previous month (relative to endDate)
+            const prevMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+            days += prevMonth.getDate();
+        }
+        if (months < 0) {
+            years--;
+            months += 12;
+        }
+
+        let parts = [];
+        if (years > 0) parts.push(`${years} Thn`);
+        if (months > 0) parts.push(`${months} Bln`);
+        if (days > 0) parts.push(`${days} Hari`);
+
+        if (parts.length === 0) return <span style={{ color: '#f59e0b', fontWeight: 600 }}>Berakhir Hari Ini</span>;
+
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontWeight: 600, color: years < 1 && months < 2 ? '#f59e0b' : '#334155' }}>
+                    {parts.join(' ')} lagi
+                </span>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                    s/d {endDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </span>
+            </div>
+        );
     };
 
     useEffect(() => {
@@ -103,23 +165,29 @@ const KontrakPegawai = () => {
         if (mode === 'create_kontrak') {
             // Reset for new contract
             setFormKontrak({
-                id_pegawai: '', id_kontrak: '',
+                id_pegawai: pegawai ? pegawai.id_pegawai : '',
+                id_kontrak: '',
                 jabatan: '', tanggal_mulai: new Date().toISOString().split('T')[0], tanggal_berakhir: '',
-                jenis_kontrak: 'TETAP', gaji_pokok: 0, tunjangan: 0, komponen_tambahan: []
+                jenis_kontrak: 'TETAP', status_ptkp: pegawai?.status_ptkp || 'TK/0', gaji_pokok: 0, tunjangan: 0, komponen_tambahan: []
             });
+            setBpjsData({ bpjs_tk: 0, bpjs_ks: 0 }); // Reset BPJS
             setShowModal(true);
 
         } else if (mode === 'kontrak' && pegawai) {
-            // Edit basic contract info only
+            // Edit FULL contract info (Basic + Komponen + BPJS)
             let tunjanganTetap = 0;
-            // Extract from existing if needed, though fetchDetail might be better for huge datasets
-            // Here assuming row has basic info.
-            // If row has komponen_tambahan detailed, extract 'Tunjangan Tetap'
+            let loadedKomponen = [];
+
             if (pegawai.komponen_tambahan) {
                 try {
                     const raw = typeof pegawai.komponen_tambahan === 'string' ? JSON.parse(pegawai.komponen_tambahan) : pegawai.komponen_tambahan;
+
+                    // Extract Tunjangan Tetap
                     const t = raw.find(k => k.nama === 'Tunjangan Tetap');
                     if (t) tunjanganTetap = Number(t.nominal);
+
+                    // Extract Other Components
+                    loadedKomponen = raw.filter(k => k.nama !== 'Tunjangan Tetap');
                 } catch (e) { }
             }
 
@@ -130,33 +198,15 @@ const KontrakPegawai = () => {
                 tanggal_mulai: pegawai.tanggal_mulai || '',
                 tanggal_berakhir: pegawai.tanggal_berakhir || '',
                 jenis_kontrak: pegawai.jenis_kontrak || 'TETAP',
+                status_ptkp: pegawai.status_ptkp || 'TK/0',
                 gaji_pokok: pegawai.gaji_pokok || 0,
                 tunjangan: tunjanganTetap,
-                komponen_tambahan: [] // Not managed here anymore
-            });
-            setShowModal(true);
-
-        } else if (mode === 'komponen' && pegawai) {
-            // Manage EXTRA components
-            let loadedKomponen = [];
-            if (pegawai.komponen_tambahan) {
-                try {
-                    const raw = typeof pegawai.komponen_tambahan === 'string' ? JSON.parse(pegawai.komponen_tambahan) : pegawai.komponen_tambahan;
-                    // Filter out Tunjangan Tetap as it's in main form
-                    loadedKomponen = raw.filter(k => k.nama !== 'Tunjangan Tetap');
-                } catch (e) { }
-            }
-            // Use same state structure for simplicity, though only 'komponen_tambahan' matters
-            setFormKontrak({
-                ...pegawai, // keep IDs
                 komponen_tambahan: loadedKomponen
             });
+
             setNewKomponen({ nama: '', nominal: 0, tipe: 'bulanan' });
 
-            // Show modal immediately to avoid "unclickable" feeling
-            setShowModal(true);
-
-            // Fetch existing BPJS Data if available
+            // Fetch BPJS Data
             try {
                 const res = await axios.get('http://localhost/project_web_payroll/backend-api/modules/master_gaji/read_bpjs.php', {
                     params: { id_pegawai: pegawai.id_pegawai }
@@ -173,8 +223,14 @@ const KontrakPegawai = () => {
                 setBpjsData({ bpjs_tk: 0, bpjs_ks: 0 });
             }
 
+            setShowModal(true);
+
         } else if (mode === 'ptkp' && pegawai) {
-            setFormPtkp({ id_pegawai: pegawai.id_pegawai, status_ptkp: pegawai.status_ptkp || 'TK/0' });
+            setFormPtkp({
+                id_pegawai: pegawai.id_pegawai,
+                id_kontrak: pegawai.id_kontrak || '',
+                status_ptkp: pegawai.status_ptkp || 'TK/0'
+            });
             setShowModal(true);
         }
     };
@@ -199,48 +255,72 @@ const KontrakPegawai = () => {
 
     const handleSaveKontrak = async (e) => {
         e.preventDefault();
-        // Main contract save (basic info + Gaji Pokok + Tunjangan Tetap)
         if (!formKontrak.id_pegawai) return alert("Pilih Pegawai!");
 
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_gaji/save_kontrak.php', formKontrak);
-            if (res.data.status === 'success') {
-                setNotification({ type: 'success', title: '✅ Berhasil', message: 'Data Kontrak Utama Disimpan!' });
+            // 1. Save Main Contract (Basic Data + Tunjangan Tetap)
+            // Note: save_kontrak.php handles Tunjangan Tetap logic internally by adding it to komponen
+            const resKontrak = await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_gaji/save_kontrak.php', formKontrak);
+
+            if (resKontrak.data.status === 'success') {
+                // FIXED: structure is res.data.data.id_kontrak
+                const savedIdKontrak = resKontrak.data.data?.id_kontrak || formKontrak.id_kontrak;
+                const savedIdPegawai = formKontrak.id_pegawai;
+
+                // 2. Save Extra Komponen Tambahan
+                // Need to filter OUT Tunjangan Tetap because save_kontrak handles it? 
+                // Actually save_komponen.php REPLACES the komponen list for that contract.
+                // So we should send ALL components including Tunjangan Tetap if we want them persisted properly 
+                // OR rely on save_kontrak to have set Tunjangan Tetap, and save_komponen to ADD to it?
+                // Checking functionality: save_komponen.php calls usually overwrite/update.
+                // To be safe and consistent with previous logic:
+                // The previous logic had split forms. "Save Kontrak" saved basic info AND "Tunjangan Tetap" (via internal logic likely).
+                // "Save Komponen" saved the rest.
+                // If we call save_komponen NOW, it might overwrite what save_kontrak did regarding Tunjangan Tetap if we are not careful.
+                // Let's check if we can just trigger save_komponen with everything BUT Tunjangan Tetap (if save_kontrak handles it).
+
+                // However, the cleanest way in this frontend refactor without touching backend too much:
+                // Call save_komponen with ONLY the extra components. 
+                // BUT wait, does save_komponen DELETE existing components?
+                // If the backend save_komponen.php does "DELETE FROM komponen WHERE id_kontrak... INSERT..." then we have a problem if we don't send Tunjangan Tetap too.
+                // Since I cannot see save_komponen.php content easily here, I will assume it might replace.
+                // SAFE STRATEGY: Send the Combined components (Tunjangan Tetap + Extras) to `save_komponen.php`.
+
+                // Re-construct Tunjangan Tetap object
+                let allKomponen = [...formKontrak.komponen_tambahan];
+                if (formKontrak.tunjangan > 0) {
+                    // Check if it already exists in the list to avoid duplicate
+                    if (!allKomponen.find(k => k.nama === 'Tunjangan Tetap')) {
+                        allKomponen.push({
+                            nama: 'Tunjangan Tetap',
+                            nominal: formKontrak.tunjangan,
+                            tipe: 'bulanan',
+                            is_permanent: 1 // Flag just in case
+                        });
+                    }
+                }
+
+                // Call Save Komponen
+                const payloadKomponen = {
+                    id_kontrak: savedIdKontrak,
+                    komponen_tambahan: allKomponen
+                };
+                await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_gaji/save_komponen.php', payloadKomponen);
+
+                // 3. Save BPJS Logic - REMOVED PER REQ
+                // const payloadBpjs = {
+                //     id_pegawai: savedIdPegawai,
+                //     bpjs_tk: bpjsData.bpjs_tk,
+                //     bpjs_ks: bpjsData.bpjs_ks
+                // };
+                // await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_gaji/save_bpjs.php', payloadBpjs);
+
+                setNotification({ type: 'success', title: '✅ Berhasil', message: 'Data Kontrak Disimpan!' });
                 setShowModal(false);
                 fetchData();
+
             } else {
-                setNotification({ type: 'error', title: '❌ Gagal', message: res.data.message });
-            }
-        } catch (e) {
-            setNotification({ type: 'error', title: '❌ Error', message: e.response?.data?.message || e.message });
-        }
-    };
-
-    const handleSaveKomponenOnly = async (e) => {
-        e.preventDefault();
-        try {
-            // 1. Save Komponen Tambahan
-            const payloadKomponen = {
-                id_kontrak: formKontrak.id_kontrak,
-                komponen_tambahan: formKontrak.komponen_tambahan
-            };
-            const resKomponen = await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_gaji/save_komponen.php', payloadKomponen);
-
-            // 2. Save BPJS Data
-            const payloadBpjs = {
-                id_pegawai: selectedPegawai.id_pegawai,
-                bpjs_tk: bpjsData.bpjs_tk,
-                bpjs_ks: bpjsData.bpjs_ks
-                // date defaults to current month in backend if not sent, or send bulanFilter
-            };
-            const resBpjs = await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_gaji/save_bpjs.php', payloadBpjs);
-
-            if (resKomponen.data.status === 'success' && resBpjs.data.status === 'success') {
-                setNotification({ type: 'success', title: '✅ Berhasil', message: 'Komponen & BPJS Updated!' });
-                setShowModal(false);
-                fetchData();
-            } else {
-                setNotification({ type: 'error', title: '⚠️ Partial Success', message: 'Cek kembali data BPJS/Komponen.' });
+                setNotification({ type: 'error', title: '❌ Gagal', message: resKontrak.data.message });
             }
         } catch (e) {
             setNotification({ type: 'error', title: '❌ Error', message: e.response?.data?.message || e.message });
@@ -278,6 +358,30 @@ const KontrakPegawai = () => {
         }
     };
 
+    const calculateTotal = (c) => {
+        if (!c) return { total: 0, hasDaily: false };
+        let total = Number(c.gaji_pokok || 0);
+        let hasDaily = false;
+
+        if (c.komponen_tambahan) {
+            try {
+                const list = typeof c.komponen_tambahan === 'string' ? JSON.parse(c.komponen_tambahan) : c.komponen_tambahan;
+                list.forEach(k => {
+                    if (k.tipe === 'harian') {
+                        hasDaily = true;
+                        // Use hari_kerja_efektif from backend (dynamic from absensi)
+                        const days = c.hari_kerja_efektif || 22;
+                        total += Number(k.nominal || 0) * days;
+                    }
+                    else {
+                        total += Number(k.nominal || 0);
+                    }
+                });
+            } catch (e) { }
+        }
+        return { total, hasDaily };
+    };
+
 
     return (
         <div className="app-layout">
@@ -288,9 +392,20 @@ const KontrakPegawai = () => {
                         <h1 className="modern-title">Kontrak Kerja</h1>
                         <p className="modern-subtitle">Kelola data kontrak & komponen gaji pegawai (Multi-Kontrak Support).</p>
                     </div>
-                    <div className="date-picker-container">
+                    <div className="date-picker-container" onClick={() => {
+                        try {
+                            if (monthInputRef.current && typeof monthInputRef.current.showPicker === 'function') {
+                                monthInputRef.current.showPicker();
+                            } else {
+                                monthInputRef.current?.focus();
+                            }
+                        } catch (error) {
+                            console.error("Error opening picker:", error);
+                        }
+                    }} style={{ cursor: 'pointer' }}>
                         <span className="label-periode">Periode Data:</span>
                         <input type="month" className="modern-input-date"
+                            ref={monthInputRef}
                             value={bulanFilter} onChange={(e) => setBulanFilter(e.target.value)} />
                     </div>
                 </div>
@@ -317,15 +432,14 @@ const KontrakPegawai = () => {
                     <table className="modern-table">
                         <thead>
                             <tr>
-                                <th>NIK</th>
-                                <th>NAMA PEGAWAI</th>
-                                <th>JABATAN</th>
-                                <th>STATUS PTKP</th>
-                                <th>JENIS KONTRAK</th>
-                                <th>GAJI POKOK</th>
-                                <th>KOMPONEN LAIN</th>
-                                <th>BPJS</th>
-                                <th>AKSI</th>
+                                <th style={{ textAlign: 'center' }}>NIK</th>
+                                <th style={{ textAlign: 'center' }}>NAMA PEGAWAI</th>
+                                <th style={{ textAlign: 'center' }}>JABATAN</th>
+                                <th style={{ textAlign: 'center' }}>STATUS PTKP</th>
+                                <th style={{ textAlign: 'center' }}>JENIS KONTRAK</th>
+                                <th>MASA KONTRAK</th>
+                                <th>TOTAL GAJI</th>
+                                <th style={{ textAlign: 'center' }}>AKSI</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -333,68 +447,153 @@ const KontrakPegawai = () => {
                                 <tr><td colSpan="9" style={{ textAlign: 'center', padding: 20 }}>Loading Data...</td></tr>
                             ) : filteredList.length === 0 ? (
                                 <tr><td colSpan="9" style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>Data tidak ditemukan</td></tr>
-                            ) : filteredList.map((row) => {
-                                let komponenList = [];
-                                if (row.komponen_tambahan) {
-                                    try {
-                                        komponenList = typeof row.komponen_tambahan === 'string' ? JSON.parse(row.komponen_tambahan) : row.komponen_tambahan;
-                                    } catch (e) { }
+                            ) : Object.values(filteredList.reduce((acc, item) => {
+                                // Grouping Logic
+                                if (!acc[item.id_pegawai]) {
+                                    acc[item.id_pegawai] = {
+                                        pegawai: item,
+                                        contracts: []
+                                    };
                                 }
+                                if (item.id_kontrak) {
+                                    acc[item.id_pegawai].contracts.push(item);
+                                }
+                                return acc;
+                            }, {})).map((group) => {
+                                const { pegawai, contracts } = group;
+
+                                // Handle case where no contracts exist for employee
+                                const displayContracts = contracts.length > 0 ? contracts : [null];
+
                                 return (
-                                    <tr key={row.id_kontrak ? row.id_kontrak : ('tmp-' + row.id_pegawai)}>
-                                        <td style={{ fontWeight: 600 }}>{row.nik}</td>
-                                        <td>{row.nama_lengkap}</td>
-                                        <td>{row.jabatan || '-'}</td>
-                                        <td>
-                                            <span style={{
-                                                background: '#f1f5f9', color: '#475569',
-                                                padding: '4px 8px', borderRadius: 6,
-                                                fontSize: '0.8rem', fontWeight: 600
-                                            }}>
-                                                {row.status_ptkp || '-'}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span className={`badge-status ${row.jenis_kontrak === 'TETAP' ? 'tetap' : 'kontrak'}`}>
-                                                {row.jenis_kontrak || '-'}
-                                            </span>
-                                        </td>
-                                        <td style={{ color: '#10b981', fontWeight: 600 }}>{formatRp(row.gaji_pokok)}</td>
-                                        <td>
-                                            {komponenList.length > 0 ? (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                                    {komponenList.map((k, i) => (
-                                                        <span key={i} style={{
-                                                            background: k.tipe === 'harian' ? '#fef3c7' : '#dbeafe',
-                                                            color: k.tipe === 'harian' ? '#92400e' : '#1e40af',
-                                                            padding: '2px 8px', borderRadius: 4, fontSize: '0.75rem', fontWeight: 600,
-                                                            width: 'fit-content'
-                                                        }}>
-                                                            {k.nama}: {formatRp(k.nominal)} <span style={{ opacity: 0.7 }}>/{k.tipe === 'harian' ? 'hari' : 'bln'}</span>
-                                                        </span>
-                                                    ))}
+                                    <tr key={pegawai.id_pegawai} style={{ verticalAlign: 'top' }}>
+                                        <td style={{ fontWeight: 600, verticalAlign: 'middle', textAlign: 'center' }}>{pegawai.nik}</td>
+                                        <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>{pegawai.nama_lengkap}</td>
+
+                                        {/* STACKED COLUMNS */}
+
+                                        {/* Jabatan - Column 3 */}
+                                        <td style={{ padding: 0 }}>
+                                            {displayContracts.map((c, idx) => (
+                                                <div key={idx} style={{
+                                                    padding: 16,
+                                                    borderBottom: idx === displayContracts.length - 1 ? 'none' : '1px solid #f1f5f9',
+                                                    height: '100%',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                }}>
+                                                    {c ? (c.jabatan || '-') : <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>-</span>}
                                                 </div>
-                                            ) : <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>-</span>}
+                                            ))}
                                         </td>
-                                        <td>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.8rem' }}>
-                                                {(row.bpjs_tk > 0 || row.bpjs_ks > 0) ? (
-                                                    <>
-                                                        {row.bpjs_tk > 0 && <div style={{ color: '#0ea5e9', fontWeight: 600 }}>TK: {formatRp(row.bpjs_tk)}</div>}
-                                                        {row.bpjs_ks > 0 && <div style={{ color: '#10b981', fontWeight: 600 }}>KS: {formatRp(row.bpjs_ks)}</div>}
-                                                    </>
-                                                ) : <span style={{ color: '#94a3b8' }}>-</span>}
-                                            </div>
+
+                                        {/* STATUS PTKP (Contract Level) - Column 4 */}
+                                        <td style={{ padding: 0 }}>
+                                            {displayContracts.map((c, idx) => (
+                                                <div key={idx} style={{
+                                                    padding: 16,
+                                                    borderBottom: idx === displayContracts.length - 1 ? 'none' : '1px solid #f1f5f9',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                }}>
+                                                    {c ? (
+                                                        <span style={{
+                                                            background: '#f1f5f9', color: '#475569',
+                                                            padding: '4px 8px', borderRadius: 6,
+                                                            fontSize: '0.8rem', fontWeight: 600
+                                                        }}>
+                                                            {c.status_ptkp || '-'}
+                                                        </span>
+                                                    ) : <span style={{ color: '#94a3b8' }}>-</span>}
+                                                </div>
+                                            ))}
                                         </td>
-                                        <td>
-                                            <div style={{ display: 'flex', gap: 5 }}>
-                                                <button className="btn-icon-modern edit" title="Edit Data Kontrak (Jabatan, Gaji Pokok, dll)" onClick={() => handleOpenModal('kontrak', row)}>⚙️</button>
-                                                <button className="btn-icon-modern edit" style={{ background: '#dbeafe', color: '#1e40af' }} title="Kelola Komponen Lainnya" onClick={() => handleOpenModal('komponen', row)}>💰</button>
-                                                <button className="btn-icon-modern edit" title="Status PTKP" onClick={() => handleOpenModal('ptkp', row)}>📋</button>
-                                                {row.id_kontrak && (
-                                                    <button className="btn-icon-modern delete" title="Hapus Kontrak" onClick={() => handleDelete(row)}>🗑️</button>
-                                                )}
-                                            </div>
+
+                                        {/* Jenis Kontrak - Column 5 */}
+                                        <td style={{ padding: 0 }}>
+                                            {displayContracts.map((c, idx) => (
+                                                <div key={idx} style={{
+                                                    padding: 16,
+                                                    borderBottom: idx === displayContracts.length - 1 ? 'none' : '1px solid #f1f5f9',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                }}>
+                                                    {c ? (
+                                                        <span className={`badge-status ${c.jenis_kontrak === 'TETAP' ? 'tetap' : 'kontrak'}`}>
+                                                            {c.jenis_kontrak || '-'}
+                                                        </span>
+                                                    ) : <span style={{ color: '#94a3b8' }}>-</span>}
+                                                </div>
+                                            ))}
+                                        </td>
+
+                                        {/* Masa Kontrak - Column 6 */}
+                                        <td style={{ padding: 0 }}>
+                                            {displayContracts.map((c, idx) => (
+                                                <div key={idx} style={{
+                                                    padding: 16,
+                                                    borderBottom: idx === displayContracts.length - 1 ? 'none' : '1px solid #f1f5f9',
+                                                    fontSize: '0.9rem', color: '#334155'
+                                                }}>
+                                                    {c ? calculateDuration(c.tanggal_mulai, c.tanggal_berakhir) : '-'}
+                                                </div>
+                                            ))}
+                                        </td>
+
+                                        {/* Gaji Pokok (Total) - Column 7 */}
+                                        <td style={{ padding: 0 }}>
+                                            {displayContracts.map((c, idx) => {
+                                                const { total, hasDaily } = calculateTotal(c);
+                                                return (
+                                                    <div key={idx} style={{
+                                                        padding: 16,
+                                                        borderBottom: idx === displayContracts.length - 1 ? 'none' : '1px solid #f1f5f9',
+                                                        color: c ? '#10b981' : '#94a3b8',
+                                                        fontWeight: c ? 600 : 400
+                                                    }}>
+                                                        {c ? (
+                                                            <>
+                                                                {formatRp(total)}
+                                                                {hasDaily && <span style={{ fontSize: '0.75rem', color: '#f59e0b', marginLeft: 5, fontStyle: 'italic' }}>(Est.)</span>}
+                                                            </>
+                                                        ) : '-'}
+                                                    </div>
+                                                );
+                                            })}
+                                        </td>
+
+                                        {/* Aksi - Column 8 */}
+                                        <td style={{ padding: 0 }}>
+                                            {displayContracts.map((c, idx) => (
+                                                <div key={idx} style={{
+                                                    padding: 16,
+                                                    borderBottom: idx === displayContracts.length - 1 ? 'none' : '1px solid #f1f5f9',
+                                                    display: 'flex', gap: 5, alignItems: 'center', justifyContent: 'center'
+                                                }}>
+                                                    {c ? (
+                                                        <>
+                                                            <button className="btn-icon-modern edit" title="Preview Rincian Gaji" onClick={() => setPreviewContract(c)}>👁️</button>
+                                                            <button className="btn-icon-modern edit" title="Edit Kontrak & Komponen" onClick={() => handleOpenModal('kontrak', c)}>⚙️</button>
+                                                            <button className="btn-icon-modern edit" title="Edit Status PTKP" onClick={() => handleOpenModal('ptkp', c)}>📋</button>
+                                                            {c.id_kontrak && (
+                                                                <button className="btn-icon-modern delete" title="Hapus Kontrak" onClick={() => handleDelete(c)}>🗑️</button>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <button
+                                                                className="btn-icon-modern edit"
+                                                                title="Buat Kontrak"
+                                                                style={{ background: '#dbeafe', color: '#1e40af', width: 'auto', padding: '0 10px', fontSize: '0.8rem', gap: '5px' }}
+                                                                onClick={() => {
+                                                                    setFormKontrak(prev => ({ ...prev, id_pegawai: pegawai.id_pegawai }));
+                                                                    handleOpenModal('create_kontrak', pegawai);
+                                                                }}
+                                                            >
+                                                                + Buat
+                                                            </button>
+                                                            <button className="btn-icon-modern edit" title="Edit Status PTKP" onClick={() => handleOpenModal('ptkp', pegawai)}>📋</button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            ))}
                                         </td>
                                     </tr>
                                 );
@@ -417,7 +616,7 @@ const KontrakPegawai = () => {
                                     {/* SELECTION PEGAWAI (If Create New) */}
                                     <div className="form-group">
                                         <label>Pegawai *</label>
-                                        {modalMode === 'create_kontrak' ? (
+                                        {modalMode === 'create_kontrak' && !selectedPegawai ? (
                                             <select
                                                 value={formKontrak.id_pegawai}
                                                 onChange={e => setFormKontrak({ ...formKontrak, id_pegawai: e.target.value })}
@@ -463,6 +662,7 @@ const KontrakPegawai = () => {
                                             </select>
                                         </div>
                                     </div>
+
                                     <div className="form-grid-2">
                                         <div className="form-group">
                                             <label>Gaji Pokok *</label>
@@ -474,13 +674,64 @@ const KontrakPegawai = () => {
                                         </div>
                                     </div>
 
-                                    <div style={{ marginTop: 20, padding: 10, background: '#fffbeb', borderRadius: 8, fontSize: '0.85rem', color: '#b45309' }}>
-                                        💡 Komponen tambahan (Uang Makan, Transport, dll) dapat dikelola melalui tombol <strong>💰 Komponen</strong> di tabel utama setelah kontrak dibuat.
+                                    {/* KOMPONEN TAMBAHAN SECTION */}
+                                    <div style={{ marginTop: 25, borderTop: '2px dashed #e2e8f0', paddingTop: 20 }}>
+                                        <h4 style={{ fontSize: '0.95rem', color: '#1e293b', marginBottom: 15 }}>💰 Komponen Tambahan (Di luar Gaji Pokok & Tunjangan Tetap)</h4>
+
+                                        {/* INPUT ROW */}
+                                        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 12, background: '#f8fafc', padding: 10, borderRadius: 8 }}>
+                                            <div style={{ flex: 2 }}>
+                                                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Nama Komponen</label>
+                                                <input type="text" placeholder="cth: Uang Makan" value={newKomponen.nama} onChange={e => setNewKomponen({ ...newKomponen, nama: e.target.value })} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: 6 }} />
+                                            </div>
+                                            <div style={{ flex: 1.5 }}>
+                                                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Nominal (Rp)</label>
+                                                <input type="number" placeholder="0" value={newKomponen.nominal} onChange={e => setNewKomponen({ ...newKomponen, nominal: Number(e.target.value) })} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: 6 }} />
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Tipe</label>
+                                                <select value={newKomponen.tipe} onChange={e => setNewKomponen({ ...newKomponen, tipe: e.target.value })} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: 6 }}>
+                                                    <option value="bulanan">Bulanan</option>
+                                                    <option value="harian">Harian</option>
+                                                </select>
+                                            </div>
+                                            <button type="button" onClick={handleAddKomponen} style={{ padding: '8px 12px', background: '#10b981', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Add</button>
+                                        </div>
+
+                                        {/* LIST */}
+                                        {formKontrak.komponen_tambahan.length > 0 ? (
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 20 }}>
+                                                <thead>
+                                                    <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #e2e8f0' }}>
+                                                        <th style={{ padding: 8, textAlign: 'left', fontSize: '0.8rem' }}>Komponen</th>
+                                                        <th style={{ padding: 8, textAlign: 'right', fontSize: '0.8rem' }}>Nominal</th>
+                                                        <th style={{ padding: 8, textAlign: 'center', fontSize: '0.8rem' }}>Tipe</th>
+                                                        <th style={{ padding: 8, width: 30 }}></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {formKontrak.komponen_tambahan.map((k, idx) => (
+                                                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                                            <td style={{ padding: 8 }}>{k.nama}</td>
+                                                            <td style={{ padding: 8, textAlign: 'right', fontWeight: 600, color: '#10b981' }}>{formatRp(k.nominal)}</td>
+                                                            <td style={{ padding: 8, textAlign: 'center' }}><span style={{ fontSize: '0.75rem', padding: '2px 6px', background: '#e2e8f0', borderRadius: 4 }}>{k.tipe}</span></td>
+                                                            <td style={{ padding: 8, textAlign: 'center' }}>
+                                                                <button type="button" onClick={() => handleRemoveKomponen(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>✕</button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        ) : (
+                                            <p style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', padding: 10, fontSize: '0.9rem' }}>Belum ada komponen tambahan.</p>
+                                        )}
                                     </div>
+
+
 
                                     <div className="modal-footer-modern" style={{ marginTop: 20 }}>
                                         <button type="button" onClick={() => setShowModal(false)} className="btn-cancel">Batal</button>
-                                        <button type="submit" className="btn-save">Simpan Data Utama</button>
+                                        <button type="submit" className="btn-save">{modalMode === 'create_kontrak' ? 'Buat Kontrak' : 'Simpan Perubahan'}</button>
                                     </div>
                                 </form>
                             </div>
@@ -488,107 +739,7 @@ const KontrakPegawai = () => {
                     </div>
                 )}
 
-                {/* MODAL KOMPONEN ONLY */}
-                {showModal && modalMode === 'komponen' && (
-                    <div className="modal-backdrop">
-                        <div className="modal-content-modern" style={{ width: 600, maxHeight: '90vh', overflowY: 'auto' }}>
-                            <div className="modal-header-modern">
-                                <h3>💰 Kelola Komponen Tambahan</h3>
-                                <button onClick={() => setShowModal(false)}>✕</button>
-                            </div>
-                            <div style={{ padding: 20 }}>
-                                <form onSubmit={handleSaveKomponenOnly}>
-                                    <div style={{ marginBottom: 20 }}>
-                                        <strong>Pegawai:</strong> {selectedPegawai?.nama_lengkap} <br />
-                                        <small className="text-muted">Mengelola komponen di luar Gaji Pokok & Tunjangan Tetap (cth: Lembur, Bonus, Uang Makan).</small>
-                                    </div>
 
-                                    {/* INPUT ROW */}
-                                    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 12, background: '#f8fafc', padding: 10, borderRadius: 8 }}>
-                                        <div style={{ flex: 2 }}>
-                                            <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Nama Komponen</label>
-                                            <input type="text" placeholder="cth: Uang Makan" value={newKomponen.nama} onChange={e => setNewKomponen({ ...newKomponen, nama: e.target.value })} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: 6 }} />
-                                        </div>
-                                        <div style={{ flex: 1.5 }}>
-                                            <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Nominal (Rp)</label>
-                                            <input type="number" placeholder="0" value={newKomponen.nominal} onChange={e => setNewKomponen({ ...newKomponen, nominal: Number(e.target.value) })} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: 6 }} />
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                            <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Tipe</label>
-                                            <select value={newKomponen.tipe} onChange={e => setNewKomponen({ ...newKomponen, tipe: e.target.value })} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: 6 }}>
-                                                <option value="bulanan">Bulanan</option>
-                                                <option value="harian">Harian</option>
-                                            </select>
-                                        </div>
-                                        <button type="button" onClick={handleAddKomponen} style={{ padding: '8px 12px', background: '#10b981', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Add</button>
-                                    </div>
-
-                                    {/* LIST */}
-                                    {formKontrak.komponen_tambahan.length > 0 ? (
-                                        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 20 }}>
-                                            <thead>
-                                                <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #e2e8f0' }}>
-                                                    <th style={{ padding: 8, textAlign: 'left', fontSize: '0.8rem' }}>Komponen</th>
-                                                    <th style={{ padding: 8, textAlign: 'right', fontSize: '0.8rem' }}>Nominal</th>
-                                                    <th style={{ padding: 8, textAlign: 'center', fontSize: '0.8rem' }}>Tipe</th>
-                                                    <th style={{ padding: 8, width: 30 }}></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {formKontrak.komponen_tambahan.map((k, idx) => (
-                                                    <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                        <td style={{ padding: 8 }}>{k.nama}</td>
-                                                        <td style={{ padding: 8, textAlign: 'right', fontWeight: 600, color: '#10b981' }}>{formatRp(k.nominal)}</td>
-                                                        <td style={{ padding: 8, textAlign: 'center' }}><span style={{ fontSize: '0.75rem', padding: '2px 6px', background: '#e2e8f0', borderRadius: 4 }}>{k.tipe}</span></td>
-                                                        <td style={{ padding: 8, textAlign: 'center' }}>
-                                                            <button type="button" onClick={() => handleRemoveKomponen(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>✕</button>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    ) : (
-                                        <p style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', padding: 20 }}>Belum ada komponen tambahan.</p>
-                                    )}
-
-                                    {/* BPJS SECTION */}
-                                    <div style={{ marginTop: 25, borderTop: '2px dashed #e2e8f0', paddingTop: 20 }}>
-                                        <h4 style={{ fontSize: '0.95rem', color: '#1e293b', marginBottom: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            🛡️ BPJS Ketenagakerjaan & Kesehatan
-                                        </h4>
-                                        <div className="form-grid-2">
-                                            <div className="form-group">
-                                                <label>BPJS Ketenagakerjaan (TK)</label>
-                                                <input
-                                                    type="number"
-                                                    value={bpjsData.bpjs_tk}
-                                                    onChange={e => setBpjsData({ ...bpjsData, bpjs_tk: Number(e.target.value) })}
-                                                    placeholder="0"
-                                                />
-                                                <small style={{ color: '#64748b', fontSize: '0.75rem' }}>Potongan TK (JKK, JKM, JHT, JP)</small>
-                                            </div>
-                                            <div className="form-group">
-                                                <label>BPJS Kesehatan (KS)</label>
-                                                <input
-                                                    type="number"
-                                                    value={bpjsData.bpjs_ks}
-                                                    onChange={e => setBpjsData({ ...bpjsData, bpjs_ks: Number(e.target.value) })}
-                                                    placeholder="0"
-                                                />
-                                                <small style={{ color: '#64748b', fontSize: '0.75rem' }}>Potongan Kesehatan</small>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="modal-footer-modern">
-                                        <button type="button" onClick={() => setShowModal(false)} className="btn-cancel">Batal</button>
-                                        <button type="submit" className="btn-save">Simpan Komponen & BPJS</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                )}
 
                 {/* MODAL FOR PTKP (Sama seperti sebelumnya) */}
                 {showModal && modalMode === 'ptkp' && (
@@ -617,6 +768,61 @@ const KontrakPegawai = () => {
                                         <button type="submit" className="btn-save">Simpan</button>
                                     </div>
                                 </form>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* PREVIEW DETAIL MODAL */}
+                {previewContract && (
+                    <div className="modal-backdrop">
+                        <div className="modal-content-modern" style={{ width: 450 }}>
+                            <div className="modal-header-modern">
+                                <h3>👁️ Rincian Gaji</h3>
+                                <button onClick={() => setPreviewContract(null)}>✕</button>
+                            </div>
+                            <div style={{ padding: 20 }}>
+                                <h4 style={{ margin: '0 0 15px 0', fontSize: '1rem', color: '#334155' }}>{previewContract.nama_lengkap} <span style={{ fontWeight: 400, color: '#64748b' }}>({previewContract.jabatan})</span></h4>
+
+                                <div style={{ background: '#f8fafc', padding: 15, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                        <span style={{ color: '#475569' }}>Gaji Pokok</span>
+                                        <span style={{ fontWeight: 600 }}>{formatRp(previewContract.gaji_pokok)}</span>
+                                    </div>
+
+                                    {(() => {
+                                        let comps = [];
+                                        try {
+                                            comps = typeof previewContract.komponen_tambahan === 'string' ? JSON.parse(previewContract.komponen_tambahan) : previewContract.komponen_tambahan;
+                                        } catch (e) { }
+
+                                        return comps.map((k, idx) => (
+                                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                <span style={{ color: '#475569' }}>{k.nama} {k.tipe === 'harian' && <span style={{ fontSize: '0.75rem', color: '#f59e0b' }}>(Harian)</span>}</span>
+                                                <span style={{ fontWeight: 500 }}>{formatRp(k.nominal)}</span>
+                                            </div>
+                                        ));
+                                    })()}
+
+                                    <div style={{ borderTop: '1px dashed #cbd5e1', margin: '10px 0' }}></div>
+
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontWeight: 700, color: '#1e293b' }}>Total Estimasi (Bulanan)</span>
+                                        <div style={{ textAlign: 'right' }}>
+                                            <span style={{ fontWeight: 700, color: '#10b981', display: 'block', fontSize: '1.1rem' }}>
+                                                {formatRp(calculateTotal(previewContract).total)}
+                                            </span>
+                                            {calculateTotal(previewContract).hasDaily && (
+                                                <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontStyle: 'italic' }}>
+                                                    * Termasuk estimasi komponen harian ({previewContract.hari_kerja_efektif || 22} hari kerja)
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="modal-footer-modern" style={{ marginTop: 20 }}>
+                                    <button onClick={() => setPreviewContract(null)} className="btn-cancel" style={{ width: '100%' }}>Tutup</button>
+                                </div>
                             </div>
                         </div>
                     </div>

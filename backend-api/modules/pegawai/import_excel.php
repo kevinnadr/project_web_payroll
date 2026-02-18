@@ -107,6 +107,7 @@ try {
         'nik'           => ['nik', 'nomor induk', 'nip'],
         'nama_lengkap'  => ['nama', 'nama lengkap', 'nama pegawai', 'full name'],
         'email'         => ['email', 'alamat email', 'e-mail'],
+        'no_hp'         => ['no hp', 'nomor hp', 'telepon', 'phone', 'handphone'],
         'npwp'          => ['npwp', 'no npwp', 'nomor pajak'],
         'ptkp'          => ['ptkp', 'status ptkp'],
         'jabatan'       => ['jabatan', 'posisi', 'role'],
@@ -182,6 +183,7 @@ try {
         }
 
         $email = $getVal('email');
+        $no_hp = $getVal('no_hp');
         $npwp = $getVal('npwp');
         $ptkpStr = strtoupper($getVal('ptkp', 'TK/0'));
         $jabatan = $getVal('jabatan', 'Staff');
@@ -216,23 +218,19 @@ try {
 
             if ($existingId) {
                  // UPDATE
-                 // Try updating all fields first. If npwp column missing, this might fail.
                  try {
-                     $sqlUp = "UPDATE pegawai SET nama_lengkap = ?, email = ?, id_ptkp = ?, npwp = ? WHERE id_pegawai = ?";
+                     $sqlUp = "UPDATE pegawai SET nama_lengkap = ?, email = ?, no_hp = ?, id_ptkp = ?, npwp = ? WHERE id_pegawai = ?";
                      $stmtUpdate = $db->prepare($sqlUp);
-                     $stmtUpdate->execute([$nama, $email, $id_ptkp, $npwp, $existingId]);
+                     $stmtUpdate->execute([$nama, $email, $no_hp, $id_ptkp, $npwp, $existingId]);
                  } catch (Exception $eUpdate) {
-                     // If update fails (e.g. Unknown column 'npwp'), try simpler update?
-                     // Let's just rethrow with clearer message for now, OR ignore npwp if it fails.
-                     // But assuming column exists based on user screenshots.
                      throw $eUpdate;
                  }
                  $pid = $existingId;
             } else {
                  // INSERT
-                 $sqlIns = "INSERT INTO pegawai (nik, nama_lengkap, email, id_ptkp, npwp) VALUES (?, ?, ?, ?, ?)";
+                 $sqlIns = "INSERT INTO pegawai (nik, nama_lengkap, email, no_hp, id_ptkp, npwp) VALUES (?, ?, ?, ?, ?, ?)";
                  $stmtInsert = $db->prepare($sqlIns);
-                 $stmtInsert->execute([$nik, $nama, $email, $id_ptkp, $npwp]);
+                 $stmtInsert->execute([$nik, $nama, $email, $no_hp, $id_ptkp, $npwp]);
                  $pid = $db->lastInsertId();
             }
 

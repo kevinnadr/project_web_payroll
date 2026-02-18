@@ -14,16 +14,41 @@ if (!$id_pegawai) die("ID Pegawai tidak ditemukan.");
     $bulan = $_GET['bulan'] ?? date('Y-m'); // Default current month if not specified
     
     // 1. Ambil Data Pegawai & Kontrak
+    // 1. Ambil Data Pegawai (Tanpa Join Kontrak dulu)
     $stmt = $db->prepare("
-        SELECT p.*, sp.status_ptkp, pt.kategori_ter, k.id_kontrak, k.jabatan, k.jenis_kontrak, k.tanggal_mulai
+        SELECT p.*, sp.status_ptkp, pt.kategori_ter
         FROM pegawai p
         LEFT JOIN status_ptkp sp ON p.id_ptkp = sp.id_ptkp
         LEFT JOIN pph_ter pt ON sp.id_ter_reff = pt.id_ter
-        LEFT JOIN kontrak_kerja k ON p.id_pegawai = k.id_pegawai
         WHERE p.id_pegawai = ?
     ");
     $stmt->execute([$id_pegawai]);
     $pegawai = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$pegawai) die("Pegawai tidak ditemukan.");
+    $pegawai['id_kontrak'] = null; // Default
+
+    // 2. Cari Kontrak yang Valid pada Bulan Tersebut
+    $startMonth = $bulan . '-01';
+    $endMonth   = date('Y-m-t', strtotime($startMonth));
+    
+    $stmtK = $db->prepare("
+        SELECT * FROM kontrak_kerja 
+        WHERE id_pegawai = ? 
+        AND tanggal_mulai <= ? 
+        AND (tanggal_berakhir >= ? OR tanggal_berakhir IS NULL OR tanggal_berakhir = '0000-00-00')
+        ORDER BY tanggal_mulai DESC 
+        LIMIT 1
+    ");
+    $stmtK->execute([$id_pegawai, $endMonth, $startMonth]);
+    $contract = $stmtK->fetch(PDO::FETCH_ASSOC);
+    
+    if ($contract) {
+        $pegawai = array_merge($pegawai, $contract); // Merge contract info (jabatan, jenis_kontrak, etc)
+    } else {
+        // Fallback or explicit null if no contract found for this period
+        // Just continue, components will be empty
+    }
 
     if (!$pegawai) die("Pegawai tidak ditemukan.");
 

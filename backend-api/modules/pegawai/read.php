@@ -10,8 +10,9 @@ try {
                 p.nik, 
                 p.nama_lengkap, 
                 p.email, 
+                p.no_hp,
                 p.npwp,
-                p.npwp,
+                p.foto_profil,
                 sp.status_ptkp,
                 k.id_kontrak,
                 k.no_kontrak,
@@ -37,8 +38,9 @@ try {
                 'nik' => $row['nik'],
                 'nama_lengkap' => $row['nama_lengkap'],
                 'email' => $row['email'],
+                'no_hp' => $row['no_hp'],
                 'npwp' => $row['npwp'],
-                'npwp' => $row['npwp'],
+                'foto_profil' => $row['foto_profil'],
                 'status_ptkp' => $row['status_ptkp'],
                 'contracts' => []
             ];

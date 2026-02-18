@@ -23,6 +23,7 @@ try {
     $tanggal_mulai   = $data['tanggal_mulai'] ?? null;
     $tanggal_berakhir = $data['tanggal_berakhir'] ?? null;
     $jenis_kontrak   = $data['jenis_kontrak'] ?? 'TETAP';
+    $status_ptkp     = $data['status_ptkp'] ?? null; // e.g. "TK/0"
     $gaji_pokok      = (float)($data['gaji_pokok'] ?? 0);
     $tunjangan       = (float)($data['tunjangan'] ?? 0);
     $id_kontrak      = $data['id_kontrak'] ?? null;
@@ -32,12 +33,28 @@ try {
     if (!$tanggal_mulai) { http_response_code(400); echo json_encode(["status" => "error", "message" => "Tanggal Mulai harus diisi"]); exit; }
     if (!$jabatan) { http_response_code(400); echo json_encode(["status" => "error", "message" => "Jabatan harus diisi"]); exit; }
 
-    // Normalize empty string to null for logic comparison and DB storage
+    // Normalize empty string
     if (empty($tanggal_berakhir)) {
         $tanggal_berakhir = null;
     }
 
+    // Resolve id_ptkp if status_ptkp provided
+    $id_ptkp = null;
+    if ($status_ptkp) {
+        // Try to find id_ptkp by status_ptkp code
+        $stmtPtkp = $db->prepare("SELECT id_ptkp FROM status_ptkp WHERE status_ptkp = ? OR status_ptkp = ? LIMIT 1");
+        // Try strict match or maybe loose match if needed. Assuming column is 'status_ptkp' based on context
+        // Or checking if frontend sends 'K/0' as value.
+        $stmtPtkp->execute([$status_ptkp, strtoupper($status_ptkp)]);
+        $rowPtkp = $stmtPtkp->fetch(PDO::FETCH_ASSOC);
+        if ($rowPtkp) {
+            $id_ptkp = $rowPtkp['id_ptkp'];
+        }
+    }
+
     // Check for Overlapping Contracts
+    // Check for Overlapping Contracts
+    
     try {
         $checkSql = "SELECT id_kontrak, tanggal_mulai, tanggal_berakhir FROM kontrak_kerja WHERE id_pegawai = ?";
         $checkParams = [$id_pegawai];
@@ -92,13 +109,13 @@ try {
 
     // Save or update kontrak
     if ($id_kontrak) {
-        $updateSql = "UPDATE kontrak_kerja SET jabatan = ?, tanggal_mulai = ?, tanggal_berakhir = ?, jenis_kontrak = ? WHERE id_kontrak = ? AND id_pegawai = ?";
-        $db->prepare($updateSql)->execute([$jabatan, $tanggal_mulai, $tanggal_berakhir, $jenis_kontrak, $id_kontrak, $id_pegawai]);
+        $updateSql = "UPDATE kontrak_kerja SET jabatan = ?, tanggal_mulai = ?, tanggal_berakhir = ?, jenis_kontrak = ?, id_ptkp = ? WHERE id_kontrak = ? AND id_pegawai = ?";
+        $db->prepare($updateSql)->execute([$jabatan, $tanggal_mulai, $tanggal_berakhir, $jenis_kontrak, $id_ptkp, $id_kontrak, $id_pegawai]);
         $finalId = $id_kontrak;
     } else {
         $noKontrak = "NK/" . $id_pegawai . "/" . date('Y') . "-" . rand(1000, 9999);
-        $insertSql = "INSERT INTO kontrak_kerja (id_pegawai, jabatan, tanggal_mulai, tanggal_berakhir, jenis_kontrak, no_kontrak) VALUES (?, ?, ?, ?, ?, ?)";
-        $db->prepare($insertSql)->execute([$id_pegawai, $jabatan, $tanggal_mulai, $tanggal_berakhir, $jenis_kontrak, $noKontrak]);
+        $insertSql = "INSERT INTO kontrak_kerja (id_pegawai, jabatan, tanggal_mulai, tanggal_berakhir, jenis_kontrak, no_kontrak, id_ptkp) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        $db->prepare($insertSql)->execute([$id_pegawai, $jabatan, $tanggal_mulai, $tanggal_berakhir, $jenis_kontrak, $noKontrak, $id_ptkp]);
         $finalId = $db->lastInsertId();
     }
 

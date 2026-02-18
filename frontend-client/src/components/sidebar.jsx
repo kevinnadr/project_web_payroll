@@ -36,8 +36,16 @@ const Sidebar = ({ user }) => {
                     <span>📋</span> <span>Kontrak Kerja</span>
                 </button>
 
+                <button className={isActive('/data-bpjs')} onClick={() => navigate('/data-bpjs')}>
+                    <span>🏥</span> <span>Data BPJS</span>
+                </button>
+
                 <button className={isActive('/absensi')} onClick={() => navigate('/absensi')}>
                     <span>📅</span> <span>Absensi</span>
+                </button>
+
+                <button className={isActive('/slip-gaji')} onClick={() => navigate('/slip-gaji')}>
+                    <span>💰</span> <span>Slip Gaji</span>
                 </button>
 
                 <button className={isActive('/pph-ter')} onClick={() => navigate('/pph-ter')}>

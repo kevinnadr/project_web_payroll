@@ -22,9 +22,9 @@ const PPHTer = () => {
     });
 
     const terInfo = {
-        A: { title: 'TER A', ptkp: 'PTKP : TK/0 (54 juta); TK/1 & K/0 (58,5 juta)', color: '#3b82f6' },
-        B: { title: 'TER B', ptkp: 'PTKP : TK/2 & K/1 (63 juta); TK/3 & K/2 (67,5 juta)', color: '#8b5cf6' },
-        C: { title: 'TER C', ptkp: 'PTKP : K/3 (72 juta)', color: '#059669' },
+        A: { title: 'TER A', ptkp: 'PTKP : TK/0 (54 juta); TK/1 & K/0 (58,5 juta)', color: '#3b82f6', bg: '#eff6ff' },
+        B: { title: 'TER B', ptkp: 'PTKP : TK/2 & K/1 (63 juta); TK/3 & K/2 (67,5 juta)', color: '#8b5cf6', bg: '#f5f3ff' },
+        C: { title: 'TER C', ptkp: 'PTKP : K/3 (72 juta)', color: '#059669', bg: '#ecfdf5' },
     };
 
     useEffect(() => {
@@ -103,6 +103,7 @@ const PPHTer = () => {
         }
     };
 
+    // Helper for formatting currency
     const formatRp = (n) => {
         const val = parseFloat(n);
         if (isNaN(val) || val === 0) return '-';
@@ -111,7 +112,7 @@ const PPHTer = () => {
 
     const filteredList = pphList.filter(p => p.kategori === activeTab);
 
-    // Bagi data jadi 2 kolom
+    // Split data into 2 columns for display
     const halfLen = Math.ceil(filteredList.length / 2);
     const leftCol = filteredList.slice(0, halfLen);
     const rightCol = filteredList.slice(halfLen);
@@ -125,170 +126,79 @@ const PPHTer = () => {
                 <div className="page-header-modern">
                     <div>
                         <h1 className="modern-title">PPH TER Management</h1>
-                        <p className="modern-subtitle">Tarif Efektif Rata-rata PPh Pasal 21 — Sumber: www.pajak.go.id</p>
+                        <p className="modern-subtitle">Tarif Efektif Rata-rata PPh 21 — Update Terakhir 2024</p>
                     </div>
-                    <button onClick={() => handleOpenModal()} className="btn-modern" style={{ background: 'linear-gradient(135deg, #4f46e5, #3b82f6)', color: 'white', padding: '10px 16px' }}>
-                        ➕ Tambah PPH TER
+                    <button onClick={() => handleOpenModal()} className="btn-modern-primary">
+                        <span>➕ Tambah Tarif</span>
                     </button>
                 </div>
 
-                {/* TAB SELECTOR */}
-                <div style={{ display: 'flex', gap: '0px', marginBottom: '20px', background: '#f1f5f9', borderRadius: '12px', padding: '4px', width: 'fit-content' }}>
-                    {Object.entries(terInfo).map(([key, val]) => (
-                        <button
-                            key={key}
-                            onClick={() => setActiveTab(key)}
-                            style={{
-                                padding: '10px 24px',
-                                borderRadius: '8px',
-                                border: 'none',
-                                cursor: 'pointer',
-                                fontWeight: 700,
-                                fontSize: '0.9rem',
-                                transition: 'all 0.2s',
-                                background: activeTab === key ? val.color : 'transparent',
-                                color: activeTab === key ? 'white' : '#64748b',
-                                boxShadow: activeTab === key ? `0 4px 12px ${val.color}40` : 'none',
-                            }}
-                        >
-                            {val.title}
-                        </button>
-                    ))}
-                </div>
-
-                {/* INFO BANNER */}
-                <div style={{
-                    background: `linear-gradient(135deg, ${info.color}10, ${info.color}05)`,
-                    border: `1.5px solid ${info.color}30`,
-                    padding: '16px 20px',
-                    borderRadius: '12px',
-                    marginBottom: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                }}>
-                    <div style={{
-                        background: info.color,
-                        color: 'white',
-                        padding: '8px 16px',
-                        borderRadius: '8px',
-                        fontWeight: 800,
-                        fontSize: '1.1rem',
-                        whiteSpace: 'nowrap'
-                    }}>
-                        {info.title}
-                    </div>
-                    <div>
-                        <p style={{ margin: 0, fontWeight: 600, color: '#1e293b', fontSize: '0.95rem' }}>{info.ptkp}</p>
-                        <p style={{ margin: '3px 0 0', color: '#64748b', fontSize: '0.82rem' }}>
-                            Total {filteredList.length} lapisan penghasilan bruto
-                        </p>
-                    </div>
-                </div>
-
-                {/* TABLE - 2 COLUMN LAYOUT (LIKE PAJAK.GO.ID) */}
-                {loading ? (
-                    <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>⏳ Memuat data...</div>
-                ) : filteredList.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>📭 Belum ada data TER {activeTab}</div>
-                ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                        {/* KOLOM KIRI */}
-                        <div className="table-container-modern" style={{ overflow: 'hidden' }}>
-                            <table className="modern-table" style={{ fontSize: '0.82rem' }}>
-                                <thead>
-                                    <tr style={{ background: info.color }}>
-                                        <th style={{ color: 'white', padding: '10px 8px', textAlign: 'center', width: '35px', fontWeight: 700 }}>No</th>
-                                        <th style={{ color: 'white', padding: '10px 8px', fontWeight: 700 }} colSpan="3">Lapisan Penghasilan Bruto (Rp)</th>
-                                        <th style={{ color: 'white', padding: '10px 8px', textAlign: 'center', fontWeight: 700, width: '60px' }}>{info.title}</th>
-                                        <th style={{ color: 'white', padding: '10px 4px', textAlign: 'center', width: '30px' }}></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {leftCol.map((pph, idx) => (
-                                        <tr key={pph.id} style={{ background: idx % 2 === 0 ? '#fafbfc' : 'white' }}>
-                                            <td style={{ textAlign: 'center', fontWeight: 600, color: '#94a3b8', padding: '8px 6px' }}>{idx + 1}</td>
-                                            <td style={{ textAlign: 'right', padding: '8px 4px', fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                                                {idx === 0 && parseFloat(pph.min) === 0 ? '' : formatRp(pph.min)}
-                                            </td>
-                                            <td style={{ textAlign: 'center', padding: '8px 2px', color: '#94a3b8', fontSize: '0.75rem' }}>
-                                                {idx === 0 && parseFloat(pph.min) === 0 ? 'sampai dengan' :
-                                                    parseFloat(pph.max) === 0 ? 'lebih' : 's.d.'}
-                                            </td>
-                                            <td style={{ textAlign: 'right', padding: '8px 4px', fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                                                {parseFloat(pph.max) === 0 ? '' : formatRp(pph.max)}
-                                            </td>
-                                            <td style={{ textAlign: 'center', fontWeight: 700, color: info.color, padding: '8px 4px' }}>
-                                                {parseFloat(pph.tarif).toFixed(2)}%
-                                            </td>
-                                            <td style={{ textAlign: 'center', padding: '8px 2px' }}>
-                                                <button className="btn-icon-modern edit" onClick={() => handleOpenModal(pph)} style={{ width: 24, height: 24, fontSize: '0.7rem' }}>✏️</button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                {/* MAIN CARD CONTAINER */}
+                <div className="content-card">
+                    {/* TOP CONTROL BAR: TABS & INFO */}
+                    <div className="control-bar">
+                        <div className="tab-container">
+                            {Object.entries(terInfo).map(([key, val]) => (
+                                <button
+                                    key={key}
+                                    onClick={() => setActiveTab(key)}
+                                    className={`tab-btn ${activeTab === key ? 'active' : ''}`}
+                                    style={{
+                                        '--active-color': val.color,
+                                        '--active-bg': val.bg
+                                    }}
+                                >
+                                    {val.title}
+                                </button>
+                            ))}
                         </div>
 
-                        {/* KOLOM KANAN */}
-                        <div className="table-container-modern" style={{ overflow: 'hidden' }}>
-                            <table className="modern-table" style={{ fontSize: '0.82rem' }}>
-                                <thead>
-                                    <tr style={{ background: info.color }}>
-                                        <th style={{ color: 'white', padding: '10px 8px', textAlign: 'center', width: '35px', fontWeight: 700 }}>No</th>
-                                        <th style={{ color: 'white', padding: '10px 8px', fontWeight: 700 }} colSpan="3">Lapisan Penghasilan Bruto (Rp)</th>
-                                        <th style={{ color: 'white', padding: '10px 8px', textAlign: 'center', fontWeight: 700, width: '60px' }}>{info.title}</th>
-                                        <th style={{ color: 'white', padding: '10px 4px', textAlign: 'center', width: '30px' }}></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {rightCol.map((pph, idx) => {
-                                        const globalIdx = halfLen + idx;
-                                        const isLast = parseFloat(pph.max) === 0;
-                                        return (
-                                            <tr key={pph.id} style={{ background: idx % 2 === 0 ? '#fafbfc' : 'white' }}>
-                                                <td style={{ textAlign: 'center', fontWeight: 600, color: '#94a3b8', padding: '8px 6px' }}>{globalIdx + 1}</td>
-                                                <td style={{ textAlign: 'right', padding: '8px 4px', fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                                                    {isLast ? '' : formatRp(pph.min)}
-                                                </td>
-                                                <td style={{ textAlign: 'center', padding: '8px 2px', color: '#94a3b8', fontSize: '0.75rem' }}>
-                                                    {isLast ? 'lebih dari' : 's.d.'}
-                                                </td>
-                                                <td style={{ textAlign: 'right', padding: '8px 4px', fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                                                    {isLast ? formatRp(pph.min - 1) : formatRp(pph.max)}
-                                                </td>
-                                                <td style={{ textAlign: 'center', fontWeight: 700, color: info.color, padding: '8px 4px' }}>
-                                                    {parseFloat(pph.tarif).toFixed(2)}%
-                                                </td>
-                                                <td style={{ textAlign: 'center', padding: '8px 2px' }}>
-                                                    <button className="btn-icon-modern edit" onClick={() => handleOpenModal(pph)} style={{ width: 24, height: 24, fontSize: '0.7rem' }}>✏️</button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                        <div className="info-badge" style={{ borderColor: info.color, background: info.bg }}>
+                            <span className="info-icon" style={{ background: info.color }}>ℹ️</span>
+                            <div className="info-text">
+                                <strong>{info.ptkp}</strong>
+                                <small>Total {filteredList.length} lapisan penghasilan</small>
+                            </div>
                         </div>
                     </div>
-                )}
 
-                {/* FOOTER INFO */}
-                <div style={{
-                    marginTop: '16px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '12px 16px',
-                    background: '#f8fafc',
-                    borderRadius: '10px',
-                    border: '1px solid #e2e8f0'
-                }}>
-                    <span style={{ fontSize: '0.82rem', color: '#64748b' }}>
-                        📊 Menampilkan <strong>{filteredList.length}</strong> lapisan tarif {info.title}
-                    </span>
-                    <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
-                        Sumber: www.pajak.go.id
-                    </span>
+                    {/* TABLE LAYOUT */}
+                    <div className="table-layout-wrapper">
+                        {loading ? (
+                            <div className="loading-state">⏳ Sedang memuat data...</div>
+                        ) : filteredList.length === 0 ? (
+                            <div className="empty-state">📭 Belum ada data untuk kategori ini</div>
+                        ) : (
+                            <div className="split-table-container">
+                                {/* KOLOM KIRI */}
+                                <div className="table-column">
+                                    <TableContent
+                                        data={leftCol}
+                                        info={info}
+                                        onEdit={handleOpenModal}
+                                        startIndex={0}
+                                        formatRp={formatRp}
+                                        colType="left"
+                                    />
+                                </div>
+                                {/* KOLOM KANAN */}
+                                <div className="table-column">
+                                    <TableContent
+                                        data={rightCol}
+                                        info={info}
+                                        onEdit={handleOpenModal}
+                                        startIndex={halfLen}
+                                        formatRp={formatRp}
+                                        colType="right"
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="footer-credits">
+                    <span>Sumber Data: Direktorat Jenderal Pajak (www.pajak.go.id)</span>
                 </div>
 
                 {/* MODAL */}
@@ -296,98 +206,331 @@ const PPHTer = () => {
                     <div className="modal-backdrop">
                         <div className="modal-content-modern">
                             <div className="modal-header-modern">
-                                <h3>{isEdit ? '✏️ Edit PPH TER' : '➕ Tambah PPH TER Baru'}</h3>
-                                <button onClick={() => setShowModal(false)}>✕</button>
+                                <h3>{isEdit ? '✏️ Edit Tarif PPH TER' : '➕ Tambah Tarif Baru'}</h3>
+                                <button onClick={() => setShowModal(false)} className="close-btn">✕</button>
                             </div>
-                            <div style={{ padding: 20 }}>
-                                <form onSubmit={handleSave}>
+                            <form onSubmit={handleSave} className="modal-body-modern">
+                                <div className="form-group">
+                                    <label>Kategori TER</label>
+                                    <select
+                                        value={formData.kategori}
+                                        onChange={e => setFormData({ ...formData, kategori: e.target.value })}
+                                        required
+                                        className="modern-input"
+                                    >
+                                        <option value="">-- Pilih Kategori --</option>
+                                        <option value="A">TER A (TK/0, TK/1, K/0)</option>
+                                        <option value="B">TER B (TK/2, TK/3, K/1, K/2)</option>
+                                        <option value="C">TER C (K/3)</option>
+                                    </select>
+                                </div>
+                                <div className="grid-2-col">
                                     <div className="form-group">
-                                        <label>Kategori TER *</label>
-                                        <select
-                                            value={formData.kategori}
-                                            onChange={e => setFormData({ ...formData, kategori: e.target.value })}
+                                        <label>Min. Penghasilan (Rp)</label>
+                                        <input
+                                            type="number"
+                                            value={formData.min}
+                                            onChange={e => setFormData({ ...formData, min: Number(e.target.value || 0) })}
                                             required
-                                        >
-                                            <option value="">-- Pilih Kategori --</option>
-                                            <option value="A">TER A — TK/0, TK/1, K/0</option>
-                                            <option value="B">TER B — TK/2, TK/3, K/1, K/2</option>
-                                            <option value="C">TER C — K/3</option>
-                                        </select>
-                                    </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 }}>
-                                        <div className="form-group">
-                                            <label>Penghasilan Minimum (Rp) *</label>
-                                            <input
-                                                type="number"
-                                                value={formData.min}
-                                                onChange={e => setFormData({ ...formData, min: Number(e.target.value || 0) })}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Penghasilan Maximum (Rp) *</label>
-                                            <input
-                                                type="number"
-                                                value={formData.max}
-                                                onChange={e => setFormData({ ...formData, max: Number(e.target.value || 0) })}
-                                                required
-                                            />
-                                            <small style={{ color: '#64748b', fontSize: '0.75rem' }}>Isi 0 untuk baris terakhir (lebih dari)</small>
-                                        </div>
+                                            className="modern-input"
+                                        />
                                     </div>
                                     <div className="form-group">
-                                        <label>Tarif Pajak (%) *</label>
+                                        <label>Max. Penghasilan (Rp)</label>
+                                        <input
+                                            type="number"
+                                            value={formData.max}
+                                            onChange={e => setFormData({ ...formData, max: Number(e.target.value || 0) })}
+                                            required
+                                            className="modern-input"
+                                        />
+                                        <span className="helper-text">Isi 0 untuk "lebih dari"</span>
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label>Tarif Pajak (%)</label>
+                                    <div className="input-suffix">
                                         <input
                                             type="number"
                                             step="0.01"
                                             value={formData.tarif}
                                             onChange={e => setFormData({ ...formData, tarif: Number(e.target.value || 0) })}
                                             required
+                                            className="modern-input"
                                         />
+                                        <span className="suffix">%</span>
                                     </div>
-                                    <div className="modal-footer-modern" style={{ marginTop: 20 }}>
-                                        <button type="button" onClick={() => setShowModal(false)} className="btn-cancel">Batal</button>
-                                        <button type="submit" className="btn-save">Simpan</button>
-                                    </div>
-                                </form>
-                            </div>
+                                </div>
+                                <div className="modal-footer-modern">
+                                    <button type="button" onClick={() => setShowModal(false)} className="btn-cancel">Batal</button>
+                                    <button type="submit" className="btn-save">Simpan Perubahan</button>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 )}
             </main>
 
             <style>{`
-                .app-layout { display: flex; min-height: 100vh; background: #f8fafc; }
-                .main-content { flex: 1; padding: 25px; overflow-y: auto; }
-                .page-header-modern { display: flex; justify-content: space-between; align-items: end; margin-bottom: 25px; }
-                .modern-title { font-size: 1.8rem; font-weight: 700; color: #1e293b; margin: 0; }
-                .modern-subtitle { color: #64748b; margin: 5px 0 0; font-size: 0.95rem; }
-                .btn-modern { padding: 10px 16px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; }
-                .btn-modern:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,0.15); }
-                .btn-icon-modern { width: 28px; height: 28px; border-radius: 6px; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; transition: all 0.15s; }
-                .edit { background: #eff6ff; color: #3b82f6; }
-                .edit:hover { background: #dbeafe; }
-                .table-container-modern { background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); overflow: hidden; border: 1px solid #e2e8f0; }
-                .modern-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-                .modern-table th { padding: 10px 8px; text-align: left; font-size: 0.8rem; }
-                .modern-table td { padding: 8px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; color: #334155; }
-                .modern-table tr:hover { background: #f0f9ff !important; }
-                .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 100; }
-                .modal-content-modern { background: white; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); overflow: hidden; animation: slideUp 0.3s; width: 500px; }
-                .modal-header-modern { background: #f8fafc; padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; }
-                .modal-header-modern h3 { margin: 0; color: #1e293b; font-size: 1.1rem; }
-                .modal-header-modern button { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b; }
-                .form-group { margin-bottom: 15px; }
-                .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 5px; }
-                .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; outline: none; box-sizing: border-box; }
-                .form-group input:focus, .form-group select:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-                .modal-footer-modern { display: flex; justify-content: flex-end; gap: 10px; }
-                .btn-save { background: linear-gradient(135deg,#4f46e5,#3b82f6); color:white; padding:10px 16px; border-radius:8px; border:none; font-weight:700; cursor:pointer; }
-                .btn-save:hover { box-shadow: 0 4px 12px rgba(79,70,229,0.3); }
-                .btn-cancel { background:#f1f5f9; padding:10px 16px; border-radius:8px; border:none; cursor:pointer; }
-                @keyframes slideUp { from { opacity: 0; transform: translateY(20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+                /* Layout & Typography */
+                .app-layout { display: flex; min-height: 100vh; background: #f1f5f9; font-family: 'Inter', system-ui, sans-serif; }
+                .main-content { flex: 1; padding: 24px 32px; overflow-y: auto; margin-left: 260px; width: calc(100% - 260px); }
+                .page-header-modern { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
+                .modern-title { font-size: 1.75rem; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.5px; }
+                .modern-subtitle { color: #64748b; margin: 4px 0 0; font-size: 0.9rem; font-weight: 500; }
+                
+                /* Buttons */
+                .btn-modern-primary { 
+                    background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); 
+                    color: white; 
+                    padding: 10px 20px; 
+                    border-radius: 10px; 
+                    border: none; 
+                    font-weight: 600; 
+                    font-size: 0.9rem;
+                    cursor: pointer; 
+                    transition: all 0.2s; 
+                    box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); 
+                    display: flex; align-items: center; gap: 8px;
+                }
+                .btn-modern-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3); }
+                
+                /* Card & Control Bar */
+                .content-card { background: white; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); border: 1px solid #e2e8f0; overflow: hidden; }
+                
+                .control-bar { 
+                    display: flex; 
+                    justify-content: space-between; 
+                    align-items: center; 
+                    padding: 16px 24px; 
+                    border-bottom: 1px solid #f1f5f9;
+                    background: #fff;
+                }
+                
+                /* Tabs */
+                .tab-container { display: flex; gap: 6px; background: #f8fafc; padding: 4px; border-radius: 10px; border: 1px solid #e2e8f0; }
+                .tab-btn {
+                    padding: 8px 20px;
+                    border-radius: 8px;
+                    border: none;
+                    cursor: pointer;
+                    font-weight: 600;
+                    font-size: 0.85rem;
+                    color: #64748b;
+                    background: transparent;
+                    transition: all 0.2s ease;
+                }
+                .tab-btn:hover { color: #334155; background: #f1f5f9; }
+                .tab-btn.active {
+                    background: var(--active-color);
+                    color: white;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }
+
+                /* Info Badge */
+                .info-badge {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    padding: 8px 16px;
+                    border-radius: 10px;
+                    border: 1px solid transparent;
+                }
+                .info-icon {
+                    width: 24px; height: 24px;
+                    border-radius: 50%;
+                    color: white;
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: 0.75rem;
+                }
+                .info-text { display: flex; flex-direction: column; line-height: 1.2; }
+                .info-text strong { font-size: 0.85rem; color: #1e293b; }
+                .info-text small { font-size: 0.75rem; color: #64748b; }
+
+                /* Table Layout */
+                .table-layout-wrapper { padding: 0; }
+                .split-table-container { 
+                    display: grid; 
+                    grid-template-columns: 1fr 1fr; 
+                    gap: 1px; 
+                    background: #e2e8f0; /* Helper for gap appearance */
+                }
+                .table-column { background: white; }
+                
+                .modern-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+                .modern-table thead tr { background: #f8fafc; border-bottom: 2px solid #e2e8f0; }
+                .modern-table th { 
+                    padding: 10px 12px; 
+                    text-align: left; 
+                    font-weight: 700; 
+                    color: #475569; 
+                    text-transform: uppercase; 
+                    font-size: 0.75rem;
+                    letter-spacing: 0.5px;
+                }
+                .text-right { text-align: right !important; }
+                .text-center { text-align: center !important; }
+                
+                .modern-table tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.1s; }
+                .modern-table tbody tr:last-child { border-bottom: none; }
+                .modern-table tbody tr:hover { background: #f8fafc; }
+                .modern-table td { padding: 6px 12px; color: #334155; vertical-align: middle; }
+                .font-mono { font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace; font-size: 0.82rem; color: #0f172a; letter-spacing: -0.5px; }
+
+                /* Specific column widths to reduce gaps */
+                .col-no { width: 40px; text-align: center; }
+                .col-money { width: 120px; text-align: right; white-space: nowrap; }
+                .col-mid { width: 40px; text-align: center; font-size: 0.75rem; color: #64748b; }
+                .col-tarif { width: 80px; text-align: center; }
+                .col-action { width: 40px; text-align: center; }
+                
+                .tarif-badge { 
+                    display: inline-block; 
+                    padding: 2px 8px; 
+                    border-radius: 6px; 
+                    background: #f0f9ff; 
+                    color: #0369a1; 
+                    font-weight: 700; 
+                    font-size: 0.8rem; 
+                }
+                
+                /* Action Button */
+                .btn-icon-xs {
+                    width: 28px; height: 28px;
+                    border-radius: 6px;
+                    border: 1px solid #e2e8f0;
+                    background: white;
+                    color: #64748b;
+                    cursor: pointer;
+                    display: inline-flex; align-items: center; justify-content: center;
+                    transition: all 0.2s;
+                    font-size: 0.8rem;
+                }
+                .btn-icon-xs:hover { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+
+                /* Footer */
+                .footer-credits { text-align: center; margin-top: 24px; color: #94a3b8; font-size: 0.8rem; }
+                
+                /* Modal Styles */
+                .modal-backdrop { 
+                    position: fixed; inset: 0; 
+                    background: rgba(15, 23, 42, 0.4); 
+                    backdrop-filter: blur(4px); 
+                    display: flex; justify-content: center; align-items: center; 
+                    z-index: 50; 
+                    animation: fadeIn 0.2s;
+                }
+                .modal-content-modern { 
+                    background: white; 
+                    border-radius: 16px; 
+                    width: 100%; max-width: 480px; 
+                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); 
+                    animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+                .modal-header-modern { 
+                    padding: 20px 24px; 
+                    border-bottom: 1px solid #f1f5f9; 
+                    display: flex; justify-content: space-between; align-items: center; 
+                }
+                .modal-header-modern h3 { margin: 0; font-size: 1.1rem; color: #1e293b; }
+                .close-btn { background: none; border: none; font-size: 1.25rem; color: #94a3b8; cursor: pointer; }
+                .close-btn:hover { color: #ef4444; }
+                
+                .modal-body-modern { padding: 24px; }
+                .form-group { margin-bottom: 20px; }
+                .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 8px; }
+                .modern-input { 
+                    width: 100%; 
+                    padding: 10px 12px; 
+                    border: 1px solid #cbd5e1; 
+                    border-radius: 8px; 
+                    font-size: 0.95rem; 
+                    transition: all 0.2s;
+                    outline: none;
+                }
+                .modern-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
+                .grid-2-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+                .helper-text { font-size: 0.75rem; color: #64748b; margin-top: 4px; display: block; }
+                
+                .input-suffix { position: relative; }
+                .input-suffix .suffix { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #64748b; font-weight: 500; }
+                
+                .modal-footer-modern { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; }
+                .btn-save { background: #0f172a; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+                .btn-save:hover { background: #1e293b; }
+                .btn-cancel { background: white; border: 1px solid #cbd5e1; color: #475569; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+                .btn-cancel:hover { background: #f8fafc; }
+
+                .loading-state, .empty-state { padding: 48px; text-align: center; color: #64748b; font-style: italic; }
+
+                /* Animations */
+                @keyframes scaleIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
             `}</style>
         </div>
+    );
+};
+
+// Subcomponent for cleaner code
+const TableContent = ({ data, info, onEdit, startIndex, formatRp, colType }) => {
+    return (
+        <table className="modern-table">
+            <thead>
+                <tr>
+                    <th className="col-no">No</th>
+                    <th colSpan="3" style={{ paddingLeft: 16 }}>Lapisan Penghasilan Bruto (Rp)</th>
+                    <th className="col-tarif">Tarif %</th>
+                    <th className="col-action"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {data.map((pph, idx) => {
+                    const globalIdx = startIndex + idx + 1;
+                    const isLast = parseFloat(pph.max) === 0;
+
+                    let displayMin, displayMid, displayMax;
+
+                    if (colType === 'left' && idx === 0 && parseFloat(pph.min) === 0) {
+                        // Case: First row is 0
+                        displayMin = '';
+                        displayMid = 'sampai dengan';
+                        displayMax = formatRp(pph.max);
+                    } else if (isLast) {
+                        // Case: Last row > X
+                        displayMin = '';
+                        displayMid = 'lebih dari';
+                        displayMax = formatRp(pph.min);
+                        // Note: If max is 0, logic says it's > min. 
+                        // Previous code logic was: max=0 means use min-1? 
+                        // Re-reading logic: min=X, max=0 (means > X). 
+                        // The table should show: "" "lebih dari" "X"
+                        // So I will put X in the 3rd column.
+                    } else {
+                        // Normal case: X s.d. Y
+                        displayMin = formatRp(pph.min);
+                        displayMid = 's.d.';
+                        displayMax = formatRp(pph.max);
+                    }
+
+                    return (
+                        <tr key={pph.id}>
+                            <td className="col-no" style={{ color: '#94a3b8', fontWeight: 600 }}>{globalIdx}</td>
+                            <td className="col-money font-mono">{displayMin}</td>
+                            <td className="col-mid">{displayMid}</td>
+                            <td className="col-money font-mono">{displayMax}</td>
+                            <td className="col-tarif">
+                                <span className="tarif-badge" style={{ color: info.color, background: info.color + '15' }}>
+                                    {parseFloat(pph.tarif).toFixed(2)}%
+                                </span>
+                            </td>
+                            <td className="col-action">
+                                <button className="btn-icon-xs" onClick={() => onEdit(pph)}>✏️</button>
+                            </td>
+                        </tr>
+                    );
+                })}
+            </tbody>
+        </table>
     );
 };
 

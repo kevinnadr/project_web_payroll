@@ -15,7 +15,7 @@ $sheet = $spreadsheet->getActiveSheet();
 $sheet->setTitle('Template Import Pegawai');
 
     // Header
-    $headers = ['NIK', 'Nama Lengkap', 'Email', 'NPWP', 'PTKP', 'Jabatan', 'Status Kontrak', 'Tanggal Masuk', 'Gaji Pokok'];
+    $headers = ['NIK', 'Nama Lengkap', 'Email', 'No HP', 'NPWP'];
     foreach ($headers as $col => $header) {
         $cell = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col + 1) . '1';
         $sheet->setCellValue($cell, $header);
@@ -36,23 +36,15 @@ $sheet->setTitle('Template Import Pegawai');
     $sheet->setCellValueExplicit('A2', '2024001', DataType::TYPE_STRING);
     $sheet->setCellValue('B2', 'John Doe');
     $sheet->setCellValue('C2', 'john@email.com');
-    $sheet->setCellValueExplicit('D2', '12.345.678.9-012.000', DataType::TYPE_STRING);
-    $sheet->setCellValue('E2', 'TK/0');
-    $sheet->setCellValue('F2', 'Staff IT');
-    $sheet->setCellValue('G2', 'PKWTT');
-    $sheet->setCellValue('H2', date('Y-m-d'));
-    $sheet->setCellValue('I2', '5000000');
+    $sheet->setCellValueExplicit('D2', '08123456789', DataType::TYPE_STRING); 
+    $sheet->setCellValueExplicit('E2', '12.345.678.9-012.000', DataType::TYPE_STRING);
 
     // Contoh data baris 3
     $sheet->setCellValueExplicit('A3', '2024002', DataType::TYPE_STRING);
     $sheet->setCellValue('B3', 'Jane Smith');
     $sheet->setCellValue('C3', 'jane@email.com');
-    $sheet->setCellValueExplicit('D3', '12.345.678.9-013.000', DataType::TYPE_STRING);
-    $sheet->setCellValue('E3', 'K/1');
-    $sheet->setCellValue('F3', 'HRGA');
-    $sheet->setCellValue('G3', 'KONTRAK');
-    $sheet->setCellValue('H3', date('Y-m-d', strtotime('-1 year')));
-    $sheet->setCellValue('I3', '4500000');
+    $sheet->setCellValueExplicit('D3', '08987654321', DataType::TYPE_STRING);
+    $sheet->setCellValueExplicit('E3', '12.345.678.9-013.000', DataType::TYPE_STRING);
 
     // Style data contoh (warna kuning muda)
     $sheet->getStyle('A2:' . $lastCol . '3')->applyFromArray([

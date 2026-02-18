@@ -14,6 +14,7 @@ const Absensi = () => {
 
 
     const fileInputRef = useRef(null);
+    const monthInputRef = useRef(null);
     const navigate = useNavigate();
 
     // State Modal
@@ -67,111 +68,121 @@ const Absensi = () => {
     const handleDownloadTemplate = () => window.open('http://localhost/project_web_payroll/backend-api/modules/absensi/download_template.php', '_blank'); // Using simple template for now
 
     // --- IMPORT CSV ---
-const handleFileChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-    const reader = new FileReader();
+        const reader = new FileReader();
 
-    reader.onload = async (event) => {
-        try {
-            const text = event.target.result;
+        reader.onload = async (event) => {
+            try {
+                const text = event.target.result;
 
-            // Bersihkan BOM + support CRLF Windows
-            const rows = text
-                .replace(/^\uFEFF/, '')
-                .split(/\r?\n/)
-                .filter(r => r.trim() !== "");
+                // Bersihkan BOM + support CRLF Windows
+                const rows = text
+                    .replace(/^\uFEFF/, '')
+                    .split(/\r?\n/)
+                    .filter(r => r.trim() !== "");
 
-            if (rows.length < 2) {
-                setErrorMessage("File kosong atau tidak memiliki data.");
-                setShowErrorModal(true);
-                return;
-            }
+                if (rows.length < 2) {
+                    setErrorMessage("File kosong atau tidak memiliki data.");
+                    setShowErrorModal(true);
+                    return;
+                }
 
-            // Support koma & titik koma
-            const header = rows[0]
-                .split(/[;,]/)
-                .map(h => h.trim().replace(/\r/g, '').toLowerCase());
+                // Support koma & titik koma
+                const header = rows[0]
+                    .split(/[;,]/)
+                    .map(h => h.trim().replace(/\r/g, '').toLowerCase());
 
-             const requiredHeaders = [
-                'nik',
-                'hadir',
-                'sakit',
-                'izin',
-                'cuti',
-                'hari_terlambat',
-                'menit_terlambat'
-            ];
+                const requiredHeaders = [
+                    'nik',
+                    'hadir',
+                    'sakit',
+                    'izin',
+                    'cuti',
+                    'hari_terlambat',
+                    'menit_terlambat'
+                ];
 
-            const missingHeaders = requiredHeaders.filter(h => !header.includes(h));
+                const missingHeaders = requiredHeaders.filter(h => !header.includes(h));
 
-            if (missingHeaders.length > 0) {
+                if (missingHeaders.length > 0) {
+                    setErrorMessage(
+                        `Header tidak sesuai format! Kolom hilang: ${missingHeaders.join(", ")}`
+                    );
+                    setShowErrorModal(true);
+                    e.target.value = null;
+                    return;
+                }
+
+                const dataToImport = [];
+
+                for (let i = 1; i < rows.length; i++) {
+                    const cols = rows[i]
+                        .split(/[;,]/)
+                        .map(c => c.trim().replace(/\r/g, ''));
+
+                    if (cols.length < header.length) continue;
+
+                    const obj = {};
+                    header.forEach((key, index) => {
+                        obj[key] = cols[index] || 0;
+                    });
+
+                    if (obj.nik) {
+                        dataToImport.push(obj);
+                    }
+                }
+
+                if (dataToImport.length === 0) {
+                    setErrorMessage("Tidak ada data valid untuk diimport.");
+                    setShowErrorModal(true);
+                    return;
+                }
+
+                setLoading(true);
+
+                await axios.post(
+                    `http://localhost/project_web_payroll/backend-api/modules/absensi/import_excel.php`,
+                    {
+                        bulan: bulanFilter,
+                        data: dataToImport
+
+                    }
+                );
+
+                alert("Import Berhasil ✅");
+                fetchData();
+
+            } catch (err) {
                 setErrorMessage(
-                    `Header tidak sesuai format! Kolom hilang: ${missingHeaders.join(", ")}`
+                    err.response?.data?.message ||
+                    "Gagal Import Data. Silakan cek kembali file Anda."
                 );
                 setShowErrorModal(true);
+            } finally {
+                setLoading(false);
                 e.target.value = null;
-                return;
             }
+        };
 
-            const dataToImport = [];
-
-            for (let i = 1; i < rows.length; i++) {
-                const cols = rows[i]
-                    .split(/[;,]/)
-                    .map(c => c.trim().replace(/\r/g, ''));
-
-                if (cols.length < header.length) continue;
-
-                const obj = {};
-                header.forEach((key, index) => {
-                    obj[key] = cols[index] || 0;
-                });
-
-                if (obj.nik) {
-                    dataToImport.push(obj);
-                }
-            }
-
-            if (dataToImport.length === 0) {
-                setErrorMessage("Tidak ada data valid untuk diimport.");
-                setShowErrorModal(true);
-                return;
-            }
-
-            setLoading(true);
-
-            await axios.post(
-                `http://localhost/project_web_payroll/backend-api/modules/absensi/import_excel.php`,
-                {
-                    bulan: bulanFilter,
-                    data: dataToImport
-                    
-                }
-            );
-
-            alert("Import Berhasil ✅");
-            fetchData();
-
-        } catch (err) {
-            setErrorMessage(
-                err.response?.data?.message ||
-                "Gagal Import Data. Silakan cek kembali file Anda."
-            );
-            setShowErrorModal(true);
-        } finally {
-            setLoading(false);
-            e.target.value = null;
-        }
+        reader.readAsText(file);
     };
-
-    reader.readAsText(file);
-};
 
 
     const handleSaveAbsensi = async (e) => {
         e.preventDefault();
+
+        // Validation: Total days cannot exceed effective days
+        const total = parseInt(editData.hadir || 0) + parseInt(editData.sakit || 0) + parseInt(editData.izin || 0) + parseInt(editData.cuti || 0);
+        const limit = parseInt(editData.hari_efektif || 0);
+
+        if (limit > 0 && total > limit) {
+            alert(`Total kehadiran (${total}) tidak boleh melebihi Hari Efektif (${limit})!`);
+            return;
+        }
+
         try {
             const res = await axios.post(`http://localhost/project_web_payroll/backend-api/modules/absensi/save.php`, { ...editData, bulan: bulanFilter });
             if (res.data.status === 'success') { setShowModal(false); fetchData(); }
@@ -200,7 +211,20 @@ const handleFileChange = async (e) => {
                     </div>
 
                     {/* PERIOD PILL */}
-                    <div style={{ position: 'relative' }}>
+                    <div
+                        style={{ position: 'relative', cursor: 'pointer' }}
+                        onClick={() => {
+                            try {
+                                if (monthInputRef.current && typeof monthInputRef.current.showPicker === 'function') {
+                                    monthInputRef.current.showPicker();
+                                } else {
+                                    monthInputRef.current?.focus();
+                                }
+                            } catch (error) {
+                                console.error("Error opening picker:", error);
+                            }
+                        }}
+                    >
                         <div style={{
                             background: '#0f172a', color: 'white', padding: '10px 20px', borderRadius: '30px',
                             display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600,
@@ -210,12 +234,14 @@ const handleFileChange = async (e) => {
                             <span style={{ opacity: 0.7 }}>📅</span>
                         </div>
                         <input
+                            ref={monthInputRef}
                             type="month"
                             value={bulanFilter}
                             onChange={(e) => setBulanFilter(e.target.value)}
                             style={{
                                 position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                                opacity: 0, cursor: 'pointer'
+                                opacity: 0, pointerEvents: 'none', // Allow clicks to pass through to the div handler
+                                zIndex: -1 // Push behind so it doesn't interfere
                             }}
                         />
                     </div>
@@ -272,6 +298,7 @@ const handleFileChange = async (e) => {
                                 <th style={{ padding: '16px', fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', textAlign: 'center' }}>Telat (X)</th>
                                 <th style={{ padding: '16px', fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', textAlign: 'center' }}>Menit</th>
                                 <th style={{ padding: '16px', fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', textAlign: 'center' }}>Lembur</th>
+                                <th style={{ padding: '16px', fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', textAlign: 'center' }}>Hari Efektif</th>
                                 <th style={{ padding: '16px', fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', textAlign: 'center' }}>Aksi</th>
                             </tr>
                         </thead>
@@ -321,10 +348,14 @@ const handleFileChange = async (e) => {
                                         {row.jam_lembur > 0 ? `${row.jam_lembur}j` : '0'}
                                     </td>
 
+                                    <td style={{ textAlign: 'center', fontWeight: 600, color: '#374151', fontSize: '1rem' }}>
+                                        {row.hari_efektif}
+                                    </td>
+
                                     <td style={{ textAlign: 'center' }}>
                                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                                             <button
-                                                onClick={() => { setEditData({ ...row, jam_lembur: row.jam_lembur || 0 }); setShowModal(true); }}
+                                                onClick={() => { setEditData({ ...row, jam_lembur: row.jam_lembur || 0, hari_efektif: row.hari_efektif || 25 }); setShowModal(true); }}
                                                 style={{ border: '1px solid #fbbf24', background: 'white', color: '#d97706', borderRadius: '6px', padding: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                                                 title="Edit Absensi"
                                             >
@@ -363,9 +394,15 @@ const handleFileChange = async (e) => {
                                     <div><label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Izin</label><input type="number" className="form-control" style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '8px' }} value={editData.izin} onChange={e => setEditData({ ...editData, izin: e.target.value })} /></div>
                                 </div>
 
-                                <div style={{ marginBottom: '15px' }}>
-                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0369a1' }}>Lembur (Jam)</label>
-                                    <input type="number" className="form-control" style={{ border: '1px solid #bae6fd', padding: '8px', borderRadius: '8px' }} value={editData.jam_lembur} onChange={e => setEditData({ ...editData, jam_lembur: e.target.value })} />
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                                    <div>
+                                        <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0369a1' }}>Lembur (Jam)</label>
+                                        <input type="number" className="form-control" style={{ border: '1px solid #bae6fd', padding: '8px', borderRadius: '8px', width: '100%' }} value={editData.jam_lembur} onChange={e => setEditData({ ...editData, jam_lembur: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0369a1' }}>Hari Efektif</label>
+                                        <input type="number" className="form-control" style={{ border: '1px solid #bae6fd', padding: '8px', borderRadius: '8px', width: '100%' }} value={editData.hari_efektif} onChange={e => setEditData({ ...editData, hari_efektif: e.target.value })} />
+                                    </div>
                                 </div>
 
                                 <div style={{ background: '#fffbeb', padding: '15px', borderRadius: '10px', marginBottom: '15px' }}>
@@ -428,6 +465,7 @@ const handleFileChange = async (e) => {
                                                 <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>hari_terlambat</th>
                                                 <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>menit_terlambat</th>
                                                 <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>jam_lembur</th>
+                                                <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>hari_efektif</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -440,6 +478,7 @@ const handleFileChange = async (e) => {
                                                 <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>2</td>
                                                 <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>30</td>
                                                 <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>5</td>
+                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>25</td>
                                             </tr>
                                             <tr>
                                                 <td style={{ padding: '10px', fontWeight: '600', color: '#1e293b' }}>2024002</td>
@@ -450,6 +489,7 @@ const handleFileChange = async (e) => {
                                                 <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
                                                 <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
                                                 <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
+                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>25</td>
                                             </tr>
                                         </tbody>
                                     </table>

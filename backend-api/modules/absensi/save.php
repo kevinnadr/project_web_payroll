@@ -17,6 +17,18 @@ $cuti           = (int)($input['cuti'] ?? 0);
 $hari_efektif   = (int)($input['hari_efektif'] ?? 20);
 $hari_terlambat = (int)($input['hari_terlambat'] ?? $input['telat_x'] ?? 0);
 $menit_terlambat= (int)($input['menit_terlambat'] ?? $input['telat_m'] ?? 0);
+$jam_lembur     = (int)($input['jam_lembur'] ?? 0);
+
+// Validation: Total days cannot exceed effective days
+$total_days = $hadir + $sakit + $izin + $cuti;
+if ($hari_efektif > 0 && $total_days > $hari_efektif) {
+    http_response_code(400);
+    echo json_encode([
+        "status" => "error", 
+        "message" => "Total hari (Hadir + Sakit + Izin + Cuti = $total_days) tidak boleh melebihi Hari Efektif ($hari_efektif)!"
+    ]);
+    exit;
+}
 
 if (!$id_pegawai) {
     http_response_code(400);
@@ -33,18 +45,20 @@ try {
     // For monthly data, we store one record per employee per month
 
     $sql = "INSERT INTO absensi 
-            (id_pegawai, hadir, sakit, izin, cuti, hari_terlambat, menit_terlambat, date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (id_pegawai, hadir, sakit, izin, cuti, hari_terlambat, menit_terlambat, jam_lembur, hari_efektif, date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE 
                 hadir = VALUES(hadir),
                 sakit = VALUES(sakit),
                 izin = VALUES(izin),
                 cuti = VALUES(cuti),
                 hari_terlambat = VALUES(hari_terlambat),
-                menit_terlambat = VALUES(menit_terlambat)";
+                menit_terlambat = VALUES(menit_terlambat),
+                jam_lembur = VALUES(jam_lembur),
+                hari_efektif = VALUES(hari_efektif)";
     
     $stmt = $db->prepare($sql);
-    $stmt->execute([$id_pegawai, $hadir, $sakit, $izin, $cuti, $hari_terlambat, $menit_terlambat, $date]);
+    $stmt->execute([$id_pegawai, $hadir, $sakit, $izin, $cuti, $hari_terlambat, $menit_terlambat, $jam_lembur, $hari_efektif, $date]);
 
     echo json_encode([
         "status" => "success", 
