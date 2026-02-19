@@ -19,6 +19,16 @@ class PDF_Slip extends FPDF {
 
 try {
     $bulan = $_GET['bulan'] ?? date('Y-m'); // Default current month
+    
+    // --- FETCH SETTINGS ---
+    $stmtSet = $db->query("SELECT * FROM pengaturan_absensi WHERE id = 1 LIMIT 1");
+    $settings = $stmtSet->fetch(PDO::FETCH_ASSOC);
+    
+    // Defaults if not found
+    $dendaHarian = $settings['denda_telat_harian'] ?? 5000;
+    $dendaBlok   = $settings['denda_telat_per_blok'] ?? 20000;
+    $menitBlok   = $settings['menit_per_blok'] ?? 15;
+    $tarifLembur = $settings['tarif_lembur_per_jam'] ?? 20000;
 
     // 1. Ambil semua pegawai yang punya kontrak aktif
     $sql = "SELECT p.*, sp.status_ptkp, sp.kategori_ter, k.id_kontrak, k.jabatan, k.jenis_kontrak, k.tanggal_mulai
@@ -49,7 +59,9 @@ try {
         WHERE nk.id_kontrak = ?
     ");
 
-    $stmtBpjs = $db->prepare("SELECT bpjs_tk, bpjs_ks FROM riwayat_bpjs WHERE id_pegawai = ? AND DATE_FORMAT(date, '%Y-%m') = ?");
+    // Use data_bpjs table (Period format: YYYY-MM)
+    $stmtBpjs = $db->prepare("SELECT bpjs_tk, bpjs_ks FROM data_bpjs WHERE id_pegawai = ? AND periode = ?");
+    $stmtBpjsLast = $db->prepare("SELECT bpjs_tk, bpjs_ks FROM data_bpjs WHERE id_pegawai = ? AND periode < ? ORDER BY periode DESC LIMIT 1");
 
     $stmtAlpha = $db->query("SELECT nominal_denda FROM alpha LIMIT 1");
     $dendaPerHari = $stmtAlpha->fetchColumn() ?: 50000; 
@@ -94,8 +106,10 @@ try {
 
         foreach ($komponenRaw as $k) {
             $nominal = $k['nominal'];
+            $jenis = strtoupper($k['jenis_komponen']);
             
-            if ($k['jenis_komponen'] == 'HARIAN') {
+            // Handle Variable Components (HARIAN / KEHADIRAN)
+            if ($jenis == 'HARIAN' || $jenis == 'KEHADIRAN') {
                  if (stripos($k['nama_komponen'], 'lembur') !== false) {
                     $calculated = $nominal * $jam_lembur;
                     $incomes[] = ['nama' => $k['nama_komponen'] . " ($jam_lembur jam)", 'nominal' => $calculated];
@@ -105,18 +119,48 @@ try {
                     $incomes[] = ['nama' => $k['nama_komponen'] . " ($hadir hari)", 'nominal' => $calculated];
                     $nominal = $calculated;
                 }
-            } else {
+            } 
+            // Handle NON_ALFA (Bonus Rajin)
+            else if ($jenis == 'NON_ALFA' || $jenis == 'NON ALFA') {
+                if ($alpha_days > 0) {
+                    $nominal = 0;
+                    $incomes[] = ['nama' => $k['nama_komponen'] . " (Hangus krn $alpha_days Alpha)", 'nominal' => 0];
+                } else {
+                    $incomes[] = ['nama' => $k['nama_komponen'] . " (Full)", 'nominal' => $nominal];
+                }
+            }
+            // Handle TETAP / BULANAN
+            else {
                 $incomes[] = ['nama' => $k['nama_komponen'], 'nominal' => $nominal];
             }
             $totalBruto += $nominal;
+        }
+
+        // --- AUTO LEMBUR CHECK ---
+        $hasLembur = false;
+        foreach ($incomes as $inc) {
+            if (stripos($inc['nama'], 'lembur') !== false) {
+                $hasLembur = true;
+                break;
+            }
+        }
+        if (!$hasLembur && $jam_lembur > 0) {
+            // FLAT RATE Calculation as requested
+            $bayaranLembur = $tarifLembur * $jam_lembur;
+    
+            $incomes[] = ['nama' => "Lembur ($jam_lembur jam)", 'nominal' => $bayaranLembur];
+            $totalBruto += $bayaranLembur;
         }
 
         // --- 4. POTONGAN ---
         $potonganAlpha = $alpha_days * $dendaPerHari;
         
         $potonganTerlambat = 0;
-        if ($hari_terlambat > 0) {
-            $potonganTerlambat = ($hari_terlambat * 5000) + (ceil($menit_terlambat / 15) * 20000);
+        if ($hari_terlambat > 0 || $menit_terlambat > 0) {
+            $potonganTerlambat = ($hari_terlambat * $dendaHarian);
+            if ($menit_terlambat > 0) {
+                 $potonganTerlambat += ceil($menit_terlambat / $menitBlok) * $dendaBlok;
+            }
         }
 
         // PPH TER
@@ -135,6 +179,11 @@ try {
         // BPJS
         $stmtBpjs->execute([$pegawai['id_pegawai'], $bulan]);
         $bpjs = $stmtBpjs->fetch(PDO::FETCH_ASSOC);
+
+        if (!$bpjs) {
+            $stmtBpjsLast->execute([$pegawai['id_pegawai'], $bulan]);
+            $bpjs = $stmtBpjsLast->fetch(PDO::FETCH_ASSOC);
+        }
         $bpjs_tk = $bpjs['bpjs_tk'] ?? 0;
         $bpjs_ks = $bpjs['bpjs_ks'] ?? 0;
 

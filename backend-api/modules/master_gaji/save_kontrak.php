@@ -141,7 +141,7 @@ try {
 
     // Save Tunjangan Tetap
     if ($tunjangan > 0) {
-        $idKomp = $getOrCreateKomponen('Tunjangan Tetap', 'BULANAN');
+        $idKomp = $getOrCreateKomponen('Tunjangan Tetap', 'TETAP');
         $db->prepare("INSERT INTO nominal_kontrak (id_kontrak, id_komponen, nominal) VALUES (?, ?, ?)")->execute([$finalId, $idKomp, $tunjangan]);
     }
 
@@ -150,8 +150,10 @@ try {
         foreach ($komponen_tambahan as $komp) {
             $nama = $komp['nama'] ?? '';
             $nominal = (float)($komp['nominal'] ?? 0);
-            $tipe = strtoupper($komp['tipe'] ?? 'BULANAN');
+            $tipe = strtoupper($komp['tipe'] ?? 'BULANAN'); // Use provided type (TETAP, NON_ALFA, KEHADIRAN, BULANAN)
+            
             if ($nama && $nominal > 0) {
+                // Ensure getOrCreateKomponen uses the correct type if creating new
                 $idKomp = $getOrCreateKomponen($nama, $tipe);
                 $db->prepare("INSERT INTO nominal_kontrak (id_kontrak, id_komponen, nominal) VALUES (?, ?, ?)")->execute([$finalId, $idKomp, $nominal]);
             }

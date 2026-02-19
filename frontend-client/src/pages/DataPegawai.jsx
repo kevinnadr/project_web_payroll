@@ -253,10 +253,10 @@ const DataPegawai = () => {
                     <table className="modern-table">
                         <thead>
                             <tr>
-                                <th>Pegawai</th>
-                                <th>Email</th>
-                                <th>No HP</th>
-                                <th>NPWP</th>
+                                <th style={{ textAlign: 'center' }}>Pegawai</th>
+                                <th style={{ textAlign: 'center' }}>Email</th>
+                                <th style={{ textAlign: 'center' }}>No HP</th>
+                                <th style={{ textAlign: 'center' }}>NPWP</th>
                                 <th className="text-center">Aksi</th>
                             </tr>
                         </thead>

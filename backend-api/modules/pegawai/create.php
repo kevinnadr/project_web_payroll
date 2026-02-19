@@ -57,22 +57,7 @@ try {
     
     $pegawai_id = $db->lastInsertId();
 
-    // 3. INSERT ke tabel KONTRAK KERJA
-    // Note: Assuming these fields might also come from POST if sent via FormData
-    // For now, keeping defaults as frontend typically sends core data. 
-    // If contract info is needed during create, ensure it's in FormData.
-    $noKontrak = "NK/" . $pegawai_id . "/" . date('Y') . "-" . rand(1000, 9999);
-    $sql2 = "INSERT INTO kontrak_kerja (id_pegawai, no_kontrak, jabatan, jenis_kontrak, tanggal_mulai, tanggal_berakhir) 
-             VALUES (:pid, :no_kontrak, :jabatan, :kontrak, :tgl_mulai, :tgl_akhir)";
-    $stmt2 = $db->prepare($sql2);
-    $stmt2->execute([
-        ':pid'        => $pegawai_id,
-        ':no_kontrak' => $noKontrak,
-        ':jabatan'    => $_POST['jabatan'] ?? 'Staff',
-        ':kontrak'    => $_POST['jenis_kontrak'] ?? 'TETAP',
-        ':tgl_mulai'  => $_POST['tanggal_mulai'] ?? date('Y-m-d'),
-        ':tgl_akhir'  => !empty($_POST['tanggal_berakhir']) ? $_POST['tanggal_berakhir'] : NULL
-    ]);
+
 
     $db->commit();
     echo json_encode(["status" => "success", "message" => "Pegawai berhasil ditambahkan!", "id_pegawai" => $pegawai_id]);

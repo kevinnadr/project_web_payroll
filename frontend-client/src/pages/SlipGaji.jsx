@@ -164,38 +164,74 @@ const SlipGaji = () => {
                             {isSendingAll ? '⏳ Sending...' : '📧 Email All'}
                         </button>
                         <button onClick={handlePdfSlipsAll} className="btn-modern btn-outline" title="Download Semua Slip Gaji (per Halaman)">📄 Slip All</button>
-                        <button onClick={handlePdfAll} className="btn-modern btn-outline" title="Download Rekap Data Pegawai (Tabel)">📄 Data All</button>
+                        <button onClick={handlePdfAll} className="btn-modern btn-outline" title="Download Rekap Data Pegawai (Tabel)">📄 Data Recap Pegawai</button>
                     </div>
                 </div>
 
                 <div className="table-container-modern">
                     <table className="modern-table">
                         <thead>
-                            <tr><th>Pegawai</th><th>Email</th><th>NPWP</th><th>Status</th><th>Masa Kerja</th><th className="text-center">Aksi</th></tr>
+                            <tr>
+                                <th style={{ textAlign: 'center' }}>Pegawai</th>
+                                <th style={{ textAlign: 'center' }}>Email</th>
+                                <th style={{ textAlign: 'center' }}>NPWP</th>
+                                <th style={{ textAlign: 'center' }}>Status</th>
+                                <th style={{ textAlign: 'center' }}>Masa Kerja</th>
+                                <th className="text-center">Aksi</th>
+                            </tr>
                         </thead>
                         <tbody>
                             {loading ? <tr><td colSpan="6" className="text-center p-4">⏳ Memuat...</td></tr> :
                                 filteredList.map((row) => (
                                     <tr key={row.id_pegawai}>
-                                        <td onClick={() => navigate('/data-pegawai', { state: { search: row.nik } })} style={{ cursor: 'pointer' }} title="Klik untuk lihat detail pegawai">
-                                            <div className="user-profile"><div className="avatar-circle">{row.nama_lengkap.charAt(0)}</div><div><div className="user-name-modern">{row.nama_lengkap}</div><div className="user-nik-modern">{row.nik}</div></div></div>
+                                        <td onClick={() => navigate('/data-pegawai', { state: { search: row.nik } })} style={{ cursor: 'pointer', textAlign: 'left' }} title="Klik untuk lihat detail pegawai">
+                                            <div className="user-profile" style={{ justifyContent: 'flex-start' }}><div className="avatar-circle">{row.nama_lengkap.charAt(0)}</div><div><div className="user-name-modern">{row.nama_lengkap}</div><div className="user-nik-modern">{row.nik}</div></div></div>
                                         </td>
-                                        <td style={{ fontSize: '0.9rem' }}>{row.email || '-'}</td>
-                                        <td style={{ fontWeight: '600', fontSize: '0.85rem' }}>{row.npwp || '-'}</td>
-                                        <td style={{ verticalAlign: 'middle' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <td style={{ fontSize: '0.9rem', textAlign: 'left' }}>{row.email || '-'}</td>
+                                        <td style={{ fontWeight: '600', fontSize: '0.85rem', textAlign: 'center' }}>{row.npwp || '-'}</td>
+                                        <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
                                                 {row.contracts && row.contracts.length > 0 ? (
-                                                    row.contracts.map((k, idx) => (
-                                                        <span key={idx} className={`badge-status ${k.jenis_kontrak === 'PKWTT' || k.jenis_kontrak === 'TETAP' ? 'tetap' : 'kontrak'}`}>
-                                                            {k.jenis_kontrak}
+                                                    [...new Set(row.contracts.map(c => c.jenis_kontrak))].map((type, idx) => (
+                                                        <span key={idx} style={{
+                                                            padding: '4px 10px',
+                                                            borderRadius: '20px',
+                                                            fontSize: '0.75rem',
+                                                            fontWeight: '600',
+                                                            backgroundColor: (type === 'PKWTT' || type === 'TETAP') ? '#dcfce7' : '#fef9c3',
+                                                            color: (type === 'PKWTT' || type === 'TETAP') ? '#166534' : '#854d0e',
+                                                            border: '1px solid',
+                                                            borderColor: (type === 'PKWTT' || type === 'TETAP') ? '#bbf7d0' : '#fde047',
+                                                            letterSpacing: '0.02em',
+                                                            textTransform: 'uppercase'
+                                                        }}>
+                                                            {type}
                                                         </span>
                                                     ))
                                                 ) : (
-                                                    <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic' }}>Belum ada kontrak</span>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'center' }}>
+                                                        <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic' }}>No Contract</span>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); navigate('/kontrak-pegawai'); }}
+                                                            style={{
+                                                                padding: '4px 8px',
+                                                                fontSize: '0.7rem',
+                                                                background: '#eff6ff',
+                                                                color: '#2563eb',
+                                                                border: '1px solid #bfdbfe',
+                                                                borderRadius: '4px',
+                                                                cursor: 'pointer',
+                                                                fontWeight: 600
+                                                            }}
+                                                            title="Tambah Kontrak"
+                                                        >
+                                                            + Add
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
                                         </td>
-                                        <td style={{ verticalAlign: 'middle' }}>
+                                        <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>
                                             <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#0f172a' }}>
                                                 {(() => {
                                                     // Find earliest start date from all contracts

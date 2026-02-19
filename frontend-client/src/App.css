@@ -673,19 +673,23 @@ input[type=number]::-webkit-outer-spin-button {
 }
 
 .modern-table th {
-  background-color: #f8fafc;
-  color: #64748b;
-  font-weight: 600;
+  background-color: #3b82f6;
+  /* Blue Header */
+  color: #ffffff;
+  /* White Text */
+  font-weight: 700;
   text-transform: uppercase;
   font-size: 11px;
   letter-spacing: 0.05em;
-  padding: 16px 20px;
-  border-bottom: 2px solid #edf2f7;
+  padding: 10px 5px;
+  /* Further reduced padding */
+  border-bottom: 2px solid #2563eb;
   text-align: left;
 }
 
 .modern-table td {
-  padding: 16px 20px;
+  padding: 10px 5px;
+  /* Further reduced padding */
   border-bottom: 1px solid #edf2f7;
   vertical-align: middle;
 }
@@ -1013,6 +1017,7 @@ input[type=number]::-webkit-outer-spin-button {
   background: #f1f5f9;
   color: #94a3b8;
 }
+
 /* =========================================
    DATA PEGAWAI MODERN STYLES
    (Moved from DataPegawai.jsx inline styles)
@@ -1027,34 +1032,161 @@ input[type=number]::-webkit-outer-spin-button {
 .main-content-modern {
   flex: 1;
   padding: 25px;
-  margin-left: 260px; /* Essential for sidebar */
+  margin-left: 260px;
+  /* Essential for sidebar */
   width: calc(100% - 260px);
 }
 
-.page-header-modern { display: flex; justify-content: space-between; align-items: end; margin-bottom: 28px; gap: 20px; }
-.modern-title { font-size: 2rem; font-weight: 800; color: #0f172a; margin: 0; }
-.modern-subtitle { color: #64748b; margin: 5px 0 0; font-size: 0.95rem; }
-.toolbar-modern { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; gap: 15px; }
-.search-box { display: flex; align-items: center; background: white; padding: 0 15px; border-radius: 10px; border: 1px solid #e2e8f0; width: 320px; height: 44px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
-.search-box input { border: none; outline: none; width: 100%; margin-left: 10px; font-size: 0.95rem; }
-.toolbar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.btn-modern { padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer; border: none; color: white; transition: all 0.2s ease; }
-.btn-outline { background: white; border: 1.5px solid #cbd5e1; color: #475569; }
-.btn-outline:hover { border-color: #94a3b8; background: #f8fafc; }
-.btn-gradient { background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2); }
-.btn-gradient:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3); }
-.table-container-modern { background: white; border-radius: 16px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #f1f5f9; }
-.modern-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-.modern-table th { background: #3b82f6; padding: 16px 15px; text-align: left; font-weight: 700; color: white; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #2563eb; }
-.modern-table th.text-center { text-align: center; }
-.modern-table td { padding: 16px 15px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; color: #334155; font-size: 0.95rem; }
-.modern-table tbody tr { transition: background-color 0.2s ease; }
-.modern-table tbody tr:hover { background-color: #f8fafc; }
+.page-header-modern {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  margin-bottom: 28px;
+  gap: 20px;
+}
+
+.modern-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.modern-subtitle {
+  color: #64748b;
+  margin: 5px 0 0;
+  font-size: 0.95rem;
+}
+
+.toolbar-modern {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 22px;
+  gap: 15px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  background: white;
+  padding: 0 15px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  width: 320px;
+  height: 44px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+}
+
+.search-box input {
+  border: none;
+  outline: none;
+  width: 100%;
+  margin-left: 10px;
+  font-size: 0.95rem;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-modern {
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border: none;
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.btn-outline {
+  background: white;
+  border: 1.5px solid #cbd5e1;
+  color: #475569;
+}
+
+.btn-outline:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.btn-gradient {
+  background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+}
+
+.btn-gradient:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3);
+}
+
+.table-container-modern {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  border: 1px solid #f1f5f9;
+}
+
+.modern-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.modern-table th {
+  background: #3b82f6;
+  padding: 16px 15px;
+  text-align: left;
+  font-weight: 700;
+  color: white;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid #2563eb;
+}
+
+.modern-table th.text-center {
+  text-align: center;
+}
+
+.modern-table td {
+  padding: 16px 15px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  color: #334155;
+  font-size: 0.95rem;
+}
+
+.modern-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.modern-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
 /* .user-profile already in App.css, but DataPegawai had specific styles. */
 /* App.css: gaps 10px. DataPegawai: gap 12px. */
 /* App.css: .avatar 40px. DataPegawai: .avatar-circle 40px. */
 /* I will keep DataPegawai specific classes like .avatar-circle if needed */
-.avatar-circle { width: 40px; height: 40px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.95rem; }
+.avatar-circle {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.95rem;
+}
+
 /* .user-name exists in App.css too. App.css: 600 weight. DataPegawai: 700. */
 /* I will skip duplicated generic names if they are close enough, or rename them? */
 /* Assuming conflicts are minimal or intended override was local. */
@@ -1065,31 +1197,192 @@ input[type=number]::-webkit-outer-spin-button {
 /* App.css: .user-name { font-weight: 600; color: #1e293b; } */
 /* DataPegawai: .user-name { font-weight: 700; color: #0f172a; font-size: 0.95rem; } */
 /* I will rename to .user-name-modern for safety. */
-.user-name-modern { font-weight: 700; color: #0f172a; font-size: 0.95rem; }
-.user-nik-modern { font-size: 0.75rem; color: #94a3b8; margin-top: 3px; }
-.badge-status { font-size: 0.75rem; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-block; text-transform: uppercase; letter-spacing: 0.3px; }
-.badge-status.tetap { background: #dcfce7; color: #166534; }
-.badge-status.kontrak { background: #fef3c7; color: #92400e; }
-.btn-icon-modern { width: 36px; height: 36px; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; transition: all 0.2s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-.btn-icon-modern:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-.aksi-full { display: flex; gap: 6px; justify-content: center; width: 100%; }
-/* .text-center exists in App.css implicitly? No, utility. */
-.text-center { text-align: center; }
-.btn-icon-modern.pdf { background: #fee2e2; color: #dc2626; }
-.btn-icon-modern.email { background: #e0e7ff; color: #4338ca; }
-.btn-icon-modern.edit { background: #eff6ff; color: #3b82f6; }
-.btn-icon-modern.delete { background: #fee2e2; color: #ef4444; }
-.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
-.form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-.span-2 { grid-column: span 2; }
-.form-group label { display: block; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 5px; }
-.form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; outline: none; }
-.modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 100; }
-.modal-content-modern { background: white; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); overflow: hidden; animation: slideUp 0.3s; }
-.modal-header-modern { background: #f8fafc; padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; }
-.modal-footer-modern { display: flex; justify-content: flex-end; gap: 10px; }
-.btn-save { background: linear-gradient(135deg,#4f46e5,#3b82f6); color:white; padding:10px 16px; border-radius:8px; border:none; font-weight:700; cursor:pointer; }
-.btn-cancel { background:#f1f5f9; padding:10px 16px; border-radius:8px; border:none; cursor:pointer; }
-.divider-dashed { margin: 20px 0; border: 0; border-top: 1px dashed #e2e8f0; }
-@keyframes slideUp { from { opacity: 0; transform: translateY(20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.user-name-modern {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
 
+.user-nik-modern {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 3px;
+}
+
+.badge-status {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 700;
+  display: inline-block;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.badge-status.tetap {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge-status.kontrak {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.btn-icon-modern {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.btn-icon-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.aksi-full {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  width: 100%;
+}
+
+/* .text-center exists in App.css implicitly? No, utility. */
+.text-center {
+  text-align: center;
+}
+
+.btn-icon-modern.pdf {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.btn-icon-modern.email {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+.btn-icon-modern.edit {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+.btn-icon-modern.delete {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 15px;
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.span-2 {
+  grid-column: span 2;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 5px;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.modal-content-modern {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  animation: slideUp 0.3s;
+}
+
+.modal-header-modern {
+  background: #f8fafc;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-footer-modern {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-save {
+  background: linear-gradient(135deg, #4f46e5, #3b82f6);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-cancel {
+  background: #f1f5f9;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+
+.divider-dashed {
+  margin: 20px 0;
+  border: 0;
+  border-top: 1px dashed #e2e8f0;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

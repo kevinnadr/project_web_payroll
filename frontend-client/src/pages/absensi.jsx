@@ -27,6 +27,16 @@ const Absensi = () => {
         hadir: 0, sakit: 0, izin: 0, cuti: 0, hari_terlambat: 0, menit_terlambat: 0, jam_lembur: 0, hari_efektif: 25
     });
 
+    // Settings State
+    const [showSettingsModal, setShowSettingsModal] = useState(false);
+    const [settings, setSettings] = useState({
+        denda_telat_harian: 5000,
+        denda_telat_per_blok: 20000,
+        menit_per_blok: 15,
+        pembagi_lembur: 173,
+        tarif_lembur_per_jam: 20000
+    });
+
     useEffect(() => {
         const userData = localStorage.getItem('user');
         if (!userData) navigate('/');
@@ -37,7 +47,34 @@ const Absensi = () => {
 
     useEffect(() => {
         fetchData();
+        fetchSettings();
     }, [bulanFilter]);
+
+    const fetchSettings = async () => {
+        try {
+            const res = await axios.get('http://localhost/project_web_payroll/backend-api/modules/absensi/read_settings.php');
+            if (res.data.status === 'success') {
+                setSettings(res.data.data);
+            }
+        } catch (e) {
+            console.error("Error fetching settings:", e);
+        }
+    };
+
+    const handleSaveSettings = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/absensi/save_settings.php', settings);
+            if (res.data.status === 'success') {
+                alert("✅ Pengaturan berhasil disimpan!");
+                setShowSettingsModal(false);
+            } else {
+                alert("❌ Gagal: " + res.data.message);
+            }
+        } catch (e) {
+            alert("Error saving settings");
+        }
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -60,8 +97,21 @@ const Absensi = () => {
     const calculateLatePenalty = (hari_telat, menit_telat) => {
         const x = parseInt(hari_telat || 0);
         const m = parseInt(menit_telat || 0);
-        if (x <= 0) return 0;
-        return (x * 5000) + (Math.ceil(m / 15) * 20000);
+        const dendaHarian = parseInt(settings.denda_telat_harian || 5000);
+        const menitBlok = parseInt(settings.menit_per_blok || 15);
+        const dendaBlok = parseInt(settings.denda_telat_per_blok || 20000);
+
+        if (x <= 0 && m <= 0) return 0;
+
+        // Rumus: (Hari Telat * Denda Harian) + (Ceil(Menit Telat / Menit Blok) * Denda Blok)
+        // Note: Hari Telat di sini biasanya adalah 'jumlah hari terlambat'.
+        // Jika menit telat berdiri sendiri, hitung bloknya.
+
+        let total = (x * dendaHarian);
+        if (m > 0) {
+            total += Math.ceil(m / menitBlok) * dendaBlok;
+        }
+        return total;
     };
 
     // --- EXPORT & TEMPLATE ---
@@ -210,40 +260,54 @@ const Absensi = () => {
                         <p style={{ color: '#6b7280', fontSize: '0.95rem', margin: 0 }}>Monitor kehadiran, sakit, izin, dan keterlambatan</p>
                     </div>
 
-                    {/* PERIOD PILL */}
-                    <div
-                        style={{ position: 'relative', cursor: 'pointer' }}
-                        onClick={() => {
-                            try {
-                                if (monthInputRef.current && typeof monthInputRef.current.showPicker === 'function') {
-                                    monthInputRef.current.showPicker();
-                                } else {
-                                    monthInputRef.current?.focus();
-                                }
-                            } catch (error) {
-                                console.error("Error opening picker:", error);
-                            }
-                        }}
-                    >
-                        <div style={{
-                            background: '#0f172a', color: 'white', padding: '10px 20px', borderRadius: '30px',
-                            display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600,
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                        }}>
-                            <span>Periode: {getMonthLabel(bulanFilter)}</span>
-                            <span style={{ opacity: 0.7 }}>📅</span>
-                        </div>
-                        <input
-                            ref={monthInputRef}
-                            type="month"
-                            value={bulanFilter}
-                            onChange={(e) => setBulanFilter(e.target.value)}
+                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                        {/* SETTINGS BUTTON */}
+                        <div
                             style={{
-                                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                                opacity: 0, pointerEvents: 'none', // Allow clicks to pass through to the div handler
-                                zIndex: -1 // Push behind so it doesn't interfere
+                                cursor: 'pointer', background: 'white', padding: '10px 15px', borderRadius: '30px',
+                                display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600,
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
                             }}
-                        />
+                            onClick={() => setShowSettingsModal(true)}
+                        >
+                            <span>⚙️ Pengaturan</span>
+                        </div>
+
+                        {/* PERIOD PILL */}
+                        <div
+                            style={{ position: 'relative', cursor: 'pointer' }}
+                            onClick={() => {
+                                try {
+                                    if (monthInputRef.current && typeof monthInputRef.current.showPicker === 'function') {
+                                        monthInputRef.current.showPicker();
+                                    } else {
+                                        monthInputRef.current?.focus();
+                                    }
+                                } catch (error) {
+                                    console.error("Error opening picker:", error);
+                                }
+                            }}
+                        >
+                            <div style={{
+                                background: '#0f172a', color: 'white', padding: '10px 20px', borderRadius: '30px',
+                                display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600,
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                            }}>
+                                <span>Periode: {getMonthLabel(bulanFilter)}</span>
+                                <span style={{ opacity: 0.7 }}>📅</span>
+                            </div>
+                            <input
+                                ref={monthInputRef}
+                                type="month"
+                                value={bulanFilter}
+                                onChange={(e) => setBulanFilter(e.target.value)}
+                                style={{
+                                    position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                                    opacity: 0, pointerEvents: 'none', // Allow clicks to pass through to the div handler
+                                    zIndex: -1 // Push behind so it doesn't interfere
+                                }}
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -290,7 +354,7 @@ const Absensi = () => {
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                                <th style={{ padding: '16px 24px', fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>Pegawai</th>
+                                <th style={{ padding: '16px 24px', fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', textAlign: 'center' }}>Pegawai</th>
                                 <th style={{ padding: '16px', fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', textAlign: 'center' }}>Hadir</th>
                                 <th style={{ padding: '16px', fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', textAlign: 'center' }}>Cuti</th>
                                 <th style={{ padding: '16px', fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', textAlign: 'center' }}>Sakit</th>
@@ -376,135 +440,198 @@ const Absensi = () => {
                     </table>
                 </div>
 
-                {/* MODAL EDIT (Kept functional but same style as before for simplicity, or slightly updated) */}
-                {showModal && (
+                {/* MODAL SETTINGS */}
+                {showSettingsModal && (
                     <div className="modal-backdrop">
                         <div className="modal-content-modern" style={{ width: '450px' }}>
                             <div className="modal-header-modern">
-                                <h3>Update Kehadiran</h3>
-                                <button onClick={() => setShowModal(false)}>✕</button>
+                                <h3>⚙️ Pengaturan Absensi</h3>
+                                <button onClick={() => setShowSettingsModal(false)}>✕</button>
                             </div>
-                            <form onSubmit={handleSaveAbsensi} style={{ padding: '20px' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-                                    <div><label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Hadir</label><input type="number" className="form-control" style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '8px' }} value={editData.hadir} onChange={e => setEditData({ ...editData, hadir: e.target.value })} /></div>
-                                    <div><label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Cuti</label><input type="number" className="form-control" style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '8px' }} value={editData.cuti} onChange={e => setEditData({ ...editData, cuti: e.target.value })} /></div>
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-                                    <div><label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Sakit</label><input type="number" className="form-control" style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '8px' }} value={editData.sakit} onChange={e => setEditData({ ...editData, sakit: e.target.value })} /></div>
-                                    <div><label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Izin</label><input type="number" className="form-control" style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '8px' }} value={editData.izin} onChange={e => setEditData({ ...editData, izin: e.target.value })} /></div>
+                            <form onSubmit={handleSaveSettings} style={{ padding: '20px' }}>
+                                <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px', marginBottom: '15px', border: '1px solid #e2e8f0' }}>
+                                    <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: '#334155' }}>💰 Denda Keterlambatan</h4>
+                                    <div style={{ marginBottom: '10px' }}>
+                                        <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Denda Per Hari (Rp)</label>
+                                        <input type="number" className="form-control" style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                                            value={settings.denda_telat_harian}
+                                            onChange={e => setSettings({ ...settings, denda_telat_harian: e.target.value })}
+                                        />
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                        <div>
+                                            <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Denda Per Blok (Rp)</label>
+                                            <input type="number" className="form-control" style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                                                value={settings.denda_telat_per_blok}
+                                                onChange={e => setSettings({ ...settings, denda_telat_per_blok: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Menit Per Blok</label>
+                                            <input type="number" className="form-control" style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                                                value={settings.menit_per_blok}
+                                                onChange={e => setSettings({ ...settings, menit_per_blok: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                                <div style={{ background: '#f0f9ff', padding: '15px', borderRadius: '8px', marginBottom: '15px', border: '1px solid #bae6fd' }}>
+                                    <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: '#0369a1' }}>🕒 Lembur</h4>
                                     <div>
-                                        <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0369a1' }}>Lembur (Jam)</label>
-                                        <input type="number" className="form-control" style={{ border: '1px solid #bae6fd', padding: '8px', borderRadius: '8px', width: '100%' }} value={editData.jam_lembur} onChange={e => setEditData({ ...editData, jam_lembur: e.target.value })} />
-                                    </div>
-                                    <div>
-                                        <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0369a1' }}>Hari Efektif</label>
-                                        <input type="number" className="form-control" style={{ border: '1px solid #bae6fd', padding: '8px', borderRadius: '8px', width: '100%' }} value={editData.hari_efektif} onChange={e => setEditData({ ...editData, hari_efektif: e.target.value })} />
+                                        <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '4px', color: '#0c4a6e' }}>Tarif Lembur Per Jam (Rp)</label>
+                                        <input type="number" className="form-control" style={{ width: '100%', padding: '8px', border: '1px solid #7dd3fc', borderRadius: '6px' }}
+                                            value={settings.tarif_lembur_per_jam || ''}
+                                            onChange={e => setSettings({ ...settings, tarif_lembur_per_jam: e.target.value })}
+                                        />
+                                        <small style={{ display: 'block', marginTop: '4px', color: '#0ea5e9', fontSize: '0.75rem' }}>
+                                            Perhitungan = Jam Lembur x Tarif Per Jam
+                                        </small>
                                     </div>
                                 </div>
 
-                                <div style={{ background: '#fffbeb', padding: '15px', borderRadius: '10px', marginBottom: '15px' }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                        <div><label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#92400e' }}>Telat (Hari)</label><input type="number" className="form-control" style={{ border: '1px solid #fcd34d', padding: '8px', borderRadius: '8px' }} value={editData.hari_terlambat} onChange={e => setEditData({ ...editData, hari_terlambat: e.target.value })} /></div>
-                                        <div><label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#92400e' }}>Telat (Menit)</label><input type="number" className="form-control" style={{ border: '1px solid #fcd34d', padding: '8px', borderRadius: '8px' }} value={editData.menit_terlambat} onChange={e => setEditData({ ...editData, menit_terlambat: e.target.value })} /></div>
-                                    </div>
-                                </div>
-                                <button type="submit" className="btn-modern btn-gradient" style={{ width: '100%' }}>Simpan Perubahan</button>
+                                <button type="submit" className="btn-modern btn-gradient" style={{ width: '100%' }}>Simpan Pengaturan</button>
                             </form>
                         </div>
                     </div>
-                )}
+                )
+                }
+
+                {/* MODAL EDIT (Kept functional but same style as before for simplicity, or slightly updated) */}
+                {
+                    showModal && (
+                        <div className="modal-backdrop">
+                            <div className="modal-content-modern" style={{ width: '450px' }}>
+                                <div className="modal-header-modern">
+                                    <h3>Update Kehadiran</h3>
+                                    <button onClick={() => setShowModal(false)}>✕</button>
+                                </div>
+                                <form onSubmit={handleSaveAbsensi} style={{ padding: '20px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                                        <div><label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Hadir</label><input type="number" className="form-control" style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '8px' }} value={editData.hadir} onChange={e => setEditData({ ...editData, hadir: e.target.value })} /></div>
+                                        <div><label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Cuti</label><input type="number" className="form-control" style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '8px' }} value={editData.cuti} onChange={e => setEditData({ ...editData, cuti: e.target.value })} /></div>
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                                        <div><label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Sakit</label><input type="number" className="form-control" style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '8px' }} value={editData.sakit} onChange={e => setEditData({ ...editData, sakit: e.target.value })} /></div>
+                                        <div><label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Izin</label><input type="number" className="form-control" style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '8px' }} value={editData.izin} onChange={e => setEditData({ ...editData, izin: e.target.value })} /></div>
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                                        <div>
+                                            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0369a1' }}>Lembur (Jam)</label>
+                                            <input type="number" className="form-control" style={{ border: '1px solid #bae6fd', padding: '8px', borderRadius: '8px', width: '100%' }} value={editData.jam_lembur} onChange={e => setEditData({ ...editData, jam_lembur: e.target.value })} />
+                                        </div>
+                                        <div>
+                                            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0369a1' }}>Hari Efektif</label>
+                                            <input type="number" className="form-control" style={{ border: '1px solid #bae6fd', padding: '8px', borderRadius: '8px', width: '100%' }} value={editData.hari_efektif} onChange={e => setEditData({ ...editData, hari_efektif: e.target.value })} />
+                                        </div>
+                                    </div>
+
+                                    <div style={{ background: '#fffbeb', padding: '15px', borderRadius: '10px', marginBottom: '15px' }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                            <div><label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#92400e' }}>Telat (Hari)</label><input type="number" className="form-control" style={{ border: '1px solid #fcd34d', padding: '8px', borderRadius: '8px' }} value={editData.hari_terlambat} onChange={e => setEditData({ ...editData, hari_terlambat: e.target.value })} /></div>
+                                            <div><label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#92400e' }}>Telat (Menit)</label><input type="number" className="form-control" style={{ border: '1px solid #fcd34d', padding: '8px', borderRadius: '8px' }} value={editData.menit_terlambat} onChange={e => setEditData({ ...editData, menit_terlambat: e.target.value })} /></div>
+                                        </div>
+                                    </div>
+                                    <button type="submit" className="btn-modern btn-gradient" style={{ width: '100%' }}>Simpan Perubahan</button>
+                                </form>
+                            </div>
+                        </div>
+                    )
+                }
 
                 {/* MODAL ERROR */}
-                {showErrorModal && (
-                    <div className="modal-backdrop">
-                        <div className="modal-content-modern" style={{ width: '500px', backgroundColor: '#fff0f0', borderColor: '#fecaca' }}>
-                            <div className="modal-header-modern" style={{ borderBottom: '1px solid #fee2e2' }}>
-                                <h3 style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    ❌ Import Gagal
-                                </h3>
-                                <button onClick={() => setShowErrorModal(false)} style={{ color: '#991b1b' }}>✕</button>
-                            </div>
-                            <div style={{ padding: '24px' }}>
-                                <p style={{ fontSize: '0.95rem', color: '#7f1d1d', lineHeight: '1.6', marginBottom: '20px' }}>
-                                    {errorMessage}
-                                </p>
-                                <button
-                                    onClick={() => setShowErrorModal(false)}
-                                    className="btn-modern"
-                                    style={{
-                                        width: '100%', background: '#3b82f6', color: 'white', border: 'none',
-                                        padding: '12px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer'
-                                    }}
-                                >
-                                    OK
-                                </button>
+                {
+                    showErrorModal && (
+                        <div className="modal-backdrop">
+                            <div className="modal-content-modern" style={{ width: '500px', backgroundColor: '#fff0f0', borderColor: '#fecaca' }}>
+                                <div className="modal-header-modern" style={{ borderBottom: '1px solid #fee2e2' }}>
+                                    <h3 style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        ❌ Import Gagal
+                                    </h3>
+                                    <button onClick={() => setShowErrorModal(false)} style={{ color: '#991b1b' }}>✕</button>
+                                </div>
+                                <div style={{ padding: '24px' }}>
+                                    <p style={{ fontSize: '0.95rem', color: '#7f1d1d', lineHeight: '1.6', marginBottom: '20px' }}>
+                                        {errorMessage}
+                                    </p>
+                                    <button
+                                        onClick={() => setShowErrorModal(false)}
+                                        className="btn-modern"
+                                        style={{
+                                            width: '100%', background: '#3b82f6', color: 'white', border: 'none',
+                                            padding: '12px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer'
+                                        }}
+                                    >
+                                        OK
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }
 
                 {/* MODAL FORMAT INFO */}
-                {showFormatModal && (
-                    <div className="modal-backdrop">
-                        <div className="modal-content-modern" style={{ width: '800px', maxHeight: '85vh', overflowY: 'auto' }}>
-                            <div className="modal-header-modern"><h3>📋 Format Import Data Absensi</h3><button onClick={() => setShowFormatModal(false)}>✕</button></div>
-                            <div style={{ padding: '25px' }}>
-                                <p style={{ marginBottom: '15px', color: '#64748b' }}>Gunakan template yang disediakan untuk hasil terbaik. Pastikan format kolom sesuai contoh berikut:</p>
-                                <div style={{ overflowX: 'auto', marginBottom: '20px' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                                        <thead>
-                                            <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                                                <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontWeight: 600 }}>nik</th>
-                                                <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>hadir</th>
-                                                <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>sakit</th>
-                                                <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>izin</th>
-                                                <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>cuti</th>
-                                                <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>hari_terlambat</th>
-                                                <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>menit_terlambat</th>
-                                                <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>jam_lembur</th>
-                                                <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>hari_efektif</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                <td style={{ padding: '10px', fontWeight: '600', color: '#1e293b' }}>2024001</td>
-                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>20</td>
-                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
-                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>1</td>
-                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
-                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>2</td>
-                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>30</td>
-                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>5</td>
-                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>25</td>
-                                            </tr>
-                                            <tr>
-                                                <td style={{ padding: '10px', fontWeight: '600', color: '#1e293b' }}>2024002</td>
-                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>22</td>
-                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
-                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
-                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
-                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
-                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
-                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
-                                                <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>25</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-                                    <button onClick={handleDownloadTemplate} className="btn-modern btn-outline" style={{ flex: 1 }}>📥 Download Template CSV</button>
-                                    <button onClick={() => { setShowFormatModal(false); fileInputRef.current.click(); }} className="btn-modern btn-gradient" style={{ flex: 1 }}>📂 Langsung Import</button>
+                {
+                    showFormatModal && (
+                        <div className="modal-backdrop">
+                            <div className="modal-content-modern" style={{ width: '800px', maxHeight: '85vh', overflowY: 'auto' }}>
+                                <div className="modal-header-modern"><h3>📋 Format Import Data Absensi</h3><button onClick={() => setShowFormatModal(false)}>✕</button></div>
+                                <div style={{ padding: '25px' }}>
+                                    <p style={{ marginBottom: '15px', color: '#64748b' }}>Gunakan template yang disediakan untuk hasil terbaik. Pastikan format kolom sesuai contoh berikut:</p>
+                                    <div style={{ overflowX: 'auto', marginBottom: '20px' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                                            <thead>
+                                                <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                                                    <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontWeight: 600 }}>nik</th>
+                                                    <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>hadir</th>
+                                                    <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>sakit</th>
+                                                    <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>izin</th>
+                                                    <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>cuti</th>
+                                                    <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>hari_terlambat</th>
+                                                    <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>menit_terlambat</th>
+                                                    <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>jam_lembur</th>
+                                                    <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>hari_efektif</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                                    <td style={{ padding: '10px', fontWeight: '600', color: '#1e293b' }}>2024001</td>
+                                                    <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>20</td>
+                                                    <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
+                                                    <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>1</td>
+                                                    <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
+                                                    <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>2</td>
+                                                    <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>30</td>
+                                                    <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>5</td>
+                                                    <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>25</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '10px', fontWeight: '600', color: '#1e293b' }}>2024002</td>
+                                                    <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>22</td>
+                                                    <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
+                                                    <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
+                                                    <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
+                                                    <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
+                                                    <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
+                                                    <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>0</td>
+                                                    <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>25</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                                        <button onClick={handleDownloadTemplate} className="btn-modern btn-outline" style={{ flex: 1 }}>📥 Download Template CSV</button>
+                                        <button onClick={() => { setShowFormatModal(false); fileInputRef.current.click(); }} className="btn-modern btn-gradient" style={{ flex: 1 }}>📂 Langsung Import</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }
 
-            </main>
-        </div>
+            </main >
+        </div >
     );
 };
 

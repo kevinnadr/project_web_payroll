@@ -172,7 +172,7 @@ const DataBPJS = () => {
                     <table className="modern-table">
                         <thead>
                             <tr>
-                                <th>Pegawai</th>
+                                <th style={{ textAlign: 'center' }}>Pegawai</th>
                                 <th>BPJS TK</th>
                                 <th>BPJS KS</th>
                                 <th>Dasar Upah</th>

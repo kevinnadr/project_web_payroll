@@ -22,9 +22,9 @@ const PPHTer = () => {
     });
 
     const terInfo = {
-        A: { title: 'TER A', ptkp: 'PTKP : TK/0 (54 juta); TK/1 & K/0 (58,5 juta)', color: '#3b82f6', bg: '#eff6ff' },
-        B: { title: 'TER B', ptkp: 'PTKP : TK/2 & K/1 (63 juta); TK/3 & K/2 (67,5 juta)', color: '#8b5cf6', bg: '#f5f3ff' },
-        C: { title: 'TER C', ptkp: 'PTKP : K/3 (72 juta)', color: '#059669', bg: '#ecfdf5' },
+        A: { title: 'TER A', ptkp: 'PTKP : TK/0 (54 juta); TK/1 & K/0 (58,5 juta)', color: '#3b82f6', bg: '#eff6ff', accent: 'from-blue-500 to-cyan-500' },
+        B: { title: 'TER B', ptkp: 'PTKP : TK/2 & K/1 (63 juta); TK/3 & K/2 (67,5 juta)', color: '#8b5cf6', bg: '#f5f3ff', accent: 'from-purple-500 to-indigo-500' },
+        C: { title: 'TER C', ptkp: 'PTKP : K/3 (72 juta)', color: '#059669', bg: '#ecfdf5', accent: 'from-emerald-500 to-teal-500' },
     };
 
     useEffect(() => {
@@ -99,14 +99,15 @@ const PPHTer = () => {
                 alert('❌ Gagal: ' + res.data.message);
             }
         } catch (e) {
-            alert('❌ Error: ' + e.message);
+            const msg = e.response?.data?.message || e.message;
+            alert('❌ Error: ' + msg);
         }
     };
 
     // Helper for formatting currency
     const formatRp = (n) => {
         const val = parseFloat(n);
-        if (isNaN(val) || val === 0) return '-';
+        if (isNaN(val) || val === 0) return '0';
         return new Intl.NumberFormat('id-ID').format(val);
     };
 
@@ -123,70 +124,82 @@ const PPHTer = () => {
         <div className="app-layout">
             <Sidebar user={user} />
             <main className="main-content">
-                <div className="page-header-modern">
-                    <div>
-                        <h1 className="modern-title">PPH TER Management</h1>
-                        <p className="modern-subtitle">Tarif Efektif Rata-rata PPh 21 — Update Terakhir 2024</p>
+                <header className="page-header">
+                    <div className="header-content">
+                        <div className="header-icon">📊</div>
+                        <div>
+                            <h1 className="header-title">Manajemen PPH TER</h1>
+                            <p className="header-subtitle">Tarif Efektif Rata-rata PPh 21 — Permenkeu No. 168 Tahun 2023</p>
+                        </div>
                     </div>
-                    <button onClick={() => handleOpenModal()} className="btn-modern-primary">
-                        <span>➕ Tambah Tarif</span>
+                    <button onClick={() => handleOpenModal()} className="btn-primary-gradient">
+                        <span className="btn-icon">+</span>
+                        <span>Tambah Tarif</span>
                     </button>
-                </div>
+                </header>
 
                 {/* MAIN CARD CONTAINER */}
-                <div className="content-card">
+                <div className="premium-card">
                     {/* TOP CONTROL BAR: TABS & INFO */}
                     <div className="control-bar">
-                        <div className="tab-container">
+                        <div className="tab-pills">
                             {Object.entries(terInfo).map(([key, val]) => (
                                 <button
                                     key={key}
                                     onClick={() => setActiveTab(key)}
-                                    className={`tab-btn ${activeTab === key ? 'active' : ''}`}
+                                    className={`tab-pill ${activeTab === key ? 'active' : ''}`}
                                     style={{
-                                        '--active-color': val.color,
-                                        '--active-bg': val.bg
+                                        '--accent-color': val.color,
                                     }}
                                 >
+                                    <span className="pill-dot" style={{ background: val.color }}></span>
                                     {val.title}
                                 </button>
                             ))}
                         </div>
 
-                        <div className="info-badge" style={{ borderColor: info.color, background: info.bg }}>
-                            <span className="info-icon" style={{ background: info.color }}>ℹ️</span>
-                            <div className="info-text">
-                                <strong>{info.ptkp}</strong>
-                                <small>Total {filteredList.length} lapisan penghasilan</small>
+                        <div className="info-banner" style={{ background: `linear-gradient(to right, ${info.bg}, white)`, borderLeftColor: info.color }}>
+                            <div className="info-icon-circle" style={{ background: info.color }}>i</div>
+                            <div className="info-content">
+                                <strong style={{ color: info.color }}>{info.ptkp}</strong>
+                                <span>Total {filteredList.length} lapisan penghasilan untuk kategori ini.</span>
                             </div>
                         </div>
                     </div>
 
                     {/* TABLE LAYOUT */}
-                    <div className="table-layout-wrapper">
+                    <div className="table-wrapper">
                         {loading ? (
-                            <div className="loading-state">⏳ Sedang memuat data...</div>
+                            <div className="state-message">
+                                <div className="spinner"></div>
+                                <p>Sedang memuat data...</p>
+                            </div>
                         ) : filteredList.length === 0 ? (
-                            <div className="empty-state">📭 Belum ada data untuk kategori ini</div>
+                            <div className="state-message">
+                                <div className="empty-icon">📂</div>
+                                <p>Belum ada data tarif untuk kategori ini.</p>
+                            </div>
                         ) : (
-                            <div className="split-table-container">
+                            <div className="columns-container">
                                 {/* KOLOM KIRI */}
-                                <div className="table-column">
+                                <div className="data-column">
                                     <TableContent
                                         data={leftCol}
                                         info={info}
                                         onEdit={handleOpenModal}
+                                        onDelete={handleDelete}
                                         startIndex={0}
                                         formatRp={formatRp}
                                         colType="left"
                                     />
                                 </div>
                                 {/* KOLOM KANAN */}
-                                <div className="table-column">
+                                <div className="data-column">
                                     <TableContent
                                         data={rightCol}
                                         info={info}
                                         onEdit={handleOpenModal}
+                                        onDelete={handleDelete}
                                         startIndex={halfLen}
                                         formatRp={formatRp}
                                         colType="right"
@@ -198,72 +211,73 @@ const PPHTer = () => {
                 </div>
 
                 <div className="footer-credits">
-                    <span>Sumber Data: Direktorat Jenderal Pajak (www.pajak.go.id)</span>
+                    <p>Data mengacu pada Peraturan Pemerintah terbaru mengenai Tarif Pemotongan PPh 21.</p>
+                    <a href="https://pajak.go.id" target="_blank" rel="noreferrer">www.pajak.go.id</a>
                 </div>
 
                 {/* MODAL */}
                 {showModal && (
-                    <div className="modal-backdrop">
-                        <div className="modal-content-modern">
-                            <div className="modal-header-modern">
-                                <h3>{isEdit ? '✏️ Edit Tarif PPH TER' : '➕ Tambah Tarif Baru'}</h3>
-                                <button onClick={() => setShowModal(false)} className="close-btn">✕</button>
+                    <div className="modal-overlay">
+                        <div className="modal-card">
+                            <div className="modal-header">
+                                <h3>{isEdit ? 'Edit Tarif' : 'Tambah Tarif Baru'}</h3>
+                                <button onClick={() => setShowModal(false)} className="close-btn">×</button>
                             </div>
-                            <form onSubmit={handleSave} className="modal-body-modern">
-                                <div className="form-group">
+                            <form onSubmit={handleSave} className="modal-form">
+                                <div className="form-section">
                                     <label>Kategori TER</label>
                                     <select
                                         value={formData.kategori}
                                         onChange={e => setFormData({ ...formData, kategori: e.target.value })}
                                         required
-                                        className="modern-input"
+                                        className="premium-input"
                                     >
-                                        <option value="">-- Pilih Kategori --</option>
-                                        <option value="A">TER A (TK/0, TK/1, K/0)</option>
-                                        <option value="B">TER B (TK/2, TK/3, K/1, K/2)</option>
-                                        <option value="C">TER C (K/3)</option>
+                                        <option value="">Pilih Kategori</option>
+                                        <option value="A">TER A</option>
+                                        <option value="B">TER B</option>
+                                        <option value="C">TER C</option>
                                     </select>
                                 </div>
-                                <div className="grid-2-col">
-                                    <div className="form-group">
-                                        <label>Min. Penghasilan (Rp)</label>
+                                <div className="form-row">
+                                    <div className="form-section">
+                                        <label>Penghasilan Min (Rp)</label>
                                         <input
                                             type="number"
                                             value={formData.min}
                                             onChange={e => setFormData({ ...formData, min: Number(e.target.value || 0) })}
                                             required
-                                            className="modern-input"
+                                            className="premium-input"
                                         />
                                     </div>
-                                    <div className="form-group">
-                                        <label>Max. Penghasilan (Rp)</label>
+                                    <div className="form-section">
+                                        <label>Penghasilan Max (Rp)</label>
                                         <input
                                             type="number"
                                             value={formData.max}
                                             onChange={e => setFormData({ ...formData, max: Number(e.target.value || 0) })}
                                             required
-                                            className="modern-input"
+                                            className="premium-input"
                                         />
-                                        <span className="helper-text">Isi 0 untuk "lebih dari"</span>
+                                        <span className="input-hint">Isi 0 jika tidak terhingga</span>
                                     </div>
                                 </div>
-                                <div className="form-group">
+                                <div className="form-section">
                                     <label>Tarif Pajak (%)</label>
-                                    <div className="input-suffix">
+                                    <div className="input-group">
                                         <input
                                             type="number"
                                             step="0.01"
                                             value={formData.tarif}
                                             onChange={e => setFormData({ ...formData, tarif: Number(e.target.value || 0) })}
                                             required
-                                            className="modern-input"
+                                            className="premium-input"
                                         />
-                                        <span className="suffix">%</span>
+                                        <span className="addon">%</span>
                                     </div>
                                 </div>
-                                <div className="modal-footer-modern">
-                                    <button type="button" onClick={() => setShowModal(false)} className="btn-cancel">Batal</button>
-                                    <button type="submit" className="btn-save">Simpan Perubahan</button>
+                                <div className="modal-actions">
+                                    <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Batal</button>
+                                    <button type="submit" className="btn-primary">Simpan</button>
                                 </div>
                             </form>
                         </div>
@@ -272,215 +286,205 @@ const PPHTer = () => {
             </main>
 
             <style>{`
-                /* Layout & Typography */
-                .app-layout { display: flex; min-height: 100vh; background: #f1f5f9; font-family: 'Inter', system-ui, sans-serif; }
-                .main-content { flex: 1; padding: 24px 32px; overflow-y: auto; margin-left: 260px; width: calc(100% - 260px); }
-                .page-header-modern { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
-                .modern-title { font-size: 1.75rem; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.5px; }
-                .modern-subtitle { color: #64748b; margin: 4px 0 0; font-size: 0.9rem; font-weight: 500; }
+                /* CORE LAYOUT */
+                .app-layout { display: flex; min-height: 100vh; background: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; }
+                .main-content { flex: 1; margin-left: 260px; padding: 40px; }
                 
-                /* Buttons */
-                .btn-modern-primary { 
-                    background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); 
+                /* HEADER */
+                .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+                .header-content { display: flex; align-items: center; gap: 16px; }
+                .header-icon { 
+                    width: 48px; height: 48px; 
+                    background: linear-gradient(135deg, #3b82f6, #2563eb); 
                     color: white; 
-                    padding: 10px 20px; 
-                    border-radius: 10px; 
-                    border: none; 
-                    font-weight: 600; 
-                    font-size: 0.9rem;
-                    cursor: pointer; 
-                    transition: all 0.2s; 
-                    box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); 
-                    display: flex; align-items: center; gap: 8px;
+                    border-radius: 12px; 
+                    display: flex; align-items: center; justify-content: center; 
+                    font-size: 24px; 
+                    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
                 }
-                .btn-modern-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3); }
-                
-                /* Card & Control Bar */
-                .content-card { background: white; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); border: 1px solid #e2e8f0; overflow: hidden; }
-                
-                .control-bar { 
-                    display: flex; 
-                    justify-content: space-between; 
-                    align-items: center; 
-                    padding: 16px 24px; 
-                    border-bottom: 1px solid #f1f5f9;
-                    background: #fff;
-                }
-                
-                /* Tabs */
-                .tab-container { display: flex; gap: 6px; background: #f8fafc; padding: 4px; border-radius: 10px; border: 1px solid #e2e8f0; }
-                .tab-btn {
-                    padding: 8px 20px;
-                    border-radius: 8px;
+                .header-title { font-size: 24px; font-weight: 700; color: #0f172a; margin: 0; }
+                .header-subtitle { font-size: 14px; color: #64748b; margin: 4px 0 0; }
+
+                /* BUTTONS */
+                .btn-primary-gradient {
+                    background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+                    color: white;
                     border: none;
-                    cursor: pointer;
-                    font-weight: 600;
-                    font-size: 0.85rem;
-                    color: #64748b;
-                    background: transparent;
-                    transition: all 0.2s ease;
-                }
-                .tab-btn:hover { color: #334155; background: #f1f5f9; }
-                .tab-btn.active {
-                    background: var(--active-color);
-                    color: white;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                }
-
-                /* Info Badge */
-                .info-badge {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    padding: 8px 16px;
+                    padding: 12px 24px;
                     border-radius: 10px;
-                    border: 1px solid transparent;
+                    font-weight: 600;
+                    display: flex; align-items: center; gap: 8px;
+                    cursor: pointer;
+                    transition: transform 0.2s, box-shadow 0.2s;
+                    box-shadow: 0 4px 6px rgba(15, 23, 42, 0.1);
                 }
-                .info-icon {
-                    width: 24px; height: 24px;
-                    border-radius: 50%;
-                    color: white;
-                    display: flex; align-items: center; justify-content: center;
-                    font-size: 0.75rem;
-                }
-                .info-text { display: flex; flex-direction: column; line-height: 1.2; }
-                .info-text strong { font-size: 0.85rem; color: #1e293b; }
-                .info-text small { font-size: 0.75rem; color: #64748b; }
+                .btn-primary-gradient:hover { transform: translateY(-2px); box-shadow: 0 8px 12px rgba(15, 23, 42, 0.15); }
 
-                /* Table Layout */
-                .table-layout-wrapper { padding: 0; }
-                .split-table-container { 
-                    display: grid; 
-                    grid-template-columns: 1fr 1fr; 
-                    gap: 1px; 
-                    background: #e2e8f0; /* Helper for gap appearance */
-                }
-                .table-column { background: white; }
-                
-                .modern-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-                .modern-table thead tr { background: #f8fafc; border-bottom: 2px solid #e2e8f0; }
-                .modern-table th { 
-                    padding: 10px 12px; 
-                    text-align: left; 
-                    font-weight: 700; 
-                    color: #475569; 
-                    text-transform: uppercase; 
-                    font-size: 0.75rem;
-                    letter-spacing: 0.5px;
-                }
-                .text-right { text-align: right !important; }
-                .text-center { text-align: center !important; }
-                
-                .modern-table tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.1s; }
-                .modern-table tbody tr:last-child { border-bottom: none; }
-                .modern-table tbody tr:hover { background: #f8fafc; }
-                .modern-table td { padding: 6px 12px; color: #334155; vertical-align: middle; }
-                .font-mono { font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace; font-size: 0.82rem; color: #0f172a; letter-spacing: -0.5px; }
-
-                /* Specific column widths to reduce gaps */
-                .col-no { width: 40px; text-align: center; }
-                .col-money { width: 120px; text-align: right; white-space: nowrap; }
-                .col-mid { width: 40px; text-align: center; font-size: 0.75rem; color: #64748b; }
-                .col-tarif { width: 80px; text-align: center; }
-                .col-action { width: 40px; text-align: center; }
-                
-                .tarif-badge { 
-                    display: inline-block; 
-                    padding: 2px 8px; 
-                    border-radius: 6px; 
-                    background: #f0f9ff; 
-                    color: #0369a1; 
-                    font-weight: 700; 
-                    font-size: 0.8rem; 
-                }
-                
-                /* Action Button */
-                .btn-icon-xs {
-                    width: 28px; height: 28px;
-                    border-radius: 6px;
-                    border: 1px solid #e2e8f0;
+                /* CARD */
+                .premium-card {
                     background: white;
+                    border-radius: 20px;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 20px 40px -20px rgba(0,0,0,0.05);
+                    border: 1px solid #f1f5f9;
+                    overflow: hidden;
+                }
+
+                /* TABS & CONTROLS */
+                .control-bar {
+                    padding: 24px;
+                    border-bottom: 1px solid #f1f5f9;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    background: #ffffff;
+                }
+                .tab-pills { display: flex; gap: 8px; background: #f1f5f9; padding: 6px; border-radius: 12px; }
+                .tab-pill {
+                    border: none;
+                    background: transparent;
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    font-weight: 600;
                     color: #64748b;
                     cursor: pointer;
-                    display: inline-flex; align-items: center; justify-content: center;
+                    display: flex; align-items: center; gap: 8px;
                     transition: all 0.2s;
-                    font-size: 0.8rem;
+                    font-size: 14px;
                 }
-                .btn-icon-xs:hover { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+                .pill-dot { width: 8px; height: 8px; border-radius: 50%; opacity: 0.5; }
+                .tab-pill.active { background: white; color: #0f172a; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+                .tab-pill.active .pill-dot { opacity: 1; }
 
-                /* Footer */
-                .footer-credits { text-align: center; margin-top: 24px; color: #94a3b8; font-size: 0.8rem; }
-                
-                /* Modal Styles */
-                .modal-backdrop { 
-                    position: fixed; inset: 0; 
-                    background: rgba(15, 23, 42, 0.4); 
-                    backdrop-filter: blur(4px); 
-                    display: flex; justify-content: center; align-items: center; 
-                    z-index: 50; 
-                    animation: fadeIn 0.2s;
+                .info-banner {
+                    display: flex; align-items: center; gap: 16px;
+                    padding: 12px 20px;
+                    border-radius: 12px;
+                    border-left: 4px solid;
+                    background: #f8fafc;
                 }
-                .modal-content-modern { 
+                .info-icon-circle {
+                    width: 24px; height: 24px; border-radius: 50%;
+                    color: white; display: flex; align-items: center; justify-content: center;
+                    font-weight: bold; font-size: 12px; font-family: serif;
+                }
+                .info-content { display: flex; flex-direction: column; }
+                .info-content strong { font-size: 14px; }
+                .info-content span { font-size: 12px; color: #64748b; }
+
+                /* TABLE SECTION */
+                .table-wrapper { padding: 0 32px 32px; background: transparent; }
+                .columns-container { 
+                    display: flex; 
+                    width: 100%;
+                    border-radius: 12px; 
+                    overflow: hidden; 
+                    border: 1px solid #e2e8f0; 
+                    margin-top: 20px;
+                }
+                .data-column { 
+                    flex: 1;
                     background: white; 
-                    border-radius: 16px; 
-                    width: 100%; max-width: 480px; 
-                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); 
-                    animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
                 }
-                .modal-header-modern { 
-                    padding: 20px 24px; 
-                    border-bottom: 1px solid #f1f5f9; 
-                    display: flex; justify-content: space-between; align-items: center; 
-                }
-                .modal-header-modern h3 { margin: 0; font-size: 1.1rem; color: #1e293b; }
-                .close-btn { background: none; border: none; font-size: 1.25rem; color: #94a3b8; cursor: pointer; }
-                .close-btn:hover { color: #ef4444; }
-                
-                .modal-body-modern { padding: 24px; }
-                .form-group { margin-bottom: 20px; }
-                .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 8px; }
-                .modern-input { 
-                    width: 100%; 
-                    padding: 10px 12px; 
-                    border: 1px solid #cbd5e1; 
-                    border-radius: 8px; 
-                    font-size: 0.95rem; 
-                    transition: all 0.2s;
-                    outline: none;
-                }
-                .modern-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
-                .grid-2-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-                .helper-text { font-size: 0.75rem; color: #64748b; margin-top: 4px; display: block; }
-                
-                .input-suffix { position: relative; }
-                .input-suffix .suffix { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #64748b; font-weight: 500; }
-                
-                .modal-footer-modern { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; }
-                .btn-save { background: #0f172a; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-                .btn-save:hover { background: #1e293b; }
-                .btn-cancel { background: white; border: 1px solid #cbd5e1; color: #475569; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-                .btn-cancel:hover { background: #f8fafc; }
+                .data-column:first-child { border-right: 1px solid #e2e8f0; }
 
-                .loading-state, .empty-state { padding: 48px; text-align: center; color: #64748b; font-style: italic; }
+                .premium-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+                .premium-table th {
+                    background: #f8fafc;
+                    padding: 16px;
+                    text-align: left;
+                    font-size: 17px;
+                    font-weight: 700;
+                    color: #475569;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    border-bottom: 1px solid #e2e8f0;
+                }
+                .premium-table td {
+                    padding: 14px 16px;
+                    border-bottom: 1px solid #f1f5f9;
+                    color: #334155;
+                    font-size: 20px;
+                }
+                .premium-table tr:last-child td { border-bottom: none; }
+                .premium-table tr:hover td { background: #f8fafc; }
 
-                /* Animations */
-                @keyframes scaleIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+                .font-numeric { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #0f172a; }
+                
+                .tarif-tag {
+                    display: inline-block;
+                    padding: 4px 10px;
+                    border-radius: 20px;
+                    font-weight: 700;
+                    font-size: 17px;
+                }
+                
+                /* STATE MESSAGES */
+                .state-message { padding: 60px; text-align: center; color: #94a3b8; }
+                .spinner { width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; margin: 0 auto 16px; animation: spin 1s linear infinite; }
+                .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+
+                /* MODAL */
+                .modal-overlay {
+                    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px);
+                    display: flex; align-items: center; justify-content: center; z-index: 100;
+                    animation: fadeIn 0.2s ease-out;
+                }
+                .modal-card {
+                    background: white; width: 100%; max-width: 500px;
+                    border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+                    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+                .modal-header {
+                    padding: 24px; border-bottom: 1px solid #f1f5f9;
+                    display: flex; justify-content: space-between; align-items: center;
+                }
+                .modal-header h3 { margin: 0; font-size: 18px; color: #0f172a; }
+                .close-btn { font-size: 24px; background: none; border: none; color: #94a3b8; cursor: pointer; }
+                
+                .modal-form { padding: 24px; }
+                .form-section { margin-bottom: 20px; }
+                .form-section label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; color: #334155; }
+                .premium-input {
+                    width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px;
+                    font-size: 14px; transition: border 0.2s, box-shadow 0.2s;
+                }
+                .premium-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+                .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+                .input-hint { font-size: 12px; color: #64748b; margin-top: 4px; display: block; }
+                
+                .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 32px; }
+                .btn-secondary { background: white; border: 1px solid #cbd5e1; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; color: #475569; }
+                .btn-primary { background: #0f172a; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; color: white; }
+
+                /* FOOTER */
+                .footer-credits { text-align: center; margin-top: 40px; color: #94a3b8; font-size: 13px; }
+                .footer-credits a { color: #64748b; text-decoration: none; font-weight: 600; }
+
+                @keyframes spin { to { transform: rotate(360deg); } }
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
             `}</style>
         </div>
     );
 };
 
-// Subcomponent for cleaner code
-const TableContent = ({ data, info, onEdit, startIndex, formatRp, colType }) => {
+const TableContent = ({ data, info, onEdit, onDelete, startIndex, formatRp, colType }) => {
     return (
-        <table className="modern-table">
+        <table className="premium-table" style={{ width: '100%' }}>
+            <colgroup>
+                <col style={{ width: '50px' }} />   {/* No */}
+                <col style={{ width: 'auto' }} />   {/* Min */}
+                <col style={{ width: '40px' }} />   {/* s.d. */}
+                <col style={{ width: 'auto' }} />   {/* Max */}
+                <col style={{ width: '100px' }} />  {/* Tarif */}
+                <col style={{ width: '80px' }} />   {/* Action */}
+            </colgroup>
             <thead>
                 <tr>
-                    <th className="col-no">No</th>
-                    <th colSpan="3" style={{ paddingLeft: 16 }}>Lapisan Penghasilan Bruto (Rp)</th>
-                    <th className="col-tarif">Tarif %</th>
-                    <th className="col-action"></th>
+                    <th style={{ textAlign: 'center', padding: '12px 4px' }}>No</th>
+                    <th colSpan="3" style={{ textAlign: 'center', padding: '12px 4px' }}>Lapisan Penghasilan Bruto</th>
+                    <th style={{ textAlign: 'center', padding: '12px 4px' }}>Tarif</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -488,43 +492,66 @@ const TableContent = ({ data, info, onEdit, startIndex, formatRp, colType }) => 
                     const globalIdx = startIndex + idx + 1;
                     const isLast = parseFloat(pph.max) === 0;
 
-                    let displayMin, displayMid, displayMax;
+                    let displayMin = formatRp(pph.min);
+                    let displayMax = formatRp(pph.max);
 
-                    if (colType === 'left' && idx === 0 && parseFloat(pph.min) === 0) {
-                        // Case: First row is 0
-                        displayMin = '';
-                        displayMid = 'sampai dengan';
-                        displayMax = formatRp(pph.max);
-                    } else if (isLast) {
-                        // Case: Last row > X
-                        displayMin = '';
-                        displayMid = 'lebih dari';
-                        displayMax = formatRp(pph.min);
-                        // Note: If max is 0, logic says it's > min. 
-                        // Previous code logic was: max=0 means use min-1? 
-                        // Re-reading logic: min=X, max=0 (means > X). 
-                        // The table should show: "" "lebih dari" "X"
-                        // So I will put X in the 3rd column.
+                    let rowContent;
+                    if (isLast) {
+                        rowContent = (
+                            <>
+                                <td className="font-numeric" style={{ textAlign: 'right', paddingRight: '8px' }}>{displayMin}</td>
+                                <td style={{ textAlign: 'center', color: '#94a3b8', fontSize: '15px', padding: 0 }}>ke atas</td>
+                                <td className="font-numeric" style={{ paddingLeft: '8px' }}></td>
+                            </>
+                        );
+                    } else if (parseFloat(pph.min) === 0 && colType === 'left' && idx === 0) {
+                        rowContent = (
+                            <>
+                                <td className="font-numeric" style={{ textAlign: 'right', paddingRight: '8px' }}>0</td>
+                                <td style={{ textAlign: 'center', color: '#94a3b8', fontSize: '15px', padding: 0 }}>s.d.</td>
+                                <td className="font-numeric" style={{ textAlign: 'left', paddingLeft: '8px' }}>{displayMax}</td>
+                            </>
+                        );
                     } else {
-                        // Normal case: X s.d. Y
-                        displayMin = formatRp(pph.min);
-                        displayMid = 's.d.';
-                        displayMax = formatRp(pph.max);
+                        rowContent = (
+                            <>
+                                <td className="font-numeric" style={{ textAlign: 'right', paddingRight: '8px' }}>{displayMin}</td>
+                                <td style={{ textAlign: 'center', color: '#94a3b8', fontSize: '15px', padding: 0 }}>s.d.</td>
+                                <td className="font-numeric" style={{ textAlign: 'left', paddingLeft: '8px' }}>{displayMax}</td>
+                            </>
+                        );
                     }
 
                     return (
                         <tr key={pph.id}>
-                            <td className="col-no" style={{ color: '#94a3b8', fontWeight: 600 }}>{globalIdx}</td>
-                            <td className="col-money font-mono">{displayMin}</td>
-                            <td className="col-mid">{displayMid}</td>
-                            <td className="col-money font-mono">{displayMax}</td>
-                            <td className="col-tarif">
-                                <span className="tarif-badge" style={{ color: info.color, background: info.color + '15' }}>
+                            <td style={{ textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>{globalIdx}</td>
+                            {rowContent}
+                            <td style={{ textAlign: 'center' }}>
+                                <span className="tarif-tag" style={{ color: info.color, background: info.color + '15' }}>
                                     {parseFloat(pph.tarif).toFixed(2)}%
                                 </span>
                             </td>
-                            <td className="col-action">
-                                <button className="btn-icon-xs" onClick={() => onEdit(pph)}>✏️</button>
+                            <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                <button
+                                    onClick={() => onEdit(pph)}
+                                    title="Edit"
+                                    style={{
+                                        border: 'none', background: 'transparent', cursor: 'pointer',
+                                        fontSize: '18px', opacity: 0.7, padding: '4px', marginRight: '8px'
+                                    }}
+                                >
+                                    ✏️
+                                </button>
+                                <button
+                                    onClick={() => onDelete(pph.id)}
+                                    title="Hapus"
+                                    style={{
+                                        border: 'none', background: 'transparent', cursor: 'pointer',
+                                        fontSize: '18px', opacity: 0.7, padding: '4px'
+                                    }}
+                                >
+                                    🗑️
+                                </button>
                             </td>
                         </tr>
                     );

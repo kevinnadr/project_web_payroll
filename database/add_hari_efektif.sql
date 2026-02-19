@@ -1,1 +1,0 @@
-ALTER TABLE pegawai ADD COLUMN hari_efektif INT DEFAULT 25 AFTER npwp;

@@ -68,8 +68,11 @@ try {
         if (in_array(strtolower($nama), ['gaji pokok', 'tunjangan tetap'])) continue;
 
         if ($nama && $nominal > 0) {
-            $idKomp = $getOrCreateKomponen($nama, $tipe);
+            $idKomp = $getOrCreateKomponen($nama, $tipe); // Use the correct TYPE passed from frontend
             if ($idKomp) {
+                // Check if we need to update the component type if it already exists but differs?
+                // For now, assume if it exists we use it, but creating new one uses correct type.
+                
                 $db->prepare("INSERT INTO nominal_kontrak (id_kontrak, id_komponen, nominal) VALUES (?, ?, ?)")
                    ->execute([$id_kontrak, $idKomp, $nominal]);
             }

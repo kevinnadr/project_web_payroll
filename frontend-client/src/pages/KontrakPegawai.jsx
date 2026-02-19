@@ -39,7 +39,7 @@ const KontrakPegawai = () => {
         komponen_tambahan: []
     });
 
-    const [newKomponen, setNewKomponen] = useState({ nama: '', nominal: 0, tipe: 'bulanan' });
+    const [newKomponen, setNewKomponen] = useState({ nama: '', nominal: 0, tipe: 'tetap' });
     const [bpjsData, setBpjsData] = useState({ bpjs_tk: 0, bpjs_ks: 0 });
     const [formPtkp, setFormPtkp] = useState({ id_pegawai: '', id_kontrak: '', status_ptkp: 'TK/0' });
 
@@ -204,7 +204,7 @@ const KontrakPegawai = () => {
                 komponen_tambahan: loadedKomponen
             });
 
-            setNewKomponen({ nama: '', nominal: 0, tipe: 'bulanan' });
+            setNewKomponen({ nama: '', nominal: 0, tipe: 'tetap' });
 
             // Fetch BPJS Data
             try {
@@ -243,7 +243,7 @@ const KontrakPegawai = () => {
             ...prev,
             komponen_tambahan: [...prev.komponen_tambahan, { ...newKomponen, nominal: Number(newKomponen.nominal) }]
         }));
-        setNewKomponen({ nama: '', nominal: 0, tipe: 'bulanan' });
+        setNewKomponen({ nama: '', nominal: 0, tipe: 'tetap' });
     };
 
     const handleRemoveKomponen = (index) => {
@@ -294,7 +294,7 @@ const KontrakPegawai = () => {
                         allKomponen.push({
                             nama: 'Tunjangan Tetap',
                             nominal: formKontrak.tunjangan,
-                            tipe: 'bulanan',
+                            tipe: 'tetap',
                             is_permanent: 1 // Flag just in case
                         });
                     }
@@ -367,13 +367,14 @@ const KontrakPegawai = () => {
             try {
                 const list = typeof c.komponen_tambahan === 'string' ? JSON.parse(c.komponen_tambahan) : c.komponen_tambahan;
                 list.forEach(k => {
-                    if (k.tipe === 'harian') {
+                    if (k.tipe === 'harian' || k.tipe === 'kehadiran') {
                         hasDaily = true;
                         // Use hari_kerja_efektif from backend (dynamic from absensi)
                         const days = c.hari_kerja_efektif || 22;
                         total += Number(k.nominal || 0) * days;
                     }
                     else {
+                        // Assuming tetap, bulanan, non_alfa are added directly to the total estimation
                         total += Number(k.nominal || 0);
                     }
                 });
@@ -468,7 +469,13 @@ const KontrakPegawai = () => {
                                 return (
                                     <tr key={pegawai.id_pegawai} style={{ verticalAlign: 'top' }}>
                                         <td style={{ fontWeight: 600, verticalAlign: 'middle', textAlign: 'center' }}>{pegawai.nik}</td>
-                                        <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>{pegawai.nama_lengkap}</td>
+                                        <td
+                                            onClick={() => navigate('/data-pegawai', { state: { search: pegawai.nik } })}
+                                            style={{ verticalAlign: 'middle', textAlign: 'center', cursor: 'pointer', color: '#2563eb', fontWeight: 600 }}
+                                            title="Lihat Detail Pegawai"
+                                        >
+                                            {pegawai.nama_lengkap}
+                                        </td>
 
                                         {/* STACKED COLUMNS */}
 
@@ -571,7 +578,7 @@ const KontrakPegawai = () => {
                                                         <>
                                                             <button className="btn-icon-modern edit" title="Preview Rincian Gaji" onClick={() => setPreviewContract(c)}>👁️</button>
                                                             <button className="btn-icon-modern edit" title="Edit Kontrak & Komponen" onClick={() => handleOpenModal('kontrak', c)}>⚙️</button>
-                                                            <button className="btn-icon-modern edit" title="Edit Status PTKP" onClick={() => handleOpenModal('ptkp', c)}>📋</button>
+                                                            <button className="btn-icon-modern edit" title="Edit Status PTKP" onClick={() => handleOpenModal('ptkp', c)}>📊</button>
                                                             {c.id_kontrak && (
                                                                 <button className="btn-icon-modern delete" title="Hapus Kontrak" onClick={() => handleDelete(c)}>🗑️</button>
                                                             )}
@@ -691,8 +698,9 @@ const KontrakPegawai = () => {
                                             <div style={{ flex: 1 }}>
                                                 <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Tipe</label>
                                                 <select value={newKomponen.tipe} onChange={e => setNewKomponen({ ...newKomponen, tipe: e.target.value })} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: 6 }}>
-                                                    <option value="bulanan">Bulanan</option>
-                                                    <option value="harian">Harian</option>
+                                                    <option value="tetap">Tetap (Bulanan)</option>
+                                                    <option value="non_alfa">Non Alfa</option>
+                                                    <option value="kehadiran">Kehadiran (Harian)</option>
                                                 </select>
                                             </div>
                                             <button type="button" onClick={handleAddKomponen} style={{ padding: '8px 12px', background: '#10b981', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Add</button>
