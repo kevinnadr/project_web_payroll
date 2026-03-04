@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/sidebar';
+import Toast from '../components/Toast';
+import { useToast } from '../hooks/useToast';
+import { Search, RefreshCcw, Download, Settings, X, Trash2 } from 'lucide-react';
 import '../App.css';
 
 const MasterGaji = () => {
@@ -12,6 +15,12 @@ const MasterGaji = () => {
     const [showEdit, setShowEdit] = useState(false);
     const [selectedData, setSelectedData] = useState(null);
     const [user, setUser] = useState(null);
+    const { toast, showToast, hideToast } = useToast();
+    const [zoomImage, setZoomImage] = useState(null);
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 50;
 
     useEffect(() => { fetchData(); }, [bulanFilter]);
 
@@ -53,23 +62,29 @@ const MasterGaji = () => {
             const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_gaji/save_gaji_full.php', payload);
 
             if (res.data.status === 'success') {
-                alert("✅ " + res.data.message);
+                showToast('success', res.data.message);
                 setShowEdit(false);
                 fetchData();
             } else {
-                alert("❌ Gagal: " + res.data.message);
+                showToast('error', "Gagal: " + res.data.message);
             }
         } catch (err) {
-            alert("❌ Gagal menghubungi server: " + err.message);
+            showToast('error', "Gagal menghubungi server: " + err.message);
         }
     };
 
     useEffect(() => {
         const lower = searchTerm.toLowerCase();
-        setFilteredList(listGaji.filter(item => 
+        setFilteredList(listGaji.filter(item =>
             (item.nama_lengkap || '').toLowerCase().includes(lower) || String(item.nik || '').toLowerCase().includes(lower)
         ));
+        setCurrentPage(1); // Reset to page 1 on search or list changes
     }, [searchTerm, listGaji]);
+
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredList.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredList.length / itemsPerPage);
 
     const formatRp = (n) => {
         const val = parseFloat(n);
@@ -85,148 +100,181 @@ const MasterGaji = () => {
                         <h1 className="modern-title">Master Penggajian</h1>
                         <p className="modern-subtitle">Kelola komponen gaji per pegawai dan bulan.</p>
                     </div>
-                    <div style={{display:'flex', gap:12, alignItems:'center'}}>
-                        <input type="month" value={bulanFilter} onChange={(e) => setBulanFilter(e.target.value)} style={{height:42, padding:8, borderRadius:10, border:'1px solid #e2e8f0'}} />
-                        <button onClick={fetchData} className="btn-modern btn-outline">🔄 Refresh</button>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                        <input type="month" value={bulanFilter} onChange={(e) => setBulanFilter(e.target.value)} style={{ height: 42, padding: 8, borderRadius: 10, border: '1px solid #e2e8f0' }} />
+                        <button onClick={fetchData} className="btn-modern btn-outline"><span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><RefreshCcw size={18} /> Refresh</span></button>
                     </div>
                 </div>
 
                 <div className="toolbar-modern">
                     <div className="search-box">
-                        <span className="search-icon">🔍</span>
-                        <input type="text" placeholder="Cari Nama / NIK..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} />
+                        <span className="search-icon" style={{ display: 'flex', alignItems: 'center' }}><Search size={18} color="#64748b" /></span>
+                        <input type="text" placeholder="Cari Nama / NIK..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                     </div>
                     <div className="toolbar-actions">
-                        <button onClick={() => window.open(`http://localhost/project_web_payroll/backend-api/modules/master_gaji/export_excel.php?bulan=${bulanFilter}`,'_blank')} className="btn-modern btn-outline">📥 Excel</button>
+                        <button onClick={() => window.open(`http://localhost/project_web_payroll/backend-api/modules/master_gaji/export_excel.php?bulan=${bulanFilter}`, '_blank')} className="btn-modern btn-outline"><span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><Download size={18} /> Excel</span></button>
                     </div>
                 </div>
 
                 <div className="table-container-modern">
                     <table className="modern-table">
                         <thead>
-                                <tr>
+                            <tr>
                                 <th>Pegawai</th>
-                                    <th>Jabatan</th>
-                                    <th>Tunj. Jabatan</th>
-                                    <th>Gaji Pokok</th>
-                                    <th>Komponen</th>
+                                <th>Jabatan</th>
+                                <th>Tunj. Jabatan</th>
+                                <th>Gaji Pokok</th>
+                                <th>Komponen</th>
                                 <th className="text-center">BPJS</th>
                                 <th className="text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {loading ? <tr><td colSpan="6" className="text-center p-4">⏳ Memuat...</td></tr> : 
-                                filteredList.map((row) => (
-                                <tr key={row.id}>
-                                    <td>
-                                        <div className="user-profile">
-                                            <div className="avatar-circle">{(row.nama_lengkap||'').charAt(0)}</div>
-                                            <div>
-                                                <div className="user-name">{row.nama_lengkap}</div>
-                                                <div className="user-nik">{row.nik}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td style={{fontWeight:600}}>{row.jabatan || '-'}</td>
-                                    <td style={{fontWeight:600}}>{formatRp(row.tunjangan_jabatan || 0)}</td>
-                                    <td style={{fontWeight:'bold', color:'#10b981'}}>{formatRp(row.gaji_pokok)}</td>
-                                    <td>
-                                        {(row.list_komponen && row.list_komponen.length > 0) ? (
-                                            row.list_komponen.map((c, i) => (
-                                                <div key={i} style={{fontSize:'0.9rem', marginBottom:4}}>
-                                                        <span style={{fontWeight:600}}>{c.nama || c.nama_komponen}</span>
-                                                        <span style={{marginLeft:8, color:'#10b981', fontWeight:700}}>{formatRp(c.nominal || 0)}</span>
-                                                        <small style={{marginLeft:8, color:'#64748b'}}>{(() => {
-                                                            const raw = (c.tipe || c.tipe_hitungan || '').toString().toLowerCase();
-                                                            return raw.indexOf('hari') !== -1 ? 'Per Hari' : 'Per Bulan';
-                                                        })()}</small>
+                            {loading ? <tr><td colSpan="7" className="text-center p-4">⏳ Memuat...</td></tr> :
+                                currentItems.length === 0 ? <tr><td colSpan="7" className="text-center p-4" style={{ color: '#64748b' }}>Data tidak ditemukan</td></tr> :
+                                    currentItems.map((row) => (
+                                        <tr key={row.id}>
+                                            <td>
+                                                <div className="user-profile">
+                                                    {row.foto_profil ? (
+                                                        <img
+                                                            src={`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${row.foto_profil}`}
+                                                            alt="Profile"
+                                                            style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', cursor: 'pointer' }}
+                                                            onClick={() => setZoomImage(`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${row.foto_profil}`)}
+                                                        />
+                                                    ) : (
+                                                        <div className="avatar-circle">{(row.nama_lengkap || '').charAt(0)}</div>
+                                                    )}
+                                                    <div>
+                                                        <div className="user-name">{row.nama_lengkap}</div>
+                                                        <div className="user-nik">{row.nik}</div>
                                                     </div>
-                                            ))
-                                        ) : (<span style={{color:'#94a3b8'}}>-</span>)}
-                                    </td>
-                                    <td className="text-center">{row.ikut_bpjs_tk === 1 ? 'TK ' : ''}{row.ikut_bpjs_ks === 1 ? 'KS' : ''}</td>
-                                    <td className="text-center">
-                                        <button className="btn-icon-modern edit" onClick={() => {
-                                            const mappedComponents = (row.list_komponen || []).map(c => {
-                                                const raw = (c.tipe || c.tipe_hitungan || '').toString().toLowerCase();
-                                                return {
-                                                    nama: c.nama || c.nama_komponen || '',
-                                                    nominal: Number(c.nominal || 0),
-                                                    jenis: c.jenis || 'tunjangan',
-                                                    tipe: raw.indexOf('hari') !== -1 ? 'perhari' : 'perbulan'
-                                                };
-                                            });
-                                                                                        setSelectedData({
-                                                                                            ...row,
-                                                                                            gaji_pokok: Number(row.gaji_pokok || 0),
-                                                                                            tunjangan_jabatan: Number(row.tunjangan_jabatan || 0),
-                                                                                            components: mappedComponents,
-                                                                                            tunjangan_mode: row.tunjangan_mode || 'perbulan',
-                                                                                            ikut_bpjs_tk: row.ikut_bpjs_tk === 1 ? 1 : 0,
-                                                                                            ikut_bpjs_ks: row.ikut_bpjs_ks === 1 ? 1 : 0,
-                                                                                        });
-                                            setShowEdit(true);
-                                        }}>⚙️</button>
-                                    </td>
-                                </tr>
-                            ))}
+                                                </div>
+                                            </td>
+                                            <td style={{ fontWeight: 600 }}>{row.jabatan || '-'}</td>
+                                            <td style={{ fontWeight: 600 }}>{formatRp(row.tunjangan_jabatan || 0)}</td>
+                                            <td style={{ fontWeight: 'bold', color: '#10b981' }}>{formatRp(row.gaji_pokok)}</td>
+                                            <td>
+                                                {(row.list_komponen && row.list_komponen.length > 0) ? (
+                                                    row.list_komponen.map((c, i) => (
+                                                        <div key={i} style={{ fontSize: '0.9rem', marginBottom: 4 }}>
+                                                            <span style={{ fontWeight: 600 }}>{c.nama || c.nama_komponen}</span>
+                                                            <span style={{ marginLeft: 8, color: '#10b981', fontWeight: 700 }}>{formatRp(c.nominal || 0)}</span>
+                                                            <small style={{ marginLeft: 8, color: '#64748b' }}>{(() => {
+                                                                const raw = (c.tipe || c.tipe_hitungan || '').toString().toLowerCase();
+                                                                return raw.indexOf('hari') !== -1 ? 'Per Hari' : 'Per Bulan';
+                                                            })()}</small>
+                                                        </div>
+                                                    ))
+                                                ) : (<span style={{ color: '#94a3b8' }}>-</span>)}
+                                            </td>
+                                            <td className="text-center">{row.ikut_bpjs_tk === 1 ? 'TK ' : ''}{row.ikut_bpjs_ks === 1 ? 'KS' : ''}</td>
+                                            <td className="text-center">
+                                                <button className="btn-icon-modern edit" onClick={() => {
+                                                    const mappedComponents = (row.list_komponen || []).map(c => {
+                                                        const raw = (c.tipe || c.tipe_hitungan || '').toString().toLowerCase();
+                                                        return {
+                                                            nama: c.nama || c.nama_komponen || '',
+                                                            nominal: Number(c.nominal || 0),
+                                                            jenis: c.jenis || 'tunjangan',
+                                                            tipe: raw.indexOf('hari') !== -1 ? 'perhari' : 'perbulan'
+                                                        };
+                                                    });
+                                                    setSelectedData({
+                                                        ...row,
+                                                        gaji_pokok: Number(row.gaji_pokok || 0),
+                                                        tunjangan_jabatan: Number(row.tunjangan_jabatan || 0),
+                                                        components: mappedComponents,
+                                                        tunjangan_mode: row.tunjangan_mode || 'perbulan',
+                                                        ikut_bpjs_tk: row.ikut_bpjs_tk === 1 ? 1 : 0,
+                                                        ikut_bpjs_ks: row.ikut_bpjs_ks === 1 ? 1 : 0,
+                                                    });
+                                                    setShowEdit(true);
+                                                }}><Settings size={18} /></button>
+                                            </td>
+                                        </tr>
+                                    ))
+                            }
                         </tbody>
                     </table>
                 </div>
 
+                {totalPages > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '20px', gap: '15px' }}>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f8fafc' : 'white', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
+                        >
+                            Prev
+                        </button>
+                        <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 600 }}>
+                            Halaman {currentPage} dari {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f8fafc' : 'white', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
+                        >
+                            Next
+                        </button>
+                    </div>
+                )}
+
                 {showEdit && selectedData && (
                     <div className="modal-backdrop">
-                        <div className="modal-content-modern" style={{width:560}}>
+                        <div className="modal-content-modern" style={{ width: 560 }}>
                             <div className="modal-header-modern">
-                                <h3>⚙️ Edit Komponen Gaji: {selectedData.nama_lengkap}</h3>
-                                <button onClick={()=>setShowEdit(false)}>✕</button>
+                                <h3><span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={20} /> Edit Komponen Gaji: {selectedData.nama_lengkap}</span></h3>
+                                <button type="button" onClick={() => setShowEdit(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex' }}><X size={24} /></button>
                             </div>
-                            <div style={{padding:20}}>
+                            <div style={{ padding: 20 }}>
                                 <form onSubmit={handleSaveManual}>
                                     <div className="form-grid-2">
-                                        <div className="form-group"><label>Gaji Pokok</label><input type="number" value={selectedData.gaji_pokok} onChange={e => setSelectedData({...selectedData, gaji_pokok: Number(e.target.value||0)})} required /></div>
-                                        <div className="form-group"><label>Tunj. Jabatan</label><input type="number" value={selectedData.tunjangan_jabatan} onChange={e => setSelectedData({...selectedData, tunjangan_jabatan: Number(e.target.value||0)})} /></div>
+                                        <div className="form-group"><label>Gaji Pokok</label><input type="number" value={selectedData.gaji_pokok} onChange={e => setSelectedData({ ...selectedData, gaji_pokok: Number(e.target.value || 0) })} required /></div>
+                                        <div className="form-group"><label>Tunj. Jabatan</label><input type="number" value={selectedData.tunjangan_jabatan} onChange={e => setSelectedData({ ...selectedData, tunjangan_jabatan: Number(e.target.value || 0) })} /></div>
                                     </div>
-                                    <div style={{marginTop:12}}>
-                                        <label style={{display:'block', fontSize:12, fontWeight:700, color:'#475569', marginBottom:8}}>Tipe Tunjangan</label>
-                                        <select value={selectedData.tunjangan_mode || 'perbulan'} onChange={e => setSelectedData({...selectedData, tunjangan_mode: e.target.value})} style={{width:160, padding:8, borderRadius:8, border:'1px solid #cbd5e1'}}>
+                                    <div style={{ marginTop: 12 }}>
+                                        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>Tipe Tunjangan</label>
+                                        <select value={selectedData.tunjangan_mode || 'perbulan'} onChange={e => setSelectedData({ ...selectedData, tunjangan_mode: e.target.value })} style={{ width: 160, padding: 8, borderRadius: 8, border: '1px solid #cbd5e1' }}>
                                             <option value="perbulan">Per Bulan</option>
                                             <option value="perhari">Per Hari</option>
                                         </select>
                                     </div>
 
-                                    <div style={{marginTop:12}}>
-                                        <label style={{display:'block', fontSize:12, fontWeight:700, color:'#475569', marginBottom:8}}>Komponen Tambahan</label>
+                                    <div style={{ marginTop: 12 }}>
+                                        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>Komponen Tambahan</label>
                                         {(selectedData.components || []).map((comp, idx) => (
-                                            <div key={idx} style={{display:'grid', gridTemplateColumns:'2fr 1fr 140px 80px', gap:8, marginBottom:8, alignItems:'center'}}>
+                                            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 140px 80px', gap: 8, marginBottom: 8, alignItems: 'center' }}>
                                                 <input type="text" placeholder="Nama komponen (e.g. Uang Makan)" value={comp.nama} onChange={e => {
-                                                    const arr = [...(selectedData.components||[])]; arr[idx] = {...arr[idx], nama: e.target.value}; setSelectedData({...selectedData, components: arr});
+                                                    const arr = [...(selectedData.components || [])]; arr[idx] = { ...arr[idx], nama: e.target.value }; setSelectedData({ ...selectedData, components: arr });
                                                 }} />
                                                 <input type="number" placeholder="Nominal" value={comp.nominal} onChange={e => {
-                                                    const arr = [...(selectedData.components||[])]; arr[idx] = {...arr[idx], nominal: Number(e.target.value||0)}; setSelectedData({...selectedData, components: arr});
+                                                    const arr = [...(selectedData.components || [])]; arr[idx] = { ...arr[idx], nominal: Number(e.target.value || 0) }; setSelectedData({ ...selectedData, components: arr });
                                                 }} />
                                                 <select value={comp.tipe || 'perbulan'} onChange={e => {
-                                                    const arr = [...(selectedData.components||[])]; arr[idx] = {...arr[idx], tipe: e.target.value}; setSelectedData({...selectedData, components: arr});
-                                                }} style={{padding:8, borderRadius:8, border:'1px solid #cbd5e1'}}>
+                                                    const arr = [...(selectedData.components || [])]; arr[idx] = { ...arr[idx], tipe: e.target.value }; setSelectedData({ ...selectedData, components: arr });
+                                                }} style={{ padding: 8, borderRadius: 8, border: '1px solid #cbd5e1' }}>
                                                     <option value="perbulan">Per Bulan</option>
                                                     <option value="perhari">Per Hari</option>
                                                 </select>
                                                 <button type="button" className="btn-cancel" onClick={() => {
-                                                    const arr = [...(selectedData.components||[])]; arr.splice(idx,1); setSelectedData({...selectedData, components: arr});
+                                                    const arr = [...(selectedData.components || [])]; arr.splice(idx, 1); setSelectedData({ ...selectedData, components: arr });
                                                 }}>Hapus</button>
                                             </div>
                                         ))}
-                                        <button type="button" className="btn-modern btn-gradient" style={{marginTop:8}} onClick={() => {
-                                            const arr = [...(selectedData.components||[]) , { nama: '', nominal: 0, tipe: 'perbulan' }];
-                                            setSelectedData({...selectedData, components: arr});
+                                        <button type="button" className="btn-modern btn-gradient" style={{ marginTop: 8 }} onClick={() => {
+                                            const arr = [...(selectedData.components || []), { nama: '', nominal: 0, tipe: 'perbulan' }];
+                                            setSelectedData({ ...selectedData, components: arr });
                                         }}>+ Tambah Komponen</button>
                                     </div>
-                                    <div className="bpjs-wrapper" style={{marginTop:12}}>
-                                        <label className="checkbox-label"><input type="checkbox" checked={selectedData.ikut_bpjs_tk === 1} onChange={e => setSelectedData({...selectedData, ikut_bpjs_tk: e.target.checked ? 1 : 0})} /> BPJS TK</label>
-                                        <label className="checkbox-label"><input type="checkbox" checked={selectedData.ikut_bpjs_ks === 1} onChange={e => setSelectedData({...selectedData, ikut_bpjs_ks: e.target.checked ? 1 : 0})} /> BPJS KS</label>
+                                    <div className="bpjs-wrapper" style={{ marginTop: 12 }}>
+                                        <label className="checkbox-label"><input type="checkbox" checked={selectedData.ikut_bpjs_tk === 1} onChange={e => setSelectedData({ ...selectedData, ikut_bpjs_tk: e.target.checked ? 1 : 0 })} /> BPJS TK</label>
+                                        <label className="checkbox-label"><input type="checkbox" checked={selectedData.ikut_bpjs_ks === 1} onChange={e => setSelectedData({ ...selectedData, ikut_bpjs_ks: e.target.checked ? 1 : 0 })} /> BPJS KS</label>
                                     </div>
-                                    <div className="modal-footer-modern" style={{marginTop:20}}>
-                                        <button type="button" onClick={()=>setShowEdit(false)} className="btn-cancel">Batal</button>
+                                    <div className="modal-footer-modern" style={{ marginTop: 20 }}>
+                                        <button type="button" onClick={() => setShowEdit(false)} className="btn-cancel">Batal</button>
                                         <button type="submit" className="btn-save">Simpan</button>
                                     </div>
                                 </form>
@@ -234,6 +282,44 @@ const MasterGaji = () => {
                         </div>
                     </div>
                 )}
+
+                {zoomImage && (
+                    <div
+                        className="modal-backdrop"
+                        style={{
+                            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+                            background: 'rgba(0,0,0,0.8)',
+                            display: 'flex', justifyContent: 'center', alignItems: 'center',
+                            zIndex: 9999,
+                            cursor: 'zoom-out'
+                        }}
+                        onClick={() => setZoomImage(null)}
+                    >
+                        <img
+                            src={zoomImage}
+                            alt="Zoom"
+                            style={{
+                                maxWidth: '90%',
+                                maxHeight: '90%',
+                                borderRadius: '12px',
+                                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                                objectFit: 'contain'
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                        <button
+                            onClick={() => setZoomImage(null)}
+                            style={{
+                                position: 'absolute', top: '20px', right: '30px', background: 'white',
+                                color: '#ef4444', border: 'none', borderRadius: '50%', width: '40px', height: '40px',
+                                fontSize: '20px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center'
+                            }}
+                        >
+                            ✕
+                        </button>
+                    </div>
+                )}
+                <Toast show={toast.show} type={toast.type} message={toast.message} onClose={hideToast} />
             </main>
 
             <style>{`
@@ -253,7 +339,7 @@ const MasterGaji = () => {
                 .modern-table th { background: #f8fafc; padding: 15px; text-align: left; font-weight: 600; color: #475569; font-size: 0.85rem; border-bottom: 1px solid #e2e8f0; }
                 .modern-table td { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; color: #334155; font-size: 0.95rem; }
                 .user-profile { display: flex; align-items: center; gap: 12px; }
-                .avatar-circle { width: 38px; height: 38px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+                .avatar-circle { width: 38px; height: 38px; background: linear-gradient(135deg, #b91c1c, #ef4444); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
                 .user-name { font-weight: 600; color: #0f172a; }
                 .user-nik { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
                 .btn-icon-modern { width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-right: 5px; }

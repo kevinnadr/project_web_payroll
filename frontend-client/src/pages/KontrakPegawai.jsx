@@ -2,28 +2,44 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/sidebar';
 import { useNavigate } from 'react-router-dom';
+import Toast from '../components/Toast';
+import { useToast } from '../hooks/useToast';
+import { Pencil, Trash2, Search, X, Lock, RefreshCcw, PlusCircle, AlertTriangle, FileText, Banknote, Shield, Settings, Eye, ClipboardList } from 'lucide-react';
 import '../App.css';
 
 const KontrakPegawai = () => {
     const [listKontrak, setListKontrak] = useState([]);
     const [filteredList, setFilteredList] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [bulanFilter, setBulanFilter] = useState(new Date().toISOString().slice(0, 7));
+    const [bulanFilter, setBulanFilter] = useState(''); // Default to empty to show all contracts
     const [loading, setLoading] = useState(false);
     const [user, setUser] = useState(null);
 
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 50;
+
     // Pegawai List for Dropdown
     const [pegawaiOptions, setPegawaiOptions] = useState([]);
+    const [masterKomponenOptions, setMasterKomponenOptions] = useState([]);
 
     const [showModal, setShowModal] = useState(false);
     const [modalMode, setModalMode] = useState(''); // 'kontrak', 'create_kontrak', 'ptkp'
     const [selectedPegawai, setSelectedPegawai] = useState(null); // Full object row
     const [previewContract, setPreviewContract] = useState(null); // For detail preview
+
+    // Deletion Modal
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteInput, setDeleteInput] = useState('');
+
     const monthInputRef = useRef(null);
     const navigate = useNavigate();
 
     // --- NOTIFICATION STATE ---
-    const [notification, setNotification] = useState(null); // { type: 'success'|'error', title: string, message: string }
+    const { toast, showToast, hideToast } = useToast();
+
+    const [zoomImage, setZoomImage] = useState(null);
 
     // --- FORM STATE ---
     const [formKontrak, setFormKontrak] = useState({
@@ -63,8 +79,12 @@ const KontrakPegawai = () => {
     const calculateDuration = (start, end) => {
         if (!end || end === '0000-00-00') return <span style={{ color: '#10b981', fontWeight: 600 }}>Permanen / Tidak Terbatas</span>;
 
+        const startDate = new Date(start);
         const endDate = new Date(end);
         const now = new Date();
+
+        const startString = isNaN(startDate.getTime()) ? (start || '-') : startDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+        const endString = isNaN(endDate.getTime()) ? (end || '-') : endDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 
         // Reset hours to compare dates only
         now.setHours(0, 0, 0, 0);
@@ -75,11 +95,13 @@ const KontrakPegawai = () => {
         // Check if expired
         if (endDate < now) {
             return (
-                <div style={{ color: '#ef4444', fontWeight: 600 }}>
-                    Sudah Berakhir
-                    <div style={{ fontSize: '0.75rem', color: '#991b1b', fontWeight: 400 }}>
-                        ({endDate.toLocaleDateString('id-ID')})
-                    </div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontWeight: 600, color: '#334155' }}>
+                        {startString} s/d {endString}
+                    </span>
+                    <span style={{ fontSize: '0.85rem', color: '#ef4444', fontWeight: 600 }}>
+                        (Sudah Berakhir)
+                    </span>
                 </div>
             );
         }
@@ -104,15 +126,24 @@ const KontrakPegawai = () => {
         if (months > 0) parts.push(`${months} Bln`);
         if (days > 0) parts.push(`${days} Hari`);
 
-        if (parts.length === 0) return <span style={{ color: '#f59e0b', fontWeight: 600 }}>Berakhir Hari Ini</span>;
+        if (parts.length === 0) return (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontWeight: 600, color: '#334155' }}>
+                    {startString} s/d {endString}
+                </span>
+                <span style={{ fontSize: '0.85rem', color: '#f59e0b', fontWeight: 600 }}>
+                    Berakhir Hari Ini
+                </span>
+            </div>
+        );
 
         return (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontWeight: 600, color: years < 1 && months < 2 ? '#f59e0b' : '#334155' }}>
-                    {parts.join(' ')} lagi
+                <span style={{ fontWeight: 600, color: '#334155' }}>
+                    {startString} s/d {endString}
                 </span>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                    s/d {endDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                <span style={{ fontSize: '0.85rem', color: years < 1 && months < 2 ? '#f59e0b' : '#64748b', fontWeight: 600 }}>
+                    {parts.join(' ')} lagi
                 </span>
             </div>
         );
@@ -125,6 +156,7 @@ const KontrakPegawai = () => {
             setUser(JSON.parse(userData));
             fetchData();
             fetchPegawaiSimple();
+            fetchMasterKomponen();
         }
     }, [navigate, bulanFilter]);
 
@@ -151,12 +183,40 @@ const KontrakPegawai = () => {
         } catch (e) { console.error("Gagal load pegawai simple", e); }
     };
 
+    const fetchMasterKomponen = async () => {
+        try {
+            const res = await axios.get('http://localhost/project_web_payroll/backend-api/modules/master_komponen/read.php');
+            if (res.data.status === 'success') {
+                setMasterKomponenOptions(res.data.data);
+            }
+        } catch (e) { console.error("Gagal load master komponen", e); }
+    };
+
     useEffect(() => {
         const lower = searchTerm.toLowerCase();
         setFilteredList(listKontrak.filter(item =>
             (item.nama_lengkap || '').toLowerCase().includes(lower) || String(item.nik || '').includes(lower)
         ));
+        setCurrentPage(1); // Reset to page 1 on filter
     }, [searchTerm, listKontrak]);
+
+    const groupedData = Object.values(filteredList.reduce((acc, item) => {
+        if (!acc[item.id_pegawai]) {
+            acc[item.id_pegawai] = {
+                pegawai: item,
+                contracts: []
+            };
+        }
+        if (item.id_kontrak) {
+            acc[item.id_pegawai].contracts.push(item);
+        }
+        return acc;
+    }, {}));
+
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = groupedData.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(groupedData.length / itemsPerPage);
 
     const handleOpenModal = async (mode, pegawai = null) => {
         setModalMode(mode);
@@ -168,7 +228,7 @@ const KontrakPegawai = () => {
                 id_pegawai: pegawai ? pegawai.id_pegawai : '',
                 id_kontrak: '',
                 jabatan: '', tanggal_mulai: new Date().toISOString().split('T')[0], tanggal_berakhir: '',
-                jenis_kontrak: 'TETAP', status_ptkp: pegawai?.status_ptkp || 'TK/0', gaji_pokok: 0, tunjangan: 0, komponen_tambahan: []
+                jenis_kontrak: 'TETAP', status_ptkp: pegawai?.status_ptkp || 'TK/0', gaji_pokok: 0, tunjangan: 0, catatan: '', komponen_tambahan: []
             });
             setBpjsData({ bpjs_tk: 0, bpjs_ks: 0 }); // Reset BPJS
             setShowModal(true);
@@ -201,6 +261,7 @@ const KontrakPegawai = () => {
                 status_ptkp: pegawai.status_ptkp || 'TK/0',
                 gaji_pokok: pegawai.gaji_pokok || 0,
                 tunjangan: tunjanganTetap,
+                catatan: pegawai.catatan || '',
                 komponen_tambahan: loadedKomponen
             });
 
@@ -237,8 +298,8 @@ const KontrakPegawai = () => {
 
     // --- KOMPONEN TAMBAHAN HANDLERS ---
     const handleAddKomponen = () => {
-        if (!newKomponen.nama.trim()) return alert('Nama komponen harus diisi!');
-        if (!newKomponen.nominal || newKomponen.nominal <= 0) return alert('Nominal harus lebih dari 0!');
+        if (!newKomponen.nama.trim()) { showToast('error', 'Nama komponen harus diisi!'); return; }
+        if (!newKomponen.nominal || newKomponen.nominal <= 0) { showToast('error', 'Nominal harus lebih dari 0!'); return; }
         setFormKontrak(prev => ({
             ...prev,
             komponen_tambahan: [...prev.komponen_tambahan, { ...newKomponen, nominal: Number(newKomponen.nominal) }]
@@ -255,7 +316,7 @@ const KontrakPegawai = () => {
 
     const handleSaveKontrak = async (e) => {
         e.preventDefault();
-        if (!formKontrak.id_pegawai) return alert("Pilih Pegawai!");
+        if (!formKontrak.id_pegawai) { showToast('error', "Pilih Pegawai!"); return; }
 
         try {
             // 1. Save Main Contract (Basic Data + Tunjangan Tetap)
@@ -315,15 +376,15 @@ const KontrakPegawai = () => {
                 // };
                 // await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_gaji/save_bpjs.php', payloadBpjs);
 
-                setNotification({ type: 'success', title: '✅ Berhasil', message: 'Data Kontrak Disimpan!' });
+                showToast('success', 'Data Kontrak Disimpan!');
                 setShowModal(false);
                 fetchData();
 
             } else {
-                setNotification({ type: 'error', title: '❌ Gagal', message: resKontrak.data.message });
+                showToast('error', resKontrak.data.message);
             }
         } catch (e) {
-            setNotification({ type: 'error', title: '❌ Error', message: e.response?.data?.message || e.message });
+            showToast('error', e.response?.data?.message || e.message);
         }
     };
 
@@ -332,31 +393,42 @@ const KontrakPegawai = () => {
         try {
             const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/pegawai/update_ptkp.php', formPtkp);
             if (res.data.status === 'success') {
-                setNotification({ type: 'success', title: '✅ Berhasil', message: 'Status PTKP Updated!' });
+                showToast('success', 'Status PTKP Updated!');
                 setShowModal(false); fetchData();
             } else {
-                setNotification({ type: 'error', title: '❌ Gagal', message: res.data.message });
+                showToast('error', res.data.message);
             }
         } catch (e) {
-            setNotification({ type: 'error', title: '❌ Error', message: e.response?.data?.message || e.message });
+            showToast('error', e.response?.data?.message || e.message);
         }
     };
 
-    const handleDelete = async (kontrak) => {
+    const handleDelete = (kontrak) => {
         if (!kontrak.id_kontrak) return;
-        if (!confirm(`Hapus kontrak ${kontrak.jenis_kontrak} untuk ${kontrak.nama_lengkap}?`)) return;
+        setDeleteTarget(kontrak);
+        setDeleteInput('');
+        setShowDeleteModal(true);
+    };
+
+    const confirmDeleteKontrak = async () => {
+        if (deleteInput !== 'hapus data') {
+            showToast('error', 'Validasi gagal. Hapus dibatalkan karena teks tidak sesuai.');
+            return;
+        }
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_gaji/delete_kontrak.php', { id_kontrak: kontrak.id_kontrak });
+            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_gaji/delete_kontrak.php', { id_kontrak: deleteTarget.id_kontrak });
             if (res.data.status === 'success') {
-                setNotification({ type: 'success', title: '✅ Terhapus', message: 'Kontrak berhasil dihapus!' });
+                showToast('success', 'Kontrak berhasil dihapus!');
+                setShowDeleteModal(false);
                 fetchData();
             } else {
-                setNotification({ type: 'error', title: '❌ Gagal', message: res.data.message });
+                showToast('error', res.data.message);
             }
         } catch (e) {
-            setNotification({ type: 'error', title: '❌ Error', message: e.response?.data?.message || e.message });
+            showToast('error', e.response?.data?.message || e.message);
         }
     };
+
 
     const calculateTotal = (c) => {
         if (!c) return { total: 0, hasDaily: false };
@@ -385,9 +457,9 @@ const KontrakPegawai = () => {
 
 
     return (
-        <div className="app-layout">
+        <div className="app-layout-modern">
             <Sidebar user={user} />
-            <main className="main-content">
+            <main className="main-content-modern">
                 <div className="page-header-modern">
                     <div>
                         <h1 className="modern-title">Kontrak Kerja</h1>
@@ -413,7 +485,7 @@ const KontrakPegawai = () => {
 
                 <div className="toolbar-modern">
                     <div className="search-box">
-                        <span className="search-icon">🔍</span>
+                        <span className="search-icon" style={{ display: 'flex', alignItems: 'center' }}><Search size={18} color="#64748b" /></span>
                         <input
                             type="text"
                             placeholder="Cari Nama / NIK..."
@@ -421,46 +493,33 @@ const KontrakPegawai = () => {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <div>
-                        <button className="btn-save" onClick={() => handleOpenModal('create_kontrak')}>
-                            + Buat Kontrak Baru
+                    <div className="toolbar-actions">
+                        <button className="btn-modern btn-outline" onClick={fetchData}><span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><RefreshCcw size={18} /> Refresh</span></button>
+                        <button className="btn-modern btn-gradient" onClick={() => handleOpenModal('create_kontrak')}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><PlusCircle size={18} /> Buat Kontrak Baru</span>
                         </button>
-                        <button className="btn-refresh" onClick={fetchData}>🔄 Refresh</button>
                     </div>
                 </div>
 
                 <div className="table-container-modern">
                     <table className="modern-table">
-                        <thead>
+                        <thead style={{ background: 'linear-gradient(135deg, #b91c1c 0%, #ef4444 100%)' }}>
                             <tr>
-                                <th style={{ textAlign: 'center' }}>NIK</th>
-                                <th style={{ textAlign: 'center' }}>NAMA PEGAWAI</th>
-                                <th style={{ textAlign: 'center' }}>JABATAN</th>
-                                <th style={{ textAlign: 'center' }}>STATUS PTKP</th>
-                                <th style={{ textAlign: 'center' }}>JENIS KONTRAK</th>
-                                <th>MASA KONTRAK</th>
-                                <th>TOTAL GAJI</th>
-                                <th style={{ textAlign: 'center' }}>AKSI</th>
+                                <th style={{ textAlign: 'center', paddingLeft: '2rem', background: 'transparent', color: 'white' }}>NAMA PEGAWAI</th>
+                                <th style={{ textAlign: 'center', background: 'transparent', color: 'white' }}>JABATAN</th>
+                                <th style={{ textAlign: 'center', background: 'transparent', color: 'white' }}>STATUS PTKP</th>
+                                <th style={{ textAlign: 'center', background: 'transparent', color: 'white' }}>JENIS KONTRAK</th>
+                                <th style={{ textAlign: 'center', background: 'transparent', color: 'white' }}>MASA KONTRAK</th>
+                                <th style={{ textAlign: 'center', background: 'transparent', color: 'white' }}>TOTAL GAJI</th>
+                                <th style={{ textAlign: 'center', background: 'transparent', color: 'white' }}>AKSI</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan="9" style={{ textAlign: 'center', padding: 20 }}>Loading Data...</td></tr>
-                            ) : filteredList.length === 0 ? (
-                                <tr><td colSpan="9" style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>Data tidak ditemukan</td></tr>
-                            ) : Object.values(filteredList.reduce((acc, item) => {
-                                // Grouping Logic
-                                if (!acc[item.id_pegawai]) {
-                                    acc[item.id_pegawai] = {
-                                        pegawai: item,
-                                        contracts: []
-                                    };
-                                }
-                                if (item.id_kontrak) {
-                                    acc[item.id_pegawai].contracts.push(item);
-                                }
-                                return acc;
-                            }, {})).map((group) => {
+                                <tr><td colSpan="8" style={{ textAlign: 'center', padding: 20 }}>Loading Data...</td></tr>
+                            ) : currentItems.length === 0 ? (
+                                <tr><td colSpan="8" style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>Data tidak ditemukan</td></tr>
+                            ) : currentItems.map((group) => {
                                 const { pegawai, contracts } = group;
 
                                 // Handle case where no contracts exist for employee
@@ -468,13 +527,40 @@ const KontrakPegawai = () => {
 
                                 return (
                                     <tr key={pegawai.id_pegawai} style={{ verticalAlign: 'top' }}>
-                                        <td style={{ fontWeight: 600, verticalAlign: 'middle', textAlign: 'center' }}>{pegawai.nik}</td>
-                                        <td
-                                            onClick={() => navigate('/data-pegawai', { state: { search: pegawai.nik } })}
-                                            style={{ verticalAlign: 'middle', textAlign: 'center', cursor: 'pointer', color: '#2563eb', fontWeight: 600 }}
-                                            title="Lihat Detail Pegawai"
-                                        >
-                                            {pegawai.nama_lengkap}
+                                        <td style={{ verticalAlign: 'middle', paddingLeft: '2rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                                {pegawai.foto_profil ? (
+                                                    <img
+                                                        src={`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${pegawai.foto_profil}`}
+                                                        alt="Profile"
+                                                        style={{ width: '45px', height: '45px', borderRadius: '50%', objectFit: 'cover', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+                                                        onClick={() => setZoomImage(`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${pegawai.foto_profil}`)}
+                                                    />
+                                                ) : (
+                                                    <div
+                                                        style={{
+                                                            width: '45px', minWidth: '45px', height: '45px', borderRadius: '50%',
+                                                            background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                                                            color: 'white', display: 'flex', alignItems: 'center',
+                                                            justifyContent: 'center', fontSize: '1.2rem', fontWeight: 'bold',
+                                                            boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', cursor: 'pointer'
+                                                        }}
+                                                        onClick={() => navigate('/data-pegawai', { state: { search: pegawai.nik } })}
+                                                    >
+                                                        {pegawai.nama_lengkap ? pegawai.nama_lengkap.charAt(0).toUpperCase() : '?'}
+                                                    </div>
+                                                )}
+                                                <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+                                                    <span
+                                                        onClick={() => navigate('/data-pegawai', { state: { search: pegawai.nik } })}
+                                                        style={{ fontWeight: 700, color: '#0f172a', fontSize: '1rem', cursor: 'pointer' }}
+                                                        title="Lihat Detail Pegawai"
+                                                    >
+                                                        {pegawai.nama_lengkap}
+                                                    </span>
+                                                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{pegawai.nik}</span>
+                                                </div>
+                                            </div>
                                         </td>
 
                                         {/* STACKED COLUMNS */}
@@ -568,39 +654,55 @@ const KontrakPegawai = () => {
 
                                         {/* Aksi - Column 8 */}
                                         <td style={{ padding: 0 }}>
-                                            {displayContracts.map((c, idx) => (
-                                                <div key={idx} style={{
-                                                    padding: 16,
-                                                    borderBottom: idx === displayContracts.length - 1 ? 'none' : '1px solid #f1f5f9',
-                                                    display: 'flex', gap: 5, alignItems: 'center', justifyContent: 'center'
-                                                }}>
-                                                    {c ? (
-                                                        <>
-                                                            <button className="btn-icon-modern edit" title="Preview Rincian Gaji" onClick={() => setPreviewContract(c)}>👁️</button>
-                                                            <button className="btn-icon-modern edit" title="Edit Kontrak & Komponen" onClick={() => handleOpenModal('kontrak', c)}>⚙️</button>
-                                                            <button className="btn-icon-modern edit" title="Edit Status PTKP" onClick={() => handleOpenModal('ptkp', c)}>📊</button>
-                                                            {c.id_kontrak && (
-                                                                <button className="btn-icon-modern delete" title="Hapus Kontrak" onClick={() => handleDelete(c)}>🗑️</button>
-                                                            )}
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <button
-                                                                className="btn-icon-modern edit"
-                                                                title="Buat Kontrak"
-                                                                style={{ background: '#dbeafe', color: '#1e40af', width: 'auto', padding: '0 10px', fontSize: '0.8rem', gap: '5px' }}
-                                                                onClick={() => {
-                                                                    setFormKontrak(prev => ({ ...prev, id_pegawai: pegawai.id_pegawai }));
-                                                                    handleOpenModal('create_kontrak', pegawai);
-                                                                }}
-                                                            >
-                                                                + Buat
-                                                            </button>
-                                                            <button className="btn-icon-modern edit" title="Edit Status PTKP" onClick={() => handleOpenModal('ptkp', pegawai)}>📋</button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            ))}
+                                            {displayContracts.map((c, idx) => {
+                                                let isExpired = false;
+                                                if (c && c.tanggal_berakhir && c.tanggal_berakhir !== '0000-00-00') {
+                                                    const endD = new Date(c.tanggal_berakhir);
+                                                    const nowD = new Date();
+                                                    endD.setHours(0, 0, 0, 0);
+                                                    nowD.setHours(0, 0, 0, 0);
+                                                    if (!isNaN(endD.getTime()) && endD < nowD) {
+                                                        isExpired = true;
+                                                    }
+                                                }
+
+                                                return (
+                                                    <div key={idx} style={{
+                                                        padding: 16,
+                                                        borderBottom: idx === displayContracts.length - 1 ? 'none' : '1px solid #f1f5f9',
+                                                        display: 'flex', gap: 5, alignItems: 'center', justifyContent: 'center'
+                                                    }}>
+                                                        {c ? (
+                                                            isExpired ? (
+                                                                <button className="btn-icon-modern edit" title="Preview Rincian Gaji" onClick={() => setPreviewContract(c)}><Eye size={18} /></button>
+                                                            ) : (
+                                                                <>
+                                                                    <button className="btn-icon-modern edit" title="Preview Rincian Gaji" onClick={() => setPreviewContract(c)}><Eye size={18} /></button>
+                                                                    <button className="btn-icon-modern edit" style={{ background: '#fef3c7', color: '#92400e' }} title="Edit Kontrak & Komponen" onClick={() => handleOpenModal('kontrak', c)}><Settings size={18} /></button>
+                                                                    <button className="btn-icon-modern edit" style={{ background: '#dcfce7', color: '#166534' }} title="Edit Status PTKP" onClick={() => handleOpenModal('ptkp', c)}><ClipboardList size={18} /></button>
+                                                                    {c.id_kontrak && (
+                                                                        <button className="btn-icon-modern delete" title="Hapus Kontrak" onClick={() => handleDelete(c)}><Trash2 size={18} /></button>
+                                                                    )}
+                                                                </>
+                                                            )
+                                                        ) : (
+                                                            <>
+                                                                <button
+                                                                    className="btn-icon-modern edit"
+                                                                    title="Buat Kontrak"
+                                                                    style={{ background: '#dbeafe', color: '#1e40af', width: 'auto', padding: '0 10px', fontSize: '0.8rem', gap: '5px' }}
+                                                                    onClick={() => {
+                                                                        setFormKontrak(prev => ({ ...prev, id_pegawai: pegawai.id_pegawai }));
+                                                                        handleOpenModal('create_kontrak', pegawai);
+                                                                    }}
+                                                                >
+                                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}><PlusCircle size={14} /> Buat</span>
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
                                         </td>
                                     </tr>
                                 );
@@ -609,13 +711,35 @@ const KontrakPegawai = () => {
                     </table>
                 </div>
 
+                {totalPages > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '20px', gap: '15px' }}>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f8fafc' : 'white', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
+                        >
+                            Prev
+                        </button>
+                        <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 600 }}>
+                            Halaman {currentPage} dari {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f8fafc' : 'white', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
+                        >
+                            Next
+                        </button>
+                    </div>
+                )}
+
                 {/* MODAL CONTRACT (CREATE & EDIT BASIC) */}
                 {showModal && (modalMode === 'kontrak' || modalMode === 'create_kontrak') && (
                     <div className="modal-backdrop">
                         <div className="modal-content-modern" style={{ width: 650, maxHeight: '90vh', overflowY: 'auto' }}>
                             <div className="modal-header-modern">
-                                <h3>⚙️ {modalMode === 'create_kontrak' ? 'Buat Kontrak Baru' : 'Edit Data Kontrak'}</h3>
-                                <button onClick={() => setShowModal(false)}>✕</button>
+                                <h3><span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={20} /> {modalMode === 'create_kontrak' ? 'Buat Kontrak Baru' : 'Edit Data Kontrak'}</span></h3>
+                                <button type="button" onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex' }}><X size={24} /></button>
                             </div>
                             <div style={{ padding: 20 }}>
                                 <form onSubmit={handleSaveKontrak}>
@@ -681,15 +805,35 @@ const KontrakPegawai = () => {
                                         </div>
                                     </div>
 
+                                    <div className="form-group" style={{ marginTop: 15 }}>
+                                        <label>Catatan</label>
+                                        <textarea
+                                            value={formKontrak.catatan}
+                                            onChange={e => setFormKontrak({ ...formKontrak, catatan: e.target.value })}
+                                            rows="3"
+                                            style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none', fontFamily: 'inherit' }}
+                                            placeholder="Tambahkan catatan khusus..."
+                                        ></textarea>
+                                    </div>
+
                                     {/* KOMPONEN TAMBAHAN SECTION */}
                                     <div style={{ marginTop: 25, borderTop: '2px dashed #e2e8f0', paddingTop: 20 }}>
-                                        <h4 style={{ fontSize: '0.95rem', color: '#1e293b', marginBottom: 15 }}>💰 Komponen Tambahan (Di luar Gaji Pokok & Tunjangan Tetap)</h4>
+                                        <h4 style={{ fontSize: '0.95rem', color: '#1e293b', marginBottom: 15 }}><span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Banknote size={16} /> Komponen Tambahan (Di luar Gaji Pokok & Tunjangan Tetap)</span></h4>
 
                                         {/* INPUT ROW */}
                                         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 12, background: '#f8fafc', padding: 10, borderRadius: 8 }}>
                                             <div style={{ flex: 2 }}>
                                                 <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Nama Komponen</label>
-                                                <input type="text" placeholder="cth: Uang Makan" value={newKomponen.nama} onChange={e => setNewKomponen({ ...newKomponen, nama: e.target.value })} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: 6 }} />
+                                                <select
+                                                    value={newKomponen.nama}
+                                                    onChange={e => setNewKomponen({ ...newKomponen, nama: e.target.value })}
+                                                    style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: 6, backgroundColor: 'white' }}
+                                                >
+                                                    <option value="">-- Pilih Komponen --</option>
+                                                    {masterKomponenOptions.map(mk => (
+                                                        <option key={mk.id} value={mk.nama_komponen}>{mk.nama_komponen}</option>
+                                                    ))}
+                                                </select>
                                             </div>
                                             <div style={{ flex: 1.5 }}>
                                                 <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Nominal (Rp)</label>
@@ -724,7 +868,7 @@ const KontrakPegawai = () => {
                                                             <td style={{ padding: 8, textAlign: 'right', fontWeight: 600, color: '#10b981' }}>{formatRp(k.nominal)}</td>
                                                             <td style={{ padding: 8, textAlign: 'center' }}><span style={{ fontSize: '0.75rem', padding: '2px 6px', background: '#e2e8f0', borderRadius: 4 }}>{k.tipe}</span></td>
                                                             <td style={{ padding: 8, textAlign: 'center' }}>
-                                                                <button type="button" onClick={() => handleRemoveKomponen(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>✕</button>
+                                                                <button type="button" onClick={() => handleRemoveKomponen(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
                                                             </td>
                                                         </tr>
                                                     ))}
@@ -754,8 +898,8 @@ const KontrakPegawai = () => {
                     <div className="modal-backdrop">
                         <div className="modal-content-modern" style={{ width: 450 }}>
                             <div className="modal-header-modern">
-                                <h3>📋 Status PTKP</h3>
-                                <button onClick={() => setShowModal(false)}>✕</button>
+                                <h3><span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><ClipboardList size={20} /> Status PTKP</span></h3>
+                                <button type="button" onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex' }}><X size={24} /></button>
                             </div>
                             <div style={{ padding: 20 }}>
                                 <form onSubmit={handleSavePtkp}>
@@ -786,8 +930,8 @@ const KontrakPegawai = () => {
                     <div className="modal-backdrop">
                         <div className="modal-content-modern" style={{ width: 450 }}>
                             <div className="modal-header-modern">
-                                <h3>👁️ Rincian Gaji</h3>
-                                <button onClick={() => setPreviewContract(null)}>✕</button>
+                                <h3><span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Eye size={20} /> Rincian Gaji</span></h3>
+                                <button type="button" onClick={() => setPreviewContract(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex' }}><X size={24} /></button>
                             </div>
                             <div style={{ padding: 20 }}>
                                 <h4 style={{ margin: '0 0 15px 0', fontSize: '1rem', color: '#334155' }}>{previewContract.nama_lengkap} <span style={{ fontWeight: 400, color: '#64748b' }}>({previewContract.jabatan})</span></h4>
@@ -835,98 +979,104 @@ const KontrakPegawai = () => {
                         </div>
                     </div>
                 )}
-            </main>
 
-
-            {/* NOTIFICATION MODAL */}
-            {notification && (
-                <div className="modal-backdrop" style={{ zIndex: 9999 }}>
-                    <div className="modal-content-modern" style={{ width: 500, animation: 'slideUp 0.3s ease-out' }}>
-                        <div className="modal-header-modern" style={{
-                            background: notification.type === 'success' ? '#f0fdf4' : '#fef2f2',
-                            borderBottom: notification.type === 'success' ? '1px solid #dcfce7' : '1px solid #fee2e2'
-                        }}>
-                            <h3 style={{
-                                color: notification.type === 'success' ? '#166534' : '#991b1b',
-                                margin: 0, fontSize: '1.25rem'
-                            }}>
-                                {notification.title}
-                            </h3>
-                            <button onClick={() => setNotification(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>✕</button>
-                        </div>
-                        <div style={{ padding: 25 }}>
-                            <p style={{ color: '#334155', fontSize: '1rem', lineHeight: '1.6', margin: '0 0 20px 0' }}>{notification.message}</p>
-                            <button
-                                onClick={() => setNotification(null)}
-                                className="btn-save"
-                                style={{
-                                    width: '100%',
-                                    background: notification.type === 'success' ? '#10b981' : '#ef4444',
-                                    padding: '12px', fontSize: '1rem'
-                                }}
-                            >
-                                OK
-                            </button>
+                {/* MODAL HAPUS DATA KONTRAK */}
+                {showDeleteModal && (
+                    <div className="modal-backdrop">
+                        <div className="modal-content-modern" style={{ width: '400px', backgroundColor: '#fff', borderRadius: '12px' }}>
+                            <div className="modal-header-modern" style={{ borderBottom: '1px solid #fee2e2', backgroundColor: '#fef2f2', borderTopLeftRadius: '12px', borderTopRightRadius: '12px', padding: '15px 20px' }}>
+                                <h3 style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '1.1rem' }}>
+                                    <AlertTriangle size={22} strokeWidth={2.5} /> Konfirmasi Penghapusan
+                                </h3>
+                                <button onClick={() => setShowDeleteModal(false)} style={{ color: '#991b1b', background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}><X size={24} /></button>
+                            </div>
+                            <div style={{ padding: '24px 20px' }}>
+                                <p style={{ fontSize: '0.95rem', color: '#334155', lineHeight: '1.5', marginBottom: '15px' }}>
+                                    Anda akan menghapus kontrak <strong>{deleteTarget?.jenis_kontrak}</strong> untuk:
+                                    <strong style={{ display: 'block', color: '#0f172a', marginTop: '5px' }}>{deleteTarget?.nama_lengkap}</strong>
+                                </p>
+                                <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '10px' }}>
+                                    Ketik <strong style={{ color: '#dc2626' }}>hapus data</strong> di bawah ini untuk mengonfirmasi:
+                                </p>
+                                <input
+                                    type="text"
+                                    value={deleteInput}
+                                    onChange={(e) => setDeleteInput(e.target.value)}
+                                    placeholder="hapus data"
+                                    className="form-control"
+                                    style={{
+                                        width: '100%', padding: '10px', border: '2px solid #e2e8f0',
+                                        borderRadius: '8px', fontSize: '1rem', marginBottom: '20px',
+                                        outlineColor: '#dc2626'
+                                    }}
+                                />
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button
+                                        onClick={() => setShowDeleteModal(false)}
+                                        className="btn-modern"
+                                        style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+                                    >
+                                        Batal
+                                    </button>
+                                    <button
+                                        onClick={confirmDeleteKontrak}
+                                        className="btn-modern"
+                                        style={{ flex: 1, background: '#ef4444', color: 'white', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+                                    >
+                                        Hapus Kontrak
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+
+                {zoomImage && (
+                    <div
+                        className="modal-backdrop"
+                        style={{
+                            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+                            background: 'rgba(0,0,0,0.8)',
+                            display: 'flex', justifyContent: 'center', alignItems: 'center',
+                            zIndex: 9999,
+                            cursor: 'zoom-out'
+                        }}
+                        onClick={() => setZoomImage(null)}
+                    >
+                        <img
+                            src={zoomImage}
+                            alt="Zoom"
+                            style={{
+                                maxWidth: '90%',
+                                maxHeight: '90%',
+                                borderRadius: '12px',
+                                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                                objectFit: 'contain'
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                        <button
+                            onClick={() => setZoomImage(null)}
+                            style={{
+                                position: 'absolute', top: '20px', right: '30px', background: 'white',
+                                color: '#ef4444', border: 'none', borderRadius: '50%', width: '40px', height: '40px',
+                                fontSize: '20px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center'
+                            }}
+                        >
+                            ✕
+                        </button>
+                    </div>
+                )}
+
+                <Toast show={toast.show} type={toast.type} message={toast.message} onClose={hideToast} />
+            </main>
 
             <style>{`
-                /* REUSE STYLES */
-                .app-layout { display: flex; min-height: 100vh; background: #f8fafc; }
-                .main-content { flex: 1; padding: 25px; }
-                .page-header-modern { display: flex; justify-content: space-between; align-items: end; margin-bottom: 25px; }
-                .modern-title { font-size: 1.8rem; font-weight: 700; color: #1e293b; margin: 0; }
-                .modern-subtitle { color: #64748b; margin: 5px 0 0; font-size: 0.95rem; }
-                .toolbar-modern { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-                
-                .search-box { display: flex; align-items: center; background: white; padding: 8px 15px; border-radius: 10px; border: 1px solid #e2e8f0; width: 300px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
-                .search-icon { margin-right: 10px; color: #94a3b8; }
-                .search-box input { border: none; outline: none; background: transparent; width: 100%; color: #334155; }
-                
-                .btn-refresh { padding: 10px 18px; background: white; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 600; color: #475569; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.03); margin-left:10px;}
-                .btn-refresh:hover { background: #f1f5f9; border-color: #94a3b8; }
-
-                .table-container-modern { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); overflow: hidden; border: 1px solid #e2e8f0; }
-                .modern-table { width: 100%; border-collapse: collapse; text-align: left; }
-                .modern-table th { background: #f8fafc; padding: 16px; font-size: 0.8rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; border-bottom: 2px solid #e2e8f0; }
-                .modern-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; color: #1e293b; vertical-align: middle; }
-                .modern-table tr:hover { background: #fcfcfc; }
-                
-                .badge-status { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: inline-block; }
-                .badge-status.tetap { background: #dcfce7; color: #166534; }
-                .badge-status.kontrak { background: #e0f2fe; color: #075985; }
-
-                .btn-icon-modern { width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-size: 1rem; }
-                .btn-icon-modern.edit { background: #e0e7ff; color: #4338ca; }
-                .btn-icon-modern.edit:hover { background: #c7d2fe; }
-
-                /* MODAL STYLES */
-                .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(2px); display: flex; justify-content: center; align-items: center; z-index: 1000; padding:15px; }
-                .modal-content-modern { background: white; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); overflow: hidden; animation: slideUp 0.3s ease-out; }
-                @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-                
-                .modal-header-modern { padding: 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
-                .modal-header-modern h3 { margin: 0; color: #1e293b; font-size: 1.25rem; }
-                .modal-header-modern button { background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }
-                
-                .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-                .form-group { margin-bottom: 15px; }
-                .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #475569; font-size: 0.9rem; }
-                .form-group input, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; outline: none; transition: border-color 0.2s; box-sizing: border-box; }
-                .form-group input:focus, .form-group select:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-                
-                .modal-footer-modern { display: flex; justify-content: flex-end; gap: 10px; }
-                .btn-cancel { padding: 10px 20px; background: #f1f5f9; color: #64748b; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
-                .btn-save { padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 5px rgba(59, 130, 246, 0.3); }
-                .btn-save:hover { background: #2563eb; }
-                
                 .date-picker-container { background: white; padding: 5px 10px 5px 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 10px; border: 1px solid #e2e8f0; }
                 .modern-input-date { border: none; font-family: inherit; color: #0f172a; font-weight: 600; cursor: pointer; outline: none; }
                 .label-periode { font-weight: 600; color: #475569; font-size: 0.9rem; }
             `}</style>
-        </div>
+        </div >
     );
 };
 

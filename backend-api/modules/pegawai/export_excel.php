@@ -11,13 +11,31 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 try {
-    // Updated query to match new schema: pegawai, kontrak_kerja, nominal_kontrak
-    $sql = "SELECT p.nik, p.nama_lengkap, p.email, p.no_hp, p.npwp 
-            FROM pegawai p
-            ORDER BY p.id_pegawai ASC";
+    $periode = $_GET['periode'] ?? '';
+
+    if ($periode) {
+        $periodStart = $periode . '-01';
+        $periodEnd = date('Y-m-t', strtotime($periodStart));
+
+        $sql = "SELECT 
+                    p.nik, p.nama_lengkap, p.email, p.no_hp, p.npwp,
+                    MIN(k.tanggal_mulai) as min_start,
+                    MAX(CASE WHEN k.tanggal_berakhir IS NULL OR k.tanggal_berakhir = '0000-00-00' THEN '9999-12-31' ELSE k.tanggal_berakhir END) as max_end
+                FROM pegawai p
+                LEFT JOIN kontrak_kerja k ON p.id_pegawai = k.id_pegawai
+                GROUP BY p.id_pegawai
+                HAVING (min_start IS NULL) OR (min_start <= :periodEnd AND max_end >= :periodStart)
+                ORDER BY p.id_pegawai ASC";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([':periodStart' => $periodStart, ':periodEnd' => $periodEnd]);
+    } else {
+        $sql = "SELECT p.nik, p.nama_lengkap, p.email, p.no_hp, p.npwp 
+                FROM pegawai p
+                ORDER BY p.id_pegawai ASC";
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+    }
     
-    $stmt = $db->prepare($sql);
-    $stmt->execute();
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $spreadsheet = new Spreadsheet();
@@ -64,7 +82,8 @@ try {
 
     // Output
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    header('Content-Disposition: attachment; filename="Data_Pegawai_' . date('Y-m-d') . '.xlsx"');
+    $filenameDate = $periode ? $periode : date('Y-m-d');
+    header('Content-Disposition: attachment; filename="Data_Pegawai_' . $filenameDate . '.xlsx"');
     header('Cache-Control: max-age=0');
 
     $writer = new Xlsx($spreadsheet);

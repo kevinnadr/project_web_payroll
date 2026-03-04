@@ -64,6 +64,7 @@ try {
             "message" => "Login Berhasil",
             "token" => $jwt,
             "user" => [
+                "id" => $user->id,
                 "nama" => $user->nama_lengkap,
                 "role" => $user->role
             ]

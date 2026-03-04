@@ -64,6 +64,12 @@ try {
 
 } catch (PDOException $e) {
     $db->rollBack();
-    echo json_encode(["status" => "error", "message" => "Database Error: " . $e->getMessage()]);
+    $msg = $e->getMessage();
+    if (strpos($msg, '1062 Duplicate entry') !== false && strpos($msg, 'nik') !== false) {
+        $msg = "Simpan Gagal: NIK tersebut sudah terdaftar di sistem.";
+    } else {
+        $msg = "Database Error: " . $msg;
+    }
+    echo json_encode(["status" => "error", "message" => $msg]);
 }
 ?>

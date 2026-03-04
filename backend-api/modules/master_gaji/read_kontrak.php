@@ -12,28 +12,46 @@ header("Access-Control-Allow-Methods: GET");
 require_once '../../config/database.php';
 
 try {
-    $bulanFilter = $_GET['bulan'] ?? date('Y-m'); // Default current month YYYY-MM
+    $bulanFilter = $_GET['bulan'] ?? ''; 
 
-    // Main query: pegawai + kontrak
-    $sql = "SELECT 
+    $sqlSelect = "SELECT 
                 p.id_pegawai,
                 p.nik,
                 p.nama_lengkap,
+                p.foto_profil,
                 COALESCE(sp_k.status_ptkp, sp_p.status_ptkp) as status_ptkp,
                 k.id_kontrak,
                 k.no_kontrak,
                 k.jabatan,
                 k.tanggal_mulai,
                 k.tanggal_berakhir,
-                k.jenis_kontrak
+                k.jenis_kontrak,
+                k.catatan
             FROM pegawai p
-            LEFT JOIN status_ptkp sp_p ON p.id_ptkp = sp_p.id_ptkp
-            LEFT JOIN kontrak_kerja k ON p.id_pegawai = k.id_pegawai
-            LEFT JOIN status_ptkp sp_k ON k.id_ptkp = sp_k.id_ptkp
+            LEFT JOIN status_ptkp sp_p ON p.id_ptkp = sp_p.id_ptkp";
+
+    $sqlOrderBy = "LEFT JOIN status_ptkp sp_k ON k.id_ptkp = sp_k.id_ptkp
             ORDER BY p.nik ASC";
 
-    $stmt = $db->prepare($sql);
-    $stmt->execute();
+    if (empty($bulanFilter)) {
+        $sql = $sqlSelect . "
+            LEFT JOIN kontrak_kerja k ON p.id_pegawai = k.id_pegawai
+            " . $sqlOrderBy;
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+        $targetBulan = date('Y-m'); // Default for BPJS and Absensi when fetching all
+    } else {
+        $bulanDate = $bulanFilter . '-01';
+        $sql = $sqlSelect . "
+            LEFT JOIN kontrak_kerja k ON p.id_pegawai = k.id_pegawai
+                AND k.tanggal_mulai <= LAST_DAY(:bulanEndDate)
+                AND (k.tanggal_berakhir IS NULL OR k.tanggal_berakhir = '0000-00-00' OR k.tanggal_berakhir >= :bulanStartDate)
+            " . $sqlOrderBy;
+        $stmt = $db->prepare($sql);
+        $stmt->execute([':bulanEndDate' => $bulanDate, ':bulanStartDate' => $bulanDate]);
+        $targetBulan = $bulanFilter;
+    }
+    
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Fetch komponen per kontrak (Gaji Pokok, Uang Makan, etc.)
@@ -95,7 +113,7 @@ try {
         $row['komponen_tambahan'] = json_encode($komponen);
 
         // BPJS
-        $stmtBpjs->execute([$row['id_pegawai'], $bulanFilter]);
+        $stmtBpjs->execute([$row['id_pegawai'], $targetBulan]);
         $bpjs = $stmtBpjs->fetch(PDO::FETCH_ASSOC);
         
         if (!$bpjs) {
@@ -107,7 +125,7 @@ try {
         $row['bpjs_ks'] = $bpjs ? (float)$bpjs['bpjs_ks'] : 0;
 
         // Working Days (Hari Efektif)
-        $stmtAbsensi->execute([$row['id_pegawai'], $bulanFilter . '%']);
+        $stmtAbsensi->execute([$row['id_pegawai'], $targetBulan . '%']);
         $abs = $stmtAbsensi->fetch(PDO::FETCH_ASSOC);
         // If Absensi has explicit 'hari_efektif', use it. Else default 22.
         $row['hari_kerja_efektif'] = ($abs && $abs['hari_efektif'] > 0) ? (int)$abs['hari_efektif'] : 22;

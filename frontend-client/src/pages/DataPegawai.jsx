@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/sidebar';
+import Toast from '../components/Toast';
+import { useToast } from '../hooks/useToast';
+import { Pencil, Trash2, Search, Download, FileText, Upload, CalendarDays, X, ClipboardList, AlertTriangle, FolderOpen, PlusCircle, UserCheck, UserX, UserPlus, Camera, Mail, Phone, CreditCard } from 'lucide-react';
 import '../App.css';
 
 const DataPegawai = () => {
@@ -10,7 +13,19 @@ const DataPegawai = () => {
     const [filteredList, setFilteredList] = useState([]);
     const location = useLocation();
     const [searchTerm, setSearchTerm] = useState(location.state?.search || '');
+    const [showInactive, setShowInactive] = useState(false);
+    const [periodFilter, setPeriodFilter] = useState(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    });
+    const periodInputRef = useRef(null);
     const [loading, setLoading] = useState(false);
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 50;
+
+    const { toast, showToast, hideToast } = useToast();
 
     // File Upload State
     const [isUploading, setIsUploading] = useState(false);
@@ -36,6 +51,11 @@ const DataPegawai = () => {
     const [zoomImage, setZoomImage] = useState(null); // Data URL or path
     const fileRef = useRef(null);
 
+    // Deletion Modal State
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteInput, setDeleteInput] = useState('');
+
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -59,18 +79,70 @@ const DataPegawai = () => {
     };
 
     useEffect(() => {
+        let filtered = pegawaiList;
+
+        if (periodFilter) {
+            const [pYear, pMonth] = periodFilter.split('-').map(Number);
+            const periodStart = new Date(pYear, pMonth - 1, 1);
+            const periodEnd = new Date(pYear, pMonth, 0, 23, 59, 59);
+
+            filtered = filtered.filter(item => {
+                if (!item.contracts || item.contracts.length === 0) {
+                    return !showInactive;
+                }
+
+                const validStartDates = item.contracts
+                    .map(c => c.tanggal_mulai)
+                    .filter(d => d && d !== '0000-00-00')
+                    .map(d => new Date(d));
+
+                if (validStartDates.length === 0) return !showInactive;
+
+                const overallStartDate = new Date(Math.min(...validStartDates));
+                let isPermanent = false;
+                let overallEndDate = null;
+                const validEndDates = [];
+
+                for (const c of item.contracts) {
+                    if (!c.tanggal_berakhir || c.tanggal_berakhir === '0000-00-00') {
+                        isPermanent = true;
+                        break;
+                    }
+                    validEndDates.push(new Date(c.tanggal_berakhir));
+                }
+
+                if (!isPermanent && validEndDates.length > 0) {
+                    overallEndDate = new Date(Math.max(...validEndDates));
+                }
+
+                const isStarted = overallStartDate <= periodEnd;
+                const isNotEnded = isPermanent || (overallEndDate >= periodStart);
+
+                if (showInactive) {
+                    return !isPermanent && overallEndDate && overallEndDate < periodStart;
+                } else {
+                    return isStarted && isNotEnded;
+                }
+            });
+        }
+
         if (searchTerm) {
             const lower = searchTerm.toLowerCase();
-            const filtered = pegawaiList.filter(item =>
+            filtered = filtered.filter(item =>
                 item.nama_lengkap.toLowerCase().includes(lower) ||
                 String(item.nik).includes(lower) ||
                 (item.email && item.email.toLowerCase().includes(lower))
             );
-            setFilteredList(filtered);
-        } else {
-            setFilteredList(pegawaiList);
         }
-    }, [searchTerm, pegawaiList]);
+
+        setFilteredList(filtered);
+        setCurrentPage(1); // Reset to page 1 on filter change
+    }, [searchTerm, periodFilter, pegawaiList, showInactive]);
+
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredList.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredList.length / itemsPerPage);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -136,19 +208,19 @@ const DataPegawai = () => {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             if (res.data.status === 'success') {
-                alert(`✅ Sukses!`);
+                showToast('success', '✅ Sukses menyimpan data pegawai!');
                 setShowModal(false);
                 fetchPegawai();
             } else {
-                alert("❌ " + res.data.message);
+                showToast('error', res.data.message);
             }
         } catch (error) {
-            alert("Error Server: " + (error.response?.data?.message || error.message));
+            showToast('error', "Error Server: " + (error.response?.data?.message || error.message));
         }
     };
 
     // --- IMPORT / EXPORT HANDLERS ---
-    const handleExport = () => window.open('http://localhost/project_web_payroll/backend-api/modules/pegawai/export_excel.php', '_blank');
+    const handleExport = () => window.open(`http://localhost/project_web_payroll/backend-api/modules/pegawai/export_excel.php?periode=${periodFilter}`, '_blank');
     const handleDownloadTemplate = () => window.open('http://localhost/project_web_payroll/backend-api/modules/pegawai/download_template.php', '_blank');
 
     const handleImport = async (e) => {
@@ -158,7 +230,7 @@ const DataPegawai = () => {
         const allowedExtensions = ['.xlsx', '.xls'];
         const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
         if (!allowedExtensions.includes(fileExt)) {
-            alert('❌ Format file tidak valid! Gunakan file .xlsx atau .xls');
+            showToast('error', 'Format file tidak valid! Gunakan file .xlsx atau .xls');
             e.target.value = null; return;
         }
 
@@ -202,19 +274,35 @@ const DataPegawai = () => {
         }
     };
 
-    const handleDelete = async (id, nama) => {
-        if (!confirm(`Hapus pegawai ${nama}?`)) return;
+    const handleDelete = (id, nama) => {
+        setDeleteTarget({ id_pegawai: id, nama_lengkap: nama });
+        setDeleteInput('');
+        setShowDeleteModal(true);
+    };
+
+    const confirmDeletePegawai = async () => {
+        if (deleteInput !== 'hapus data') {
+            showToast('error', 'Validasi gagal. Hapus dibatalkan karena teks tidak sesuai.');
+            return;
+        }
+
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/pegawai/delete.php', { id_pegawai: id });
+            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/pegawai/delete.php', { id_pegawai: deleteTarget.id_pegawai });
             if (res.data.status === 'success') {
-                alert("✅ Dihapus");
+                showToast('success', `Pegawai ${deleteTarget.nama_lengkap} berhasil dihapus.`);
+                setShowDeleteModal(false);
                 fetchPegawai();
             } else {
-                alert("❌ Gagal: " + res.data.message);
+                showToast('error', "Gagal menghapus: " + res.data.message);
             }
         } catch (e) {
-            alert("Gagal hapus");
+            showToast('error', "Gagal menghapus pegawai.");
         }
+    };
+
+    const getMonthLabel = (dateStr) => {
+        const date = new Date(dateStr + '-01');
+        return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     };
 
     return (
@@ -223,51 +311,114 @@ const DataPegawai = () => {
             <main className="main-content-modern">
                 <div className="page-header-modern">
                     <div>
-                        <h1 className="modern-title">Data Pegawai</h1>
+                        <h1 className="modern-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            Data Pegawai
+                            {showInactive && <span style={{ fontSize: '1rem', background: '#fee2e2', color: '#ef4444', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold' }}>Tidak Aktif</span>}
+                        </h1>
                         <p className="modern-subtitle">Management Data Induk Pegawai</p>
                     </div>
-                    <button onClick={() => openModal()} className="btn-modern btn-gradient">+ Tambah Pegawai</button>
+
+                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                        <button onClick={() => openModal()} className="btn-modern btn-gradient"><span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><UserPlus size={18} /> Tambah Pegawai</span></button>
+
+                        {/* PERIOD PILL */}
+                        <div
+                            style={{ position: 'relative', cursor: 'pointer' }}
+                            onClick={() => {
+                                try {
+                                    if (periodInputRef.current && typeof periodInputRef.current.showPicker === 'function') {
+                                        periodInputRef.current.showPicker();
+                                    } else {
+                                        periodInputRef.current?.focus();
+                                    }
+                                } catch (error) {
+                                    console.error("Error opening picker:", error);
+                                }
+                            }}
+                        >
+                            <div style={{
+                                background: '#0f172a', color: 'white', padding: '10px 20px', borderRadius: '30px',
+                                display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600,
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                            }}>
+                                <span>Periode Aktif: {getMonthLabel(periodFilter)}</span>
+                                <span style={{ opacity: 0.7, display: 'flex' }}><CalendarDays size={18} /></span>
+                            </div>
+                            <input
+                                ref={periodInputRef}
+                                type="month"
+                                value={periodFilter}
+                                onChange={(e) => setPeriodFilter(e.target.value)}
+                                style={{
+                                    position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                                    opacity: 0, pointerEvents: 'none',
+                                    zIndex: -1
+                                }}
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <div className="toolbar-modern">
-                    <div className="search-box">
-                        <span className="search-icon">🔍</span>
-                        <input
-                            type="text"
-                            placeholder="Cari Nama / NIK..."
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                    <div className="toolbar-actions">
-                        <button onClick={handleExport} className="btn-modern btn-outline">📥 Excel</button>
-                        <button onClick={() => setShowFormatModal(true)} className="btn-modern btn-outline" title="Lihat Format Import">📋 Format</button>
-                        <input type="file" ref={fileInputRef} onChange={handleImport} style={{ display: 'none' }} accept=".xlsx, .xls" />
-                        <button onClick={() => fileInputRef.current.click()} className="btn-modern btn-gradient" disabled={isUploading}>
-                            {isUploading ? '⏳ Uploading...' : '📂 Import'}
+                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flex: 1 }}>
+                        <div className="search-box" style={{ flex: 'none', width: '300px' }}>
+                            <span className="search-icon" style={{ display: 'flex', alignItems: 'center' }}><Search size={18} color="#64748b" /></span>
+                            <input
+                                type="text"
+                                placeholder="Cari Nama / NIK..."
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <button
+                            onClick={() => setShowInactive(!showInactive)}
+                            className="btn-modern"
+                            style={{
+                                background: showInactive ? '#fef2f2' : 'white',
+                                border: `1px solid ${showInactive ? '#ef4444' : '#e2e8f0'}`,
+                                color: showInactive ? '#ef4444' : '#64748b',
+                                display: 'flex', alignItems: 'center', gap: '8px'
+                            }}
+                        >
+                            {showInactive ? <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><UserCheck size={18} /> Tampilkan Aktif</span> : <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><UserX size={18} /> Tampilkan Tidak Aktif</span>}
                         </button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={handleExport} className="btn-modern btn-outline" style={{ borderColor: '#3b82f6', color: '#3b82f6' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><Download size={18} /> Export ({periodFilter})</span>
+                        </button>
+                        <button onClick={() => setShowFormatModal(true)} className="btn-modern btn-outline">
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><FileText size={18} /> Format Excel</span>
+                        </button>
+                        <button onClick={() => fileInputRef.current.click()} className="btn-modern btn-gradient" disabled={isUploading}>
+                            {isUploading ? '⏳ Uploading...' : <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><Upload size={18} /> Import Excel</span>}
+                        </button>
+                        <input type="file" ref={fileInputRef} onChange={handleImport} style={{ display: 'none' }} accept=".xlsx, .xls" />
                     </div>
                 </div>
 
                 <div className="table-container-modern">
                     <table className="modern-table">
-                        <thead>
+                        <thead style={{ background: 'linear-gradient(135deg, #b91c1c 0%, #ef4444 100%)' }}>
                             <tr>
-                                <th style={{ textAlign: 'center' }}>Pegawai</th>
-                                <th style={{ textAlign: 'center' }}>Email</th>
-                                <th style={{ textAlign: 'center' }}>No HP</th>
-                                <th style={{ textAlign: 'center' }}>NPWP</th>
-                                <th className="text-center">Aksi</th>
+                                <th style={{ textAlign: 'left', paddingLeft: '2rem', background: 'transparent', color: 'white', width: '30%' }}>NAMA PEGAWAI</th>
+                                <th style={{ textAlign: 'left', background: 'transparent', color: 'white', width: '30%' }}>KONTAK & NPWP</th>
+                                <th style={{ textAlign: 'center', background: 'transparent', color: 'white', width: '15%' }}>MULAI KERJA</th>
+                                <th style={{ textAlign: 'center', background: 'transparent', color: 'white', width: '15%' }}>BERAKHIR</th>
+                                <th className="text-center" style={{ background: 'transparent', color: 'white', width: '10%' }}>AKSI</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr><td colSpan="5" className="text-center p-4">⏳ Memuat...</td></tr>
+                            ) : currentItems.length === 0 ? (
+                                <tr><td colSpan="5" className="text-center p-4" style={{ color: '#64748b' }}>Tidak ada data pegawai yang ditemukan.</td></tr>
                             ) : (
-                                filteredList.map((row) => (
+                                currentItems.map((row) => (
                                     <tr key={row.id_pegawai}>
-                                        <td>
-                                            <div className="user-profile">
+                                        <td style={{ paddingLeft: '2rem' }}>
+                                            <div className="user-profile" style={{ margin: 0 }}>
                                                 {row.foto_profil ? (
                                                     <img
                                                         src={`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${row.foto_profil}`}
@@ -285,12 +436,28 @@ const DataPegawai = () => {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td>{row.email || '-'}</td>
-                                        <td>{row.no_hp || '-'}</td>
-                                        <td>{row.npwp || '-'}</td>
-                                        <td className="text-center aksi-full">
-                                            <button onClick={() => openModal(row)} className="btn-icon-modern edit" title="Edit">✏️</button>
-                                            <button onClick={() => handleDelete(row.id_pegawai, row.nama_lengkap)} className="btn-icon-modern delete" title="Hapus">🗑️</button>
+                                        <td>
+                                            <div style={{ fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}><Mail size={14} /> {row.email || '-'}</div>
+                                            <div style={{ fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}><Phone size={14} /> {row.no_hp || '-'}</div>
+                                            <div style={{ fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}><CreditCard size={14} /> {row.npwp || '-'}</div>
+                                        </td>
+                                        <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+                                            {row.contracts && row.contracts.length > 0 && row.contracts[row.contracts.length - 1].tanggal_mulai
+                                                ? new Date(row.contracts[row.contracts.length - 1].tanggal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                                                : '-'}
+                                        </td>
+                                        <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+                                            {row.contracts && row.contracts.length > 0 && row.contracts[0].tanggal_berakhir && row.contracts[0].tanggal_berakhir !== '0000-00-00'
+                                                ? new Date(row.contracts[0].tanggal_berakhir).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                                                : '-'}
+                                        </td>
+                                        <td className="text-center">
+                                            <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
+                                                <button onClick={() => openModal(row)} className="btn-icon-modern edit" title="Edit"><Pencil size={18} /></button>
+                                                {!(row.contracts && row.contracts.length > 0) && (
+                                                    <button onClick={() => handleDelete(row.id_pegawai, row.nama_lengkap)} className="btn-icon-modern delete" title="Hapus"><Trash2 size={18} /></button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -298,6 +465,28 @@ const DataPegawai = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {totalPages > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '20px', gap: '15px' }}>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f8fafc' : 'white', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
+                        >
+                            Prev
+                        </button>
+                        <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 600 }}>
+                            Halaman {currentPage} dari {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f8fafc' : 'white', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
+                        >
+                            Next
+                        </button>
+                    </div>
+                )}
             </main>
 
             {/* MODAL FORM */}
@@ -305,8 +494,8 @@ const DataPegawai = () => {
                 <div className="modal-backdrop">
                     <div className="modal-content-modern" style={{ width: '500px' }}>
                         <div className="modal-header-modern">
-                            <h3>{isEdit ? '✏️ Edit Pegawai' : '➕ Tambah Pegawai'}</h3>
-                            <button onClick={() => setShowModal(false)}>✕</button>
+                            <h3>{isEdit ? <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Pencil size={20} /> Edit Pegawai</span> : <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><UserPlus size={20} /> Tambah Pegawai</span>}</h3>
+                            <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex' }}><X size={24} /></button>
                         </div>
                         <div style={{ padding: '20px' }}>
                             <form onSubmit={handleSave}>
@@ -315,7 +504,7 @@ const DataPegawai = () => {
                                         {previewImage ? (
                                             <img src={previewImage} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                         ) : (
-                                            <span style={{ fontSize: '2rem', color: '#94a3b8' }}>📷</span>
+                                            <Camera size={32} color="#94a3b8" />
                                         )}
                                     </div>
                                     <input
@@ -369,7 +558,7 @@ const DataPegawai = () => {
             {showFormatModal && (
                 <div className="modal-backdrop">
                     <div className="modal-content-modern" style={{ width: '800px', maxHeight: '85vh', overflowY: 'auto' }}>
-                        <div className="modal-header-modern"><h3>📋 Format Import Data Pegawai</h3><button onClick={() => setShowFormatModal(false)}>✕</button></div>
+                        <div className="modal-header-modern"><h3><span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><ClipboardList size={20} /> Format Import Data Pegawai</span></h3><button onClick={() => setShowFormatModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex' }}><X size={24} /></button></div>
                         <div style={{ padding: '25px' }}>
                             <p style={{ marginBottom: '15px', color: '#64748b' }}>Gunakan template Excel untuk import data. Berikut adalah contoh format yang benar:</p>
 
@@ -411,8 +600,8 @@ const DataPegawai = () => {
                             </div>
 
                             <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-                                <button onClick={handleDownloadTemplate} className="btn-modern btn-outline" style={{ flex: 1 }}>📥 Download Template Excel</button>
-                                <button onClick={() => { setShowFormatModal(false); fileInputRef.current.click(); }} className="btn-modern btn-gradient" style={{ flex: 1 }}>📂 Langsung Pilih File</button>
+                                <button onClick={handleDownloadTemplate} className="btn-modern btn-outline" style={{ flex: 1 }}><span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><Download size={18} /> Download Template Excel</span></button>
+                                <button onClick={() => { setShowFormatModal(false); fileInputRef.current.click(); }} className="btn-modern btn-gradient" style={{ flex: 1 }}><span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><FolderOpen size={18} /> Langsung Pilih File</span></button>
                             </div>
                         </div>
                     </div>
@@ -424,8 +613,8 @@ const DataPegawai = () => {
                 <div className="modal-backdrop">
                     <div className="modal-content-modern" style={{ width: '600px' }}>
                         <div className="modal-header-modern" style={{ background: importResult.type === 'success' ? '#f0fdf4' : '#fef2f2' }}>
-                            <h3 style={{ color: importResult.type === 'success' ? '#166534' : '#991b1b' }}>{importResult.type === 'success' ? '✅ Import Berhasil' : '❌ Import Gagal'}</h3>
-                            <button onClick={() => setShowImportResult(false)}>✕</button>
+                            <h3 style={{ color: importResult.type === 'success' ? '#166534' : '#991b1b', display: 'flex', alignItems: 'center', gap: '8px' }}>{importResult.type === 'success' ? <UserCheck size={22} /> : <AlertTriangle size={22} />} {importResult.type === 'success' ? 'Import Berhasil' : 'Import Gagal'}</h3>
+                            <button onClick={() => setShowImportResult(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: importResult.type === 'success' ? '#166534' : '#991b1b' }}><X size={24} /></button>
                         </div>
                         <div style={{ padding: '20px' }}>
                             <p style={{ fontSize: '1rem', fontWeight: 500, marginBottom: '10px' }}>{importResult.message}</p>
@@ -480,12 +669,70 @@ const DataPegawai = () => {
                                 cursor: 'pointer',
                                 fontSize: '1.5rem',
                                 color: '#333',
-                                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                            }}>✕</button>
+                                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}><X size={20} /></button>
                         <img src={zoomImage} alt="Zoom Pegawai" style={{ width: '100%', height: 'auto', maxHeight: '80vh', borderRadius: '8px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }} onClick={(e) => e.stopPropagation()} />
                     </div>
                 </div>
             )}
+
+            {/* MODAL HAPUS DATA PEGAWAI */}
+            {showDeleteModal && (
+                <div className="modal-backdrop">
+                    <div className="modal-content-modern" style={{ width: '400px', backgroundColor: '#fff', borderRadius: '12px' }}>
+                        <div className="modal-header-modern" style={{ borderBottom: '1px solid #fee2e2', backgroundColor: '#fef2f2', borderTopLeftRadius: '12px', borderTopRightRadius: '12px', padding: '15px 20px' }}>
+                            <h3 style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '1.1rem' }}>
+                                <AlertTriangle size={22} strokeWidth={2.5} /> Konfirmasi Penghapusan
+                            </h3>
+                            <button onClick={() => setShowDeleteModal(false)} style={{ color: '#991b1b', background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}><X size={24} /></button>
+                        </div>
+                        <div style={{ padding: '24px 20px' }}>
+                            <p style={{ fontSize: '0.95rem', color: '#334155', lineHeight: '1.5', marginBottom: '15px' }}>
+                                Anda akan menghapus data pegawai:
+                                <strong style={{ display: 'block', color: '#0f172a', marginTop: '5px' }}>{deleteTarget?.nama_lengkap}</strong>
+                            </p>
+                            <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '10px' }}>
+                                Ketik <strong style={{ color: '#dc2626' }}>hapus data</strong> di bawah ini untuk mengonfirmasi:
+                            </p>
+                            <input
+                                type="text"
+                                value={deleteInput}
+                                onChange={(e) => setDeleteInput(e.target.value)}
+                                placeholder="hapus data"
+                                className="form-control"
+                                style={{
+                                    width: '100%', padding: '10px', border: '2px solid #e2e8f0',
+                                    borderRadius: '8px', fontSize: '1rem', marginBottom: '20px',
+                                    outlineColor: '#dc2626'
+                                }}
+                            />
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <button
+                                    onClick={() => setShowDeleteModal(false)}
+                                    className="btn-modern"
+                                    style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    onClick={confirmDeletePegawai}
+                                    className="btn-modern"
+                                    style={{ flex: 1, background: '#ef4444', color: 'white', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+                                >
+                                    Hapus Pegawai
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* CUSTOM TOAST NOTIFICATION */}
+            <Toast show={toast.show} type={toast.type} message={toast.message} onClose={hideToast} />
+
         </div>
     );
 };

@@ -1,10 +1,9 @@
 {
     "require": {
-        "firebase/php-jwt": "^7.0",
+        "firebase/php-jwt": "*",
         "phpoffice/phpspreadsheet": "^5.4",
         "dompdf/dompdf": "^3.1",
-        "phpmailer/phpmailer": "^7.0",
-        "google/apiclient": "^2.19",
+        "phpmailer/phpmailer": "7.0",
         "mpdf/mpdf": "^8.2",
         "setasign/fpdf": "^1.8"
     }

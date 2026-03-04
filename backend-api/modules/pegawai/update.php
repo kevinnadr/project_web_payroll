@@ -108,6 +108,12 @@ try {
 
 } catch (PDOException $e) {
     $db->rollBack();
-    echo json_encode(["status" => "error", "message" => "Update Gagal: " . $e->getMessage()]);
+    $msg = $e->getMessage();
+    if (strpos($msg, '1062 Duplicate entry') !== false && strpos($msg, 'nik') !== false) {
+        $msg = "Update Gagal: NIK tersebut sudah terdaftar atau digunakan oleh pegawai lain.";
+    } else {
+        $msg = "Update Gagal: " . $msg;
+    }
+    echo json_encode(["status" => "error", "message" => $msg]);
 }
 ?>

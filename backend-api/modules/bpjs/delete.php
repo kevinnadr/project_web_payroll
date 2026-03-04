@@ -11,19 +11,20 @@ if (empty($data->id_pegawai)) {
 }
 
 try {
-    // Find active/latest contract
-    $sqlContract = "SELECT id_kontrak FROM kontrak_kerja WHERE id_pegawai = ? ORDER BY (tanggal_berakhir IS NULL) DESC, tanggal_mulai DESC LIMIT 1";
-    $cek = $db->prepare($sqlContract);
-    $cek->execute([$data->id_pegawai]);
-    $contract = $cek->fetch(PDO::FETCH_ASSOC);
+    $periode = $data->periode ?? date('Y-m');
 
-    if ($contract) {
-        $sql = "UPDATE kontrak_kerja SET bpjs_tk = 0, bpjs_ks = 0, dasar_upah = 0 WHERE id_kontrak = ?";
-        $stmt = $db->prepare($sql);
-        $stmt->execute([$contract['id_kontrak']]);
-        echo json_encode(["status" => "success", "message" => "Data BPJS Direset!"]);
+    // Menghapus record riwayat bpjs pada bulan/periode tersebut
+    $sql = "DELETE FROM riwayat_bpjs WHERE id_pegawai = :id AND DATE_FORMAT(date, '%Y-%m') = :periode";
+    $stmt = $db->prepare($sql);
+    $stmt->execute([
+        ':id' => $data->id_pegawai,
+        ':periode' => $periode
+    ]);
+
+    if ($stmt->rowCount() > 0) {
+        echo json_encode(["status" => "success", "message" => "Data BPJS Periode $periode Direset/Dihapus!"]);
     } else {
-        echo json_encode(["status" => "error", "message" => "Kontrak tidak ditemukan."]);
+        echo json_encode(["status" => "error", "message" => "Data BPJS untuk periode ini tidak ditemukan."]);
     }
 
 } catch (PDOException $e) {

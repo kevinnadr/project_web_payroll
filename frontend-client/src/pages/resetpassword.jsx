@@ -1,112 +1,130 @@
-// frontend-client/src/pages/ResetPassword.jsx
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import Toast from '../components/Toast';
+import { useToast } from '../hooks/useToast';
+import { AlertTriangle } from 'lucide-react';
 import '../App.css';
 
 const ResetPassword = () => {
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
-    const [message, setMessage] = useState("");
+    const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-    
-    // Hook untuk ambil token dari URL
-    const [searchParams] = useSearchParams();
-    const token = searchParams.get("token"); 
-    
+    const { toast, showToast, hideToast } = useToast();
     const navigate = useNavigate();
+
+    const [searchParams] = useSearchParams();
+    const token = searchParams.get('token');
 
     useEffect(() => {
         if (!token) {
-            setMessage("❌ Token tidak ditemukan. Link mungkin rusak.");
+            setError("Token reset password tidak valid atau tidak ditemukan.");
         }
     }, [token]);
 
     const handleReset = async (e) => {
         e.preventDefault();
+        setError("");
 
         if (password !== confirmPassword) {
-            setMessage("❌ Password konfirmasi tidak sama!");
+            setError("Konfirmasi password baru tidak cocok.");
             return;
         }
 
-        if (password.length < 6) {
-            setMessage("❌ Password minimal 6 karakter.");
+        if (!token) {
+            setError("Token tidak valid.");
             return;
         }
 
         setLoading(true);
-        setMessage("");
 
         try {
             const response = await axios.post('http://localhost/project_web_payroll/backend-api/modules/auth/reset_password.php', {
-                token: token,
-                password: password
+                token,
+                password
             });
 
-            if (response.data.status === 'success') {
-                setMessage("✅ " + response.data.message);
-                // Redirect ke login setelah 2 detik
-                setTimeout(() => {
-                    navigate('/');
-                }, 2000);
+            if (response.data && response.data.status === 'success') {
+                showToast('success', response.data.message || 'Password berhasil diubah.');
+                setTimeout(() => navigate('/'), 3000);
+            } else {
+                setError(response.data?.message || "Terjadi kesalahan.");
             }
-        } catch (error) {
-            setMessage("❌ " + (error.response?.data?.message || "Gagal mereset password."));
+        } catch (err) {
+            setError(err.response?.data?.message || "Gagal mereset password.");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="container" style={{height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-            <div className="card" style={{width: '100%', maxWidth: '400px'}}>
-                <div className="card-header">
-                    <h3 className="card-title">Buat Password Baru</h3>
+        <div className="login-wrapper">
+            <div className="login-card">
+                <div className="logo-container">
+                    <img
+                        src="/LOGORAC.png"
+                        alt="Logo Web Payroll"
+                        className="login-logo"
+                        onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = "https://ui-avatars.com/api/?name=Payroll+App&background=4338ca&color=fff&size=200&font-size=0.25&rounded=true&bold=true";
+                        }}
+                    />
                 </div>
-                
-                {!token ? (
-                    <div className="alert alert-error" style={{margin: '20px'}}>Link reset tidak valid.</div>
-                ) : (
-                    <form onSubmit={handleReset} style={{padding: '25px'}}>
-                        <div style={{marginBottom: '15px'}}>
-                            <label style={{display:'block', marginBottom:'5px', fontWeight:'500'}}>Password Baru</label>
-                            <input 
-                                type="password" 
+
+                <h1 className="login-title">Reset Password</h1>
+                <p className="login-subtitle">Masukkan password baru Anda di bawah ini</p>
+
+                {error && <div className="alert-error" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><AlertTriangle size={18} /> {error}</div>}
+
+                <form onSubmit={handleReset}>
+                    <div className="form-group">
+                        <label className="form-label">Password Baru</label>
+                        <div className="input-wrapper">
+                            <span className="input-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                            </span>
+                            <input
+                                type="password"
                                 className="form-control"
-                                style={{width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd'}}
-                                placeholder="Minimal 6 karakter"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
+                                placeholder="••••••••"
                                 required
+                                disabled={loading || !token}
                             />
                         </div>
+                    </div>
 
-                        <div style={{marginBottom: '20px'}}>
-                            <label style={{display:'block', marginBottom:'5px', fontWeight:'500'}}>Ulangi Password</label>
-                            <input 
-                                type="password" 
+                    <div className="form-group">
+                        <label className="form-label">Konfirmasi Password Baru</label>
+                        <div className="input-wrapper">
+                            <span className="input-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                            </span>
+                            <input
+                                type="password"
                                 className="form-control"
-                                style={{width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd'}}
-                                placeholder="Ketik ulang password"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
+                                placeholder="••••••••"
                                 required
+                                disabled={loading || !token}
                             />
                         </div>
-                        
-                        <button type="submit" className="btn btn-primary" style={{width: '100%'}} disabled={loading}>
-                            {loading ? 'Menyimpan...' : 'Simpan Password Baru'}
-                        </button>
-                    </form>
-                )}
-
-                {message && (
-                    <div className={`alert ${message.includes('✅') ? 'alert-success' : 'alert-error'}`} style={{margin: '0 25px 25px'}}>
-                        {message}
                     </div>
-                )}
+
+                    <button type="submit" className="btn-login" disabled={loading || !token}>
+                        {loading ? 'Memproses...' : 'SIMPAN PASSWORD BARU'}
+                    </button>
+
+                    <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                        <Link to="/" className="forgot-link">Kembali ke Login</Link>
+                    </div>
+                </form>
             </div>
+            <Toast show={toast.show} type={toast.type} message={toast.message} onClose={hideToast} />
         </div>
     );
 };

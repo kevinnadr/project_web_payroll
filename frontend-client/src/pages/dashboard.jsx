@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/sidebar';
 import { useNavigate } from 'react-router-dom';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Users, DollarSign, XCircle, ClipboardList, Thermometer, Mail, Umbrella, Hand } from 'lucide-react';
 import '../App.css';
 
 const Dashboard = () => {
@@ -12,9 +14,19 @@ const Dashboard = () => {
         sakit: 0,
         izin: 0,
         cuti: 0,
+        orang_sakit: 0,
+        orang_izin: 0,
+        orang_cuti: 0,
         alpha: 0,
-        telat: 0
+        orang_alpha: 0,
+        telat: 0,
+        total_gaji: 0,
+        grafik_gaji: []
     });
+
+    const formatRupiah = (angka) => {
+        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
+    };
 
     // Default Bulan Ini
     const [bulanFilter, setBulanFilter] = useState(new Date().toISOString().slice(0, 7));
@@ -63,7 +75,7 @@ const Dashboard = () => {
                 <div className="dashboard-grid">
                     {/* Card Total Pegawai */}
                     <div className="stat-card blue-card">
-                        <div className="icon-wrapper">👥</div>
+                        <div className="icon-wrapper"><Users size={24} color="white" /></div>
                         <div className="stat-info">
                             <h3>Total Pegawai</h3>
                             <div className="stat-number">{stats.total_pegawai}</div>
@@ -71,39 +83,74 @@ const Dashboard = () => {
                         </div>
                     </div>
 
-
+                    {/* Card Total Gaji */}
+                    <div className="stat-card green-card">
+                        <div className="icon-wrapper"><DollarSign size={24} color="white" /></div>
+                        <div className="stat-info">
+                            <h3>Total Pendapatan Kotor</h3>
+                            <div className="stat-number" style={{ fontSize: '1.5rem', marginTop: '10px' }}>{formatRupiah(stats.total_gaji || 0)}</div>
+                            <span className="stat-desc">Estimasi bulan {bulanFilter}</span>
+                        </div>
+                    </div>
 
                     {/* Card Alpha (Mangkir) */}
                     <div className="stat-card red-card">
-                        <div className="icon-wrapper">❌</div>
+                        <div className="icon-wrapper"><XCircle size={24} color="white" /></div>
                         <div className="stat-info">
                             <h3>Total Alpha</h3>
-                            <div className="stat-number">{stats.alpha}</div>
+                            <div className="stat-number">
+                                {stats.alpha} <span style={{ fontSize: '1rem', fontWeight: '500' }}>/ {stats.orang_alpha} Orang</span>
+                            </div>
                             <span className="stat-desc" style={{ color: '#fca5a5' }}>Tanpa Keterangan</span>
                         </div>
                     </div>
 
                     {/* Card Sakit/Izin/Cuti */}
                     <div className="stat-card yellow-card">
-                        <div className="icon-wrapper">📝</div>
+                        <div className="icon-wrapper"><ClipboardList size={24} color="white" /></div>
                         <div className="stat-info">
                             <h3>Absen Lainnya</h3>
                             <div className="mini-stats">
-                                <span>🤒 Sakit: <strong>{stats.sakit}</strong></span>
-                                <span>📨 Izin: <strong>{stats.izin}</strong></span>
-                                <span>🏖️ Cuti: <strong>{stats.cuti}</strong></span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Thermometer size={14} color="white" /> Sakit: <strong>{stats.sakit} / {stats.orang_sakit} Orang</strong></span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Mail size={14} color="white" /> Izin: <strong>{stats.izin} / {stats.orang_izin} Orang</strong></span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Umbrella size={14} color="white" /> Cuti: <strong>{stats.cuti} / {stats.orang_cuti} Orang</strong></span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* WELCOME SECTION */}
-                <div className="welcome-section">
-                    <h2>👋 Selamat Datang, {user?.nama_lengkap}!</h2>
+                <div className="welcome-section" style={{ marginBottom: '30px' }}>
+                    <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Hand size={28} color="#eab308" /> Selamat Datang, {user?.nama_lengkap}!</h2>
                     <p>
                         Sistem Payroll ini membantu Anda mengelola Absensi, Gaji, dan Data Pegawai dengan lebih mudah.
                         Pastikan data absensi bulan <strong>{bulanFilter}</strong> sudah diinput sebelum mencetak slip gaji.
                     </p>
+                </div>
+
+                {/* CHART SECTION */}
+                <div className="chart-section" style={{ background: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', border: '1px solid #e2e8f0' }}>
+                    <h3 style={{ marginTop: 0, marginBottom: '20px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}><DollarSign size={24} color="#10b981" /> Grafik Pengeluaran Gaji (6 Bulan)</h3>
+                    <div style={{ width: '100%', height: 300 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={stats.grafik_gaji} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
+                                <YAxis
+                                    tickFormatter={(value) => `Rp ${(value / 1000000).toFixed(1)}M`}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#64748b', fontSize: 12 }}
+                                    dx={-10}
+                                />
+                                <Tooltip
+                                    formatter={(value) => [formatRupiah(value), "Total Gaji"]}
+                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}
+                                />
+                                <Line type="monotone" dataKey="gaji" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
 
             </main>

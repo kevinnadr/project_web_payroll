@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/sidebar';
 import { useNavigate } from 'react-router-dom';
+import { Pencil, Trash2, AlertTriangle, X, PlusCircle, CreditCard, FolderOpen } from 'lucide-react';
+import Toast from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 import '../App.css';
 
 const PPHTer = () => {
@@ -12,6 +15,7 @@ const PPHTer = () => {
     const [user, setUser] = useState(null);
     const [activeTab, setActiveTab] = useState('A');
     const navigate = useNavigate();
+    const { toast, showToast, hideToast } = useToast();
 
     const [formData, setFormData] = useState({
         id: '',
@@ -20,6 +24,11 @@ const PPHTer = () => {
         max: 0,
         tarif: 0
     });
+
+    // Deletion Modal
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteInput, setDeleteInput] = useState('');
 
     const terInfo = {
         A: { title: 'TER A', ptkp: 'PTKP : TK/0 (54 juta); TK/1 & K/0 (58,5 juta)', color: '#3b82f6', bg: '#eff6ff', accent: 'from-blue-500 to-cyan-500' },
@@ -67,7 +76,7 @@ const PPHTer = () => {
     const handleSave = async (e) => {
         e.preventDefault();
         if (!formData.kategori || formData.min < 0 || formData.tarif < 0) {
-            return alert('Semua field harus diisi dengan benar!');
+            return showToast('error', 'Semua field harus diisi dengan benar!');
         }
 
         try {
@@ -77,30 +86,41 @@ const PPHTer = () => {
 
             const res = await axios.post(url, formData);
             if (res.data.status === 'success') {
-                alert(isEdit ? '✅ PPH TER berhasil diupdate!' : '✅ PPH TER baru berhasil ditambahkan!');
+                showToast('success', isEdit ? 'PPH TER berhasil diupdate!' : 'PPH TER baru berhasil ditambahkan!');
                 setShowModal(false);
                 fetchData();
             } else {
-                alert('❌ Gagal: ' + res.data.message);
+                showToast('error', 'Gagal: ' + res.data.message);
             }
         } catch (e) {
-            alert('❌ Error: ' + e.message);
+            showToast('error', 'Error: ' + e.message);
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Yakin ingin menghapus data ini?')) return;
+    const handleDelete = (id) => {
+        setDeleteTarget(id);
+        setDeleteInput('');
+        setShowDeleteModal(true);
+    };
+
+    const confirmDeleteTarif = async () => {
+        if (deleteInput !== 'hapus data') {
+            showToast('error', 'Konfirmasi gagal. Hapus dibatalkan karena teks tidak sesuai.');
+            return;
+        }
+
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_gaji/delete_pph_ter.php', { id });
+            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_gaji/delete_pph_ter.php', { id: deleteTarget });
             if (res.data.status === 'success') {
-                alert('✅ Data berhasil dihapus!');
+                showToast('success', 'Data berhasil dihapus!');
+                setShowDeleteModal(false);
                 fetchData();
             } else {
-                alert('❌ Gagal: ' + res.data.message);
+                showToast('error', 'Gagal: ' + res.data.message);
             }
         } catch (e) {
             const msg = e.response?.data?.message || e.message;
-            alert('❌ Error: ' + msg);
+            showToast('error', 'Error: ' + msg);
         }
     };
 
@@ -126,14 +146,14 @@ const PPHTer = () => {
             <main className="main-content">
                 <header className="page-header">
                     <div className="header-content">
-                        <div className="header-icon">📊</div>
+                        <div className="header-icon"><CreditCard size={24} color="white" /></div>
                         <div>
                             <h1 className="header-title">Manajemen PPH TER</h1>
                             <p className="header-subtitle">Tarif Efektif Rata-rata PPh 21 — Permenkeu No. 168 Tahun 2023</p>
                         </div>
                     </div>
-                    <button onClick={() => handleOpenModal()} className="btn-primary-gradient">
-                        <span className="btn-icon">+</span>
+                    <button onClick={() => handleOpenModal()} className="btn-primary-gradient" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="btn-icon" style={{ display: 'flex' }}><PlusCircle size={20} /></span>
                         <span>Tambah Tarif</span>
                     </button>
                 </header>
@@ -176,7 +196,7 @@ const PPHTer = () => {
                             </div>
                         ) : filteredList.length === 0 ? (
                             <div className="state-message">
-                                <div className="empty-icon">📂</div>
+                                <div className="empty-icon" style={{ display: 'flex', justifyContent: 'center' }}><FolderOpen size={48} color="#94a3b8" /></div>
                                 <p>Belum ada data tarif untuk kategori ini.</p>
                             </div>
                         ) : (
@@ -220,8 +240,14 @@ const PPHTer = () => {
                     <div className="modal-overlay">
                         <div className="modal-card">
                             <div className="modal-header">
-                                <h3>{isEdit ? 'Edit Tarif' : 'Tambah Tarif Baru'}</h3>
-                                <button onClick={() => setShowModal(false)} className="close-btn">×</button>
+                                <h3>
+                                    {isEdit ? (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Pencil size={20} /> Edit Tarif</span>
+                                    ) : (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><PlusCircle size={20} /> Tambah Tarif Baru</span>
+                                    )}
+                                </h3>
+                                <button onClick={() => setShowModal(false)} className="close-btn" style={{ display: 'flex' }}><X size={24} /></button>
                             </div>
                             <form onSubmit={handleSave} className="modal-form">
                                 <div className="form-section">
@@ -283,6 +309,56 @@ const PPHTer = () => {
                         </div>
                     </div>
                 )}
+
+                {/* MODAL HAPUS PPH TER */}
+                {showDeleteModal && (
+                    <div className="modal-overlay" style={{ zIndex: 1000, display: 'flex', alignItems: 'center', justifyItems: 'center' }}>
+                        <div className="modal-card" style={{ width: '400px', backgroundColor: '#fff', borderRadius: '12px' }}>
+                            <div style={{ borderBottom: '1px solid #fee2e2', backgroundColor: '#fef2f2', borderTopLeftRadius: '12px', borderTopRightRadius: '12px', padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h3 style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '1.1rem' }}>
+                                    <AlertTriangle size={22} strokeWidth={2.5} /> Konfirmasi Penghapusan
+                                </h3>
+                                <button onClick={() => setShowDeleteModal(false)} style={{ color: '#991b1b', background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}><X size={24} /></button>
+                            </div>
+                            <div style={{ padding: '24px 20px' }}>
+                                <p style={{ fontSize: '0.95rem', color: '#334155', lineHeight: '1.5', marginBottom: '15px' }}>
+                                    Anda akan menghapus data tarif PPh TER ini secara permanen.
+                                </p>
+                                <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '10px' }}>
+                                    Ketik <strong style={{ color: '#dc2626' }}>hapus data</strong> di bawah ini untuk mengonfirmasi:
+                                </p>
+                                <input
+                                    type="text"
+                                    value={deleteInput}
+                                    onChange={(e) => setDeleteInput(e.target.value)}
+                                    placeholder="hapus data"
+                                    className="premium-input"
+                                    style={{
+                                        width: '100%', padding: '10px', border: '2px solid #e2e8f0',
+                                        borderRadius: '8px', fontSize: '1rem', marginBottom: '20px',
+                                        outlineColor: '#dc2626', boxSizing: 'border-box'
+                                    }}
+                                />
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button
+                                        onClick={() => setShowDeleteModal(false)}
+                                        style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+                                    >
+                                        Batal
+                                    </button>
+                                    <button
+                                        onClick={confirmDeleteTarif}
+                                        style={{ flex: 1, background: '#ef4444', color: 'white', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+                                    >
+                                        Hapus Tarif
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <Toast show={toast.show} type={toast.type} message={toast.message} onClose={hideToast} />
             </main>
 
             <style>{`
@@ -463,6 +539,30 @@ const PPHTer = () => {
                 @keyframes spin { to { transform: rotate(360deg); } }
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
                 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+                /* RESPONSIVE MOBILE FIX */
+                @media (max-width: 768px) {
+                    .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+                    .header-content { flex-direction: column; align-items: flex-start; text-align: left; }
+                    .header-icon { margin-bottom: 8px; }
+                    .btn-primary-gradient { width: 100%; justify-content: center; }
+
+                    .control-bar { padding: 16px; flex-direction: column; align-items: stretch; gap: 16px; }
+                    .tab-pills { width: 100%; overflow-x: auto; }
+                    .tab-pill { flex: 1; justify-content: center; min-width: 80px; }
+                    
+                    .info-banner { flex-direction: column; align-items: flex-start; gap: 12px; }
+                    
+                    .table-wrapper { padding: 0 16px 16px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+                    .columns-container { flex-direction: column; }
+                    .data-column:first-child { border-right: none; border-bottom: 3px dashed #e2e8f0; }
+                    
+                    .premium-table { min-width: 450px; }
+                    .premium-table th { font-size: 12px; padding: 12px 8px; }
+                    .premium-table td { font-size: 14px; padding: 12px 8px; }
+                    .tarif-tag { font-size: 13px; }
+                    .font-numeric { font-size: 12px; }
+                }
             `}</style>
         </div>
     );
@@ -537,20 +637,20 @@ const TableContent = ({ data, info, onEdit, onDelete, startIndex, formatRp, colT
                                     title="Edit"
                                     style={{
                                         border: 'none', background: 'transparent', cursor: 'pointer',
-                                        fontSize: '18px', opacity: 0.7, padding: '4px', marginRight: '8px'
+                                        opacity: 0.7, padding: '4px', marginRight: '8px', color: '#64748b'
                                     }}
                                 >
-                                    ✏️
+                                    <Pencil size={18} />
                                 </button>
                                 <button
                                     onClick={() => onDelete(pph.id)}
                                     title="Hapus"
                                     style={{
                                         border: 'none', background: 'transparent', cursor: 'pointer',
-                                        fontSize: '18px', opacity: 0.7, padding: '4px'
+                                        opacity: 0.7, padding: '4px', color: '#ef4444'
                                     }}
                                 >
-                                    🗑️
+                                    <Trash2 size={18} />
                                 </button>
                             </td>
                         </tr>

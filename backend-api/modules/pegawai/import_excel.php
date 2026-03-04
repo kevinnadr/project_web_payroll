@@ -186,12 +186,19 @@ try {
         $no_hp = $getVal('no_hp');
         $npwp = $getVal('npwp');
         $ptkpStr = strtoupper($getVal('ptkp', 'TK/0'));
-        $jabatan = $getVal('jabatan', 'Staff');
-        $kontrak = $getVal('status_kontrak', 'TETAP');
+        $jabatan_raw = $getVal('jabatan', '');
+        $kontrak_raw = $getVal('status_kontrak', '');
         
         // Date handling
-        $tgl_masuk_raw = isset($colMap['tanggal_masuk']) ? $row[$colMap['tanggal_masuk']] : null;
-        $tgl_masuk = date('Y-m-d'); // Default today
+        $tgl_masuk_raw = isset($colMap['tanggal_masuk']) ? trim((string)$row[$colMap['tanggal_masuk']]) : '';
+        $gaji_raw = isset($colMap['gaji_pokok']) ? trim((string)$row[$colMap['gaji_pokok']]) : '';
+
+        $hasContractData = ($jabatan_raw !== '' || $kontrak_raw !== '' || $tgl_masuk_raw !== '' || $gaji_raw !== '');
+
+        $jabatan = $jabatan_raw ?: 'Staff';
+        $kontrak = $kontrak_raw ?: 'TETAP';
+
+        $tgl_masuk = null;
         if (!empty($tgl_masuk_raw)) {
             if (is_numeric($tgl_masuk_raw)) {
                 try {
@@ -202,9 +209,11 @@ try {
                 if ($ts) $tgl_masuk = date('Y-m-d', $ts);
             }
         }
+        if (!$tgl_masuk && $hasContractData) {
+            $tgl_masuk = date('Y-m-d'); // Default hari ini jika tidak ada tgl masuk tapi ada data kontrak
+        }
 
         // Salary
-        $gaji_raw = isset($colMap['gaji_pokok']) ? $row[$colMap['gaji_pokok']] : 0;
         $gaji_pokok = (int)preg_replace('/[^0-9]/', '', (string)$gaji_raw);
 
         // PTKP ID Resolution
@@ -236,39 +245,41 @@ try {
 
             // 2. KONTRAK KERJA
             // Use try-catch for safety
-            try {
-                $stmtCekKontrak = $db->prepare("SELECT id_kontrak FROM kontrak_kerja WHERE id_pegawai = ? ORDER BY tanggal_mulai DESC LIMIT 1");
-                $stmtCekKontrak->execute([$pid]);
-                $kontrakId = $stmtCekKontrak->fetchColumn();
+            if ($hasContractData) {
+                try {
+                    $stmtCekKontrak = $db->prepare("SELECT id_kontrak FROM kontrak_kerja WHERE id_pegawai = ? ORDER BY tanggal_mulai DESC LIMIT 1");
+                    $stmtCekKontrak->execute([$pid]);
+                    $kontrakId = $stmtCekKontrak->fetchColumn();
 
-                if ($kontrakId) {
-                    $stmtUpKontrak = $db->prepare("UPDATE kontrak_kerja SET jabatan = ?, jenis_kontrak = ?, tanggal_mulai = ? WHERE id_kontrak = ?");
-                    $stmtUpKontrak->execute([$jabatan, $kontrak, $tgl_masuk, $kontrakId]);
-                } else {
-                    $noKontrak = "NK/" . $pid . "/" . date('Y') . "-" . rand(1000, 9999);
-                    $stmtInsKontrak = $db->prepare("INSERT INTO kontrak_kerja (id_pegawai, no_kontrak, jabatan, jenis_kontrak, tanggal_mulai) VALUES (?, ?, ?, ?, ?)");
-                    $stmtInsKontrak->execute([$pid, $noKontrak, $jabatan, $kontrak, $tgl_masuk]);
-                    $kontrakId = $db->lastInsertId();
+                    if ($kontrakId) {
+                        $stmtUpKontrak = $db->prepare("UPDATE kontrak_kerja SET jabatan = ?, jenis_kontrak = ?, tanggal_mulai = ? WHERE id_kontrak = ?");
+                        $stmtUpKontrak->execute([$jabatan, $kontrak, $tgl_masuk, $kontrakId]);
+                    } else {
+                        $noKontrak = "NK/" . $pid . "/" . date('Y') . "-" . rand(1000, 9999);
+                        $stmtInsKontrak = $db->prepare("INSERT INTO kontrak_kerja (id_pegawai, no_kontrak, jabatan, jenis_kontrak, tanggal_mulai) VALUES (?, ?, ?, ?, ?)");
+                        $stmtInsKontrak->execute([$pid, $noKontrak, $jabatan, $kontrak, $tgl_masuk]);
+                        $kontrakId = $db->lastInsertId();
+                    }
+
+                    // 3. KOMPONEN GAJI
+                    if ($gaji_pokok > 0 && $kontrakId) {
+                         $stmtCekGaji = $db->prepare("SELECT id_nominal FROM nominal_kontrak WHERE id_kontrak = ? AND id_komponen = 1");
+                         $stmtCekGaji->execute([$kontrakId]);
+                         $nominalId = $stmtCekGaji->fetchColumn();
+
+                         if ($nominalId) {
+                             $stmtUpGaji = $db->prepare("UPDATE nominal_kontrak SET nominal = ? WHERE id_nominal = ?");
+                             $stmtUpGaji->execute([$gaji_pokok, $nominalId]);
+                         } else {
+                             $stmtInsGaji = $db->prepare("INSERT INTO nominal_kontrak (id_kontrak, id_komponen, nominal) VALUES (?, 1, ?)");
+                             $stmtInsGaji->execute([$kontrakId, $gaji_pokok]);
+                         }
+                    }
+                } catch (Throwable $eKontrak) {
+                    // Log contract error but allow employee update to succeed?
+                    // No, rollback for consistency per row.
+                    throw $eKontrak;
                 }
-
-                // 3. KOMPONEN GAJI
-                if ($gaji_pokok > 0 && $kontrakId) {
-                     $stmtCekGaji = $db->prepare("SELECT id_nominal FROM nominal_kontrak WHERE id_kontrak = ? AND id_komponen = 1");
-                     $stmtCekGaji->execute([$kontrakId]);
-                     $nominalId = $stmtCekGaji->fetchColumn();
-
-                     if ($nominalId) {
-                         $stmtUpGaji = $db->prepare("UPDATE nominal_kontrak SET nominal = ? WHERE id_nominal = ?");
-                         $stmtUpGaji->execute([$gaji_pokok, $nominalId]);
-                     } else {
-                         $stmtInsGaji = $db->prepare("INSERT INTO nominal_kontrak (id_kontrak, id_komponen, nominal) VALUES (?, 1, ?)");
-                         $stmtInsGaji->execute([$kontrakId, $gaji_pokok]);
-                     }
-                }
-            } catch (Throwable $eKontrak) {
-                // Log contract error but allow employee update to succeed?
-                // No, rollback for consistency per row.
-                throw $eKontrak;
             }
 
             $berhasil++;

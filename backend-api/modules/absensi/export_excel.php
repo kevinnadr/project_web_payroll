@@ -8,7 +8,7 @@ header('Content-Type: text/csv');
 header('Content-Disposition: attachment; filename="Laporan_Absensi_'.$bulan.'.csv"');
 
 $output = fopen('php://output', 'w');
-fputcsv($output, ['NIK', 'Nama Pegawai', 'Hadir', 'Sakit', 'Izin', 'Cuti', 'Hari Efektif', 'Alpha', 'Telat (Hari)', 'Telat (Menit)', 'Lembur (Jam)']);
+fputcsv($output, ['nik', 'nama_pegawai', 'hadir', 'sakit', 'izin', 'cuti', 'hari_terlambat', 'menit_terlambat', 'jam_lembur', 'hari_efektif']);
 
 try {
     // Calculate Alpha dynamically: Hari Efektif - (Hadir + Sakit + Izin + Cuti)
@@ -20,11 +20,10 @@ try {
                 COALESCE(a.sakit, 0) as sakit, 
                 COALESCE(a.izin, 0) as izin, 
                 COALESCE(a.cuti, 0) as cuti,
-                COALESCE(a.hari_efektif, 25) as hari_efektif,
-                GREATEST(0, COALESCE(a.hari_efektif, 25) - (COALESCE(a.hadir,0) + COALESCE(a.sakit,0) + COALESCE(a.izin,0) + COALESCE(a.cuti,0))) as alpha,
                 COALESCE(a.hari_terlambat, 0) as hari_terlambat, 
                 COALESCE(a.menit_terlambat, 0) as menit_terlambat,
-                COALESCE(a.jam_lembur, 0) as jam_lembur
+                COALESCE(a.jam_lembur, 0) as jam_lembur,
+                COALESCE(a.hari_efektif, 25) as hari_efektif
             FROM pegawai p
             LEFT JOIN (
                 SELECT 

@@ -1,288 +1,199 @@
 <?php
 // FILE: backend-api/modules/pegawai/download_slips_all.php
-// Menggabungkan semua slip gaji pegawai (PDF) menjadi satu file PDF.
-// Skenario: Loop semua pegawai -> Generate Page(s) per pegawai -> Output 1 PDF.
-// LOGIC: SAMA PERSIS DENGAN download_pdf_one.php NAMUN DI-LOOP.
-
 require_once '../../config/database.php';
-require_once '../../config/cors.php';
 require_once '../../vendor/autoload.php';
 
-// Inisialisasi FPDF jika belum autoload
 if (!class_exists('FPDF') && class_exists('Setasign\Fpdf\Fpdf')) {
     class_alias('Setasign\Fpdf\Fpdf', 'FPDF');
 }
 
-class PDF_Slip extends FPDF {
-    // Custom Header/Footer if needed
-}
-
 try {
-    $bulan = $_GET['bulan'] ?? date('Y-m'); // Default current month
+    $bulan = $_GET['bulan'] ?? date('Y-m');
     
-    // --- FETCH SETTINGS ---
-    $stmtSet = $db->query("SELECT * FROM pengaturan_absensi WHERE id = 1 LIMIT 1");
-    $settings = $stmtSet->fetch(PDO::FETCH_ASSOC);
-    
-    // Defaults if not found
-    $dendaHarian = $settings['denda_telat_harian'] ?? 5000;
-    $dendaBlok   = $settings['denda_telat_per_blok'] ?? 20000;
-    $menitBlok   = $settings['menit_per_blok'] ?? 15;
-    $tarifLembur = $settings['tarif_lembur_per_jam'] ?? 20000;
+    // FETCH ALL SLIPS FOR THE MONTH
+    $stmtSlips = $db->prepare("
+        SELECT sg.*, p.nik, p.nama_lengkap, k.jabatan, COALESCE(sp_k.status_ptkp, sp.status_ptkp) as status_ptkp, k.jenis_kontrak, pt.kategori_ter
+        FROM slip_gaji sg
+        JOIN pegawai p ON sg.id_pegawai = p.id_pegawai
+        LEFT JOIN kontrak_kerja k ON sg.id_kontrak = k.id_kontrak
+        LEFT JOIN status_ptkp sp ON p.id_ptkp = sp.id_ptkp
+        LEFT JOIN status_ptkp sp_k ON k.id_ptkp = sp_k.id_ptkp
+        LEFT JOIN pph_ter pt ON sg.id_ter_reff = pt.id_ter
+        WHERE sg.periode = ?
+        ORDER BY p.nik ASC
+    ");
+    $stmtSlips->execute([$bulan]);
+    $slips = $stmtSlips->fetchAll(PDO::FETCH_ASSOC);
 
-    // 1. Ambil semua pegawai yang punya kontrak aktif
-    $sql = "SELECT p.*, sp.status_ptkp, sp.kategori_ter, k.id_kontrak, k.jabatan, k.jenis_kontrak, k.tanggal_mulai
-            FROM pegawai p
-            LEFT JOIN status_ptkp sp ON p.id_ptkp = sp.id_ptkp
-            JOIN kontrak_kerja k ON p.id_pegawai = k.id_pegawai
-            WHERE (k.tanggal_mulai IS NULL OR DATE_FORMAT(k.tanggal_mulai, '%Y-%m') <= :bulan) 
-            AND (k.tanggal_berakhir IS NULL OR k.tanggal_berakhir = '0000-00-00' OR DATE_FORMAT(k.tanggal_berakhir, '%Y-%m') >= :bulan)
-            ORDER BY p.nik ASC";
-    
-    $stmt = $db->prepare($sql);
-    $stmt->execute([':bulan' => $bulan]);
-    $pegawaiList = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    if (count($pegawaiList) === 0) {
-        die("Tidak ada data pegawai dengan kontrak aktif untuk dicetak.");
+    if (count($slips) === 0) {
+        die("Tidak ada data slip gaji untuk dicetak pada periode ini. Silakan Generate Gaji terlebih dahulu.");
     }
 
-    $pdf = new FPDF('P', 'mm', 'A4'); // Portrait, A4
+    $pdf = new FPDF('P', 'mm', 'A4');
     
-    // Prepare statements outside loop for performance
     $stmtAbs = $db->prepare("SELECT * FROM absensi WHERE id_pegawai = ? AND DATE_FORMAT(date, '%Y-%m') = ?");
-    
-    $stmtKomp = $db->prepare("
-        SELECT kp.nama_komponen, nk.nominal, kp.jenis_komponen
-        FROM nominal_kontrak nk 
-        JOIN komponen_penghasilan kp ON nk.id_komponen = kp.id_komponen 
-        WHERE nk.id_kontrak = ?
-    ");
-
-    // Use data_bpjs table (Period format: YYYY-MM)
-    $stmtBpjs = $db->prepare("SELECT bpjs_tk, bpjs_ks FROM data_bpjs WHERE id_pegawai = ? AND periode = ?");
-    $stmtBpjsLast = $db->prepare("SELECT bpjs_tk, bpjs_ks FROM data_bpjs WHERE id_pegawai = ? AND periode < ? ORDER BY periode DESC LIMIT 1");
-
-    $stmtAlpha = $db->query("SELECT nominal_denda FROM alpha LIMIT 1");
-    $dendaPerHari = $stmtAlpha->fetchColumn() ?: 50000; 
-    
-    // Helper to find PPH TER
-    $stmtTer = $db->prepare("
-        SELECT tarif_persen 
-        FROM pph_ter 
-        WHERE kategori_ter = ? 
-        AND ? BETWEEN penghasilan_min AND penghasilan_max
-        LIMIT 1
-    ");
+    $stmtNom = $db->prepare("SELECT * FROM nominal_slip WHERE id_slip = ?");
 
     $dateObj = DateTime::createFromFormat('Y-m', $bulan);
     $periodeLabel = $dateObj ? $dateObj->format('F Y') : date('F Y');
+    $tanggal_cetak = date('d F Y', strtotime(date('Y-m-t', strtotime($bulan . '-01'))));
 
-    foreach ($pegawaiList as $pegawai) {
-        $pdf->AddPage();
-        $pdf->SetMargins(15, 15, 15); // Reset margins per page just in case
+    foreach ($slips as $gaji) {
+        $id_pegawai = $gaji['id_pegawai'];
+        $id_slip = $gaji['id_slip'];
 
-        // --- 2. DATA ABSENSI ---
-        $stmtAbs->execute([$pegawai['id_pegawai'], $bulan]);
+        // FETCH ABSENSI
+        $stmtAbs->execute([$id_pegawai, $bulan]);
         $absensi = $stmtAbs->fetch(PDO::FETCH_ASSOC);
 
-        $hari_efektif_target = $absensi['hari_efektif'] ?? $pegawai['hari_efektif'] ?? 25;
         $hadir = $absensi['hadir'] ?? 0;
         $sakit = $absensi['sakit'] ?? 0;
         $izin = $absensi['izin'] ?? 0;
         $cuti = $absensi['cuti'] ?? 0;
-        $jam_lembur = $absensi['jam_lembur'] ?? 0;
-        $hari_terlambat = $absensi['hari_terlambat'] ?? 0;
-        $menit_terlambat = $absensi['menit_terlambat'] ?? 0;
-
-        $alpha_days = max(0, $hari_efektif_target - ($hadir + $sakit + $izin + $cuti));
-
-        // --- 3. KOMPONEN GAJI ---
-        $stmtKomp->execute([$pegawai['id_kontrak']]);
-        $komponenRaw = $stmtKomp->fetchAll(PDO::FETCH_ASSOC);
-
-        $incomes = [];
-        $totalBruto = 0;
-
-        foreach ($komponenRaw as $k) {
-            $nominal = $k['nominal'];
-            $jenis = strtoupper($k['jenis_komponen']);
-            
-            // Handle Variable Components (HARIAN / KEHADIRAN)
-            if ($jenis == 'HARIAN' || $jenis == 'KEHADIRAN') {
-                 if (stripos($k['nama_komponen'], 'lembur') !== false) {
-                    $calculated = $nominal * $jam_lembur;
-                    $incomes[] = ['nama' => $k['nama_komponen'] . " ($jam_lembur jam)", 'nominal' => $calculated];
-                    $nominal = $calculated;
-                } else {
-                    $calculated = $nominal * $hadir;
-                    $incomes[] = ['nama' => $k['nama_komponen'] . " ($hadir hari)", 'nominal' => $calculated];
-                    $nominal = $calculated;
-                }
-            } 
-            // Handle NON_ALFA (Bonus Rajin)
-            else if ($jenis == 'NON_ALFA' || $jenis == 'NON ALFA') {
-                if ($alpha_days > 0) {
-                    $nominal = 0;
-                    $incomes[] = ['nama' => $k['nama_komponen'] . " (Hangus krn $alpha_days Alpha)", 'nominal' => 0];
-                } else {
-                    $incomes[] = ['nama' => $k['nama_komponen'] . " (Full)", 'nominal' => $nominal];
-                }
-            }
-            // Handle TETAP / BULANAN
-            else {
-                $incomes[] = ['nama' => $k['nama_komponen'], 'nominal' => $nominal];
-            }
-            $totalBruto += $nominal;
-        }
-
-        // --- AUTO LEMBUR CHECK ---
-        $hasLembur = false;
-        foreach ($incomes as $inc) {
-            if (stripos($inc['nama'], 'lembur') !== false) {
-                $hasLembur = true;
-                break;
-            }
-        }
-        if (!$hasLembur && $jam_lembur > 0) {
-            // FLAT RATE Calculation as requested
-            $bayaranLembur = $tarifLembur * $jam_lembur;
-    
-            $incomes[] = ['nama' => "Lembur ($jam_lembur jam)", 'nominal' => $bayaranLembur];
-            $totalBruto += $bayaranLembur;
-        }
-
-        // --- 4. POTONGAN ---
-        $potonganAlpha = $alpha_days * $dendaPerHari;
         
-        $potonganTerlambat = 0;
-        if ($hari_terlambat > 0 || $menit_terlambat > 0) {
-            $potonganTerlambat = ($hari_terlambat * $dendaHarian);
-            if ($menit_terlambat > 0) {
-                 $potonganTerlambat += ceil($menit_terlambat / $menitBlok) * $dendaBlok;
+        $hari_efektif = $absensi['hari_efektif'] ?? 22; // default 22
+        $alpha_days = max(0, $hari_efektif - ($hadir + $sakit + $izin + $cuti));
+
+        // FETCH NOMINAL
+        $stmtNom->execute([$id_slip]);
+        $rincian = $stmtNom->fetchAll(PDO::FETCH_ASSOC);
+
+        $fixedIncomes = [];
+        $variableIncomes = [];
+        $penaltyDeductions = [];
+
+        $subtotalFixed = 0;
+        $subtotalVariable = 0;
+        $subtotalPenalty = 0;
+
+        foreach ($rincian as $r) {
+            $nama = $r['nama_komponen'];
+            $nominal = $r['nominal'];
+            $tipe = $r['jenis_komponen_tipe'];
+            
+            if ($tipe == 'TETAP') {
+                $fixedIncomes[] = ['nama' => $nama, 'nominal' => $nominal];
+                $subtotalFixed += $nominal;
+            } else if ($tipe == 'VARIABEL') {
+                $variableIncomes[] = ['nama' => $nama, 'nominal' => $nominal];
+                $subtotalVariable += $nominal;
+            } else if ($tipe == 'POTONGAN_LAIN' || stripos($nama, 'Potongan') !== false || stripos($nama, 'Denda') !== false || $tipe == 'POTONGAN') {
+                $penaltyDeductions[] = ['nama' => $nama, 'nominal' => abs($nominal)]; // Ensure positive
+                $subtotalPenalty += abs($nominal);
             }
         }
 
-        // PPH TER
-        $pph = 0;
-        $ptkp_categories = ['A', 'B', 'C'];
-        $kategori_ter = $pegawai['kategori_ter'] ?? 'A'; 
-
-        if ($totalBruto > 0 && in_array($kategori_ter, $ptkp_categories)) {
-            $stmtTer->execute([$kategori_ter, $totalBruto]);
-            $tarif = $stmtTer->fetchColumn();
-            if ($tarif) {
-                $pph = $totalBruto * ($tarif / 100);
-            }
+        $statutoryDeductions = [];
+        $subtotalStatutory = 0;
+        if ($gaji['bpjs_tk'] > 0) {
+            $statutoryDeductions[] = ['nama' => "BPJS Ketenagakerjaan", 'nominal' => $gaji['bpjs_tk']];
+            $subtotalStatutory += $gaji['bpjs_tk'];
+        }
+        if ($gaji['bpjs_ks'] > 0) {
+            $statutoryDeductions[] = ['nama' => "BPJS Kesehatan", 'nominal' => $gaji['bpjs_ks']];
+            $subtotalStatutory += $gaji['bpjs_ks'];
+        }
+        if ($gaji['pph21'] > 0) {
+            $kategori_ter = $gaji['kategori_ter'] ?? 'A';
+            $statutoryDeductions[] = ['nama' => "PPH 21 (TER $kategori_ter)", 'nominal' => $gaji['pph21']];
+            $subtotalStatutory += $gaji['pph21'];
         }
 
-        // BPJS
-        $stmtBpjs->execute([$pegawai['id_pegawai'], $bulan]);
-        $bpjs = $stmtBpjs->fetch(PDO::FETCH_ASSOC);
+        $totalBruto = $gaji['total_bruto'];
+        $totalNetto = $gaji['thp'];
 
-        if (!$bpjs) {
-            $stmtBpjsLast->execute([$pegawai['id_pegawai'], $bulan]);
-            $bpjs = $stmtBpjsLast->fetch(PDO::FETCH_ASSOC);
-        }
-        $bpjs_tk = $bpjs['bpjs_tk'] ?? 0;
-        $bpjs_ks = $bpjs['bpjs_ks'] ?? 0;
+        // --- RENDER PER PEGAWAI ---
+        $pdf->AddPage();
+        $pdf->SetMargins(15, 10, 15);
 
-        $deductions = [];
-        if ($potonganAlpha > 0) $deductions[] = ['nama' => "Potongan Alpha ($alpha_days hari)", 'nominal' => $potonganAlpha];
-        if ($potonganTerlambat > 0) $deductions[] = ['nama' => "Potongan Keterlambatan ($hari_terlambat hari, $menit_terlambat menit)", 'nominal' => $potonganTerlambat];
-        if ($bpjs_tk > 0) $deductions[] = ['nama' => "BPJS Ketenagakerjaan", 'nominal' => $bpjs_tk];
-        if ($bpjs_ks > 0) $deductions[] = ['nama' => "BPJS Kesehatan", 'nominal' => $bpjs_ks];
-        if ($pph > 0) $deductions[] = ['nama' => "PPH 21 (TER $kategori_ter)", 'nominal' => $pph];
-
-        $totalPotongan = $potonganAlpha + $potonganTerlambat + $pph + $bpjs_tk + $bpjs_ks;
-        $totalNetto = $totalBruto - $totalPotongan;
-
-        // --- 5. RENDER PDF ---
         // Header
         $pdf->SetFont('Arial', 'B', 14);
-        $pdf->Cell(0, 10, 'SLIP GAJI PEGAWAI', 0, 1, 'C');
-        $pdf->SetFont('Arial', '', 10);
+        $pdf->Cell(0, 6, strtoupper('SLIP GAJI PEGAWAI'), 0, 1, 'C');
+        $pdf->SetFont('Arial', 'BI', 9);
         $pdf->Cell(0, 5, 'Periode: ' . $periodeLabel, 0, 1, 'C');
-        $pdf->Ln(10);
-        
+        $pdf->Ln(2);
         $pdf->Line(15, $pdf->GetY(), 195, $pdf->GetY());
-        $pdf->Ln(5);
+        $pdf->Ln(4);
 
         // Biodata
-        $pdf->SetFont('Arial', '', 10);
-        $pdf->Cell(35, 6, 'NIK', 0, 0); $pdf->Cell(5, 6, ':', 0, 0); $pdf->Cell(0, 6, $pegawai['nik'], 0, 1);
-        $pdf->Cell(35, 6, 'Nama', 0, 0); $pdf->Cell(5, 6, ':', 0, 0); $pdf->Cell(0, 6, $pegawai['nama_lengkap'], 0, 1);
-        $pdf->Cell(35, 6, 'Jabatan', 0, 0); $pdf->Cell(5, 6, ':', 0, 0); $pdf->Cell(0, 6, $pegawai['jabatan'] ?? '-', 0, 1);
-        $pdf->Cell(35, 6, 'Status', 0, 0); $pdf->Cell(5, 6, ':', 0, 0); $pdf->Cell(0, 6, ($pegawai['jenis_kontrak'] ?? '-') . ' / ' . ($pegawai['status_ptkp'] ?? '-'), 0, 1);
-        $pdf->Cell(35, 6, 'Kehadiran', 0, 0); $pdf->Cell(5, 6, ':', 0, 0); 
-        $pdf->Cell(0, 6, "Hadir: $hadir, Sakit: $sakit, Izin: $izin, Cuti: $cuti, Alpha: $alpha_days", 0, 1);
-
-        $pdf->Ln(5);
-        $pdf->Line(15, $pdf->GetY(), 195, $pdf->GetY());
-        $pdf->Ln(5);
-
-        // Rincian Penghasilan
-        $pdf->SetFont('Arial', 'B', 11);
-        $pdf->Cell(0, 8, 'PENDAPATAN', 0, 1);
-        $pdf->SetFont('Arial', '', 10);
-
-        foreach ($incomes as $inc) {
-            $pdf->Cell(130, 6, $inc['nama'], 0, 0);
-            $pdf->Cell(10, 6, 'Rp', 0, 0, 'R');
-            $pdf->Cell(30, 6, number_format($inc['nominal'], 0, ',', '.'), 0, 1, 'R');
-        }
+        $pdf->SetFont('Arial', '', 9);
+        $pdf->Cell(30, 5, 'NIK', 0, 0); $pdf->Cell(5, 5, ':', 0, 0); $pdf->Cell(60, 5, $gaji['nik'], 0, 0);
+        $pdf->Cell(30, 5, 'Jabatan', 0, 0); $pdf->Cell(5, 5, ':', 0, 0); $pdf->Cell(0, 5, $gaji['jabatan'] ?? '-', 0, 1);
         
-        // Subtotal Pendapatan
-        $pdf->Ln(2);
-        $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(130, 8, 'Total Pendapatan', 0, 0);
-        $pdf->Cell(10, 8, 'Rp', 0, 0, 'R');
-        $pdf->Cell(30, 8, number_format($totalBruto, 0, ',', '.'), 0, 1, 'R');
-        $pdf->Ln(5);
+        $pdf->Cell(30, 5, 'Nama', 0, 0); $pdf->Cell(5, 5, ':', 0, 0); $pdf->Cell(60, 5, $gaji['nama_lengkap'], 0, 0);
+        $pdf->Cell(30, 5, 'Status', 0, 0); $pdf->Cell(5, 5, ':', 0, 0); $pdf->Cell(0, 5, ($gaji['jenis_kontrak'] ?? '-') . ' / ' . ($gaji['status_ptkp'] ?? '-'), 0, 1);
+        
+        $pdf->Ln(1);
+        $pdf->Cell(30, 5, 'Kehadiran', 0, 0); $pdf->Cell(5, 5, ':', 0, 0); 
+        $pdf->Cell(0, 5, "Hadir: $hadir   Sakit: $sakit   Izin: $izin   Cuti: $cuti   Alpha: $alpha_days", 0, 1);
+        
+        $pdf->Ln(4);
+        $pdf->Line(15, $pdf->GetY(), 195, $pdf->GetY());
+        $pdf->Ln(4);
 
-        // Rincian Potongan
-        if (!empty($deductions)) {
-            $pdf->SetFont('Arial', 'B', 11);
-            $pdf->Cell(0, 8, 'POTONGAN', 0, 1);
-            $pdf->SetFont('Arial', '', 10);
+        // CONTENT RENDERER
+        $renderSection = function($title, $items, $subtotal, $pdf, $isDeduction = false) {
+            if (empty($items) && $title !== 'GAJI POKOK & TUNJANGAN TETAP') return;
+            
+            $pdf->SetFont('Arial', 'B', 9);
+            $pdf->SetFillColor(240, 248, 255); 
+            $pdf->Cell(0, 7, $title, 0, 1, 'L', true);
+            $pdf->SetFont('Arial', '', 9);
 
-            foreach ($deductions as $ded) {
-                $pdf->Cell(130, 6, $ded['nama'], 0, 0);
-                $pdf->Cell(10, 6, 'Rp', 0, 0, 'R');
-                $pdf->Cell(30, 6, number_format($ded['nominal'], 0, ',', '.'), 0, 1, 'R');
+            foreach ($items as $itm) {
+                $pdf->Cell(130, 5, "  " . $itm['nama'], 0, 0);
+                $pdf->Cell(10, 5, 'Rp', 0, 0, 'R');
+                $isNeg = $itm['nominal'] < 0;
+                if ($isDeduction || $isNeg) $pdf->SetTextColor(180, 0, 0);
+                
+                $nomVal = abs($itm['nominal']);
+                $nomText = ($isNeg && !$isDeduction) ? '- ' . number_format($nomVal, 0, ',', '.') : number_format($nomVal, 0, ',', '.');
+                
+                $pdf->Cell(30, 5, $nomText, 0, 1, 'R');
+                $pdf->SetTextColor(0, 0, 0);
             }
+            
+            $pdf->SetFont('Arial', 'B', 9);
+            $pdf->Cell(130, 6, "  Total " . ucwords(strtolower($title)), 0, 0);
+            $pdf->Cell(10, 6, 'Rp', 0, 0, 'R');
+            if ($isDeduction) $pdf->SetTextColor(180, 0, 0);
+            $pdf->Cell(30, 6, number_format($subtotal, 0, ',', '.'), 0, 1, 'R');
+            $pdf->SetTextColor(0, 0, 0);
+            $pdf->Ln(2); 
+        };
 
-            $pdf->Ln(2);
-            $pdf->SetFont('Arial', 'B', 10);
-            $pdf->Cell(130, 8, 'Total Potongan', 0, 0);
-            $pdf->Cell(10, 8, 'Rp', 0, 0, 'R');
-            $pdf->Cell(30, 8, number_format($totalPotongan, 0, ',', '.'), 0, 1, 'R');
-        }
+        $renderSection("GAJI POKOK & TUNJANGAN TETAP", $fixedIncomes, $subtotalFixed, $pdf);
+        if (!empty($variableIncomes)) $renderSection("KOMPONEN PENGHASILAN LAIN", $variableIncomes, $subtotalVariable, $pdf);
 
-        // Total Netto
-        $pdf->Ln(5);
-        $pdf->Line(15, $pdf->GetY(), 195, $pdf->GetY());
-        $pdf->Ln(2);
+        $pdf->Ln(1);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(130, 7, "TOTAL PENDAPATAN KOTOR (GROSS)", 'T', 0);
+        $pdf->Cell(10, 7, 'Rp', 'T', 0, 'R');
+        $pdf->Cell(30, 7, number_format($totalBruto, 0, ',', '.'), 'T', 1, 'R');
+        $pdf->Ln(4);
+
+        if (!empty($statutoryDeductions)) $renderSection("POTONGAN WAJIB (BPJS & PPH 21)", $statutoryDeductions, $subtotalStatutory, $pdf, true);
+        if (!empty($penaltyDeductions)) $renderSection("POTONGAN KEHADIRAN & DENDA", $penaltyDeductions, $subtotalPenalty, $pdf, true);
+
+        $pdf->Ln(4);
+        $pdf->SetFillColor(220, 255, 220); 
+        $pdf->SetFont('Arial', 'B', 11);
         
-        $pdf->SetFont('Arial', 'B', 12);
-        $pdf->Cell(130, 10, 'TOTAL DITERIMA', 0, 0);
-        $pdf->Cell(10, 10, 'Rp', 0, 0, 'R');
-        $pdf->Cell(30, 10, number_format($totalNetto, 0, ',', '.'), 0, 1, 'R');
+        if ($pdf->GetY() > 240) $pdf->AddPage();
 
-        // Footer Tanda Tangan
-        $pdf->Ln(15);
-        $pdf->SetFont('Arial', '', 10);
-        $pdf->Cell(130, 5, '', 0, 0);
-        $pdf->Cell(50, 5, 'Jakarta, ' . date('d F Y'), 0, 1, 'C');
-        $pdf->Ln(5);
-        $pdf->Cell(130, 5, '', 0, 0);
-        $pdf->Cell(50, 5, 'Diterima oleh,', 0, 1, 'C');
-        $pdf->Ln(20);
-        $pdf->Cell(130, 5, '', 0, 0);
-        $pdf->Cell(50, 5, '(' . $pegawai['nama_lengkap'] . ')', 0, 1, 'C');
+        $y = $pdf->GetY();
+        $pdf->Rect(15, $y, 180, 10, 'F');
+        $pdf->SetXY(15, $y + 1);
+        
+        $pdf->Cell(130, 8, "  TOTAL GAJI BERSIH (NETTO)", 0, 0);
+        $pdf->Cell(10, 8, 'Rp', 0, 0, 'R');
+        $pdf->Cell(30, 8, number_format($totalNetto, 0, ',', '.'), 0, 1, 'R');
+
+        // TTD section has been removed as requested.
     }
 
-    $pdf->Output('I', 'Slip_Gaji_All_Employees.pdf');
+    if (ob_get_length()) ob_end_clean();
+    $pdf->Output('I', 'Slip_Gaji_All.pdf');
 
 } catch (Exception $e) {
     http_response_code(500);

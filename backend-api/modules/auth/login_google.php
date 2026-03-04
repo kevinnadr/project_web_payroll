@@ -34,19 +34,10 @@ try {
 
     } else {
         // --- B. JIKA USER BARU (Belum pernah login) ---
-        // Buat user baru dengan role default 'user'
-        $sql = "INSERT INTO users (nama_lengkap, email, role, password) VALUES (?, ?, 'user', '')";
-        $insert = $db->prepare($sql);
-        $insert->execute([$nama, $email]);
-        
-        $newId = $db->lastInsertId();
-        
-        $userData = [
-            'id' => $newId,
-            'nama' => $nama,
-            'email' => $email,
-            'role' => 'user' // Default user baru
-        ];
+        // Gagalkan login jika email belum terdaftar (hanya email terdaftar yang bisa masuk)
+        http_response_code(403);
+        echo json_encode(["status" => "error", "message" => "Akses Ditolak: Email '$email' belum terdaftar di sistem. Silakan hubungi admin."]);
+        exit;
     }
 
     // --- KIRIM RESPON KE FRONTEND ---

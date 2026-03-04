@@ -1,9 +1,12 @@
 // frontend-client/src/pages/Login.jsx
 import { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from "jwt-decode"; // --- PENTING: Import Logic Decoder ---
+import Toast from '../components/Toast';
+import { useToast } from '../hooks/useToast';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import '../App.css';
 
 const Login = () => {
@@ -12,6 +15,7 @@ const Login = () => {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const { toast, showToast, hideToast } = useToast();
 
     const navigate = useNavigate();
 
@@ -26,10 +30,10 @@ const Login = () => {
                 email, password
             });
 
-            if (response.data.status === 'success') {
+            if (response.data && response.data.status === 'success') {
                 localStorage.setItem('token', response.data.token);
                 localStorage.setItem('user', JSON.stringify(response.data.user));
-                
+
                 // Cek Role (Opsional, jika ingin membedakan redirect)
                 if (response.data.user.role === 'admin') {
                     navigate('/dashboard');
@@ -37,7 +41,7 @@ const Login = () => {
                     navigate('/dashboard');
                 }
             } else {
-                setError(response.data.message); // Tampilkan pesan error dari backend
+                setError(response.data?.message || "Terjadi kesalahan di server (Tidak ada response JSON)."); // Tampilkan pesan error dari backend
             }
         } catch (err) {
             setError(err.response?.data?.message || "Email atau password salah.");
@@ -64,8 +68,8 @@ const Login = () => {
             if (res.data.status === 'success') {
                 localStorage.setItem('token', res.data.token);
                 localStorage.setItem('user', JSON.stringify(res.data.user));
-                alert("Login Google Berhasil!");
-                navigate('/dashboard');
+                showToast('success', "Login Google Berhasil!");
+                setTimeout(() => navigate('/dashboard'), 1000);
             } else {
                 setError(res.data.message);
             }
@@ -80,23 +84,29 @@ const Login = () => {
     return (
         <div className="login-wrapper">
             <div className="login-card">
-                
-                {/* ICON BAGIAN ATAS (Money Bag SVG) */}
-                <div className="icon-container">
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 1V5M12 23V19M5 8.5C5 8.5 6 7 12 7C18 7 19 8.5 19 8.5V18C19 18 18 21 12 21C6 21 5 18 5 18V8.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M12 11.5C12 11.5 14 11.5 14 13C14 14.5 12 14.5 12 14.5C12 14.5 10 14.5 10 16C10 17.5 12 17.5 12 17.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M8 5C8 5 9 3 12 3C15 3 16 5 16 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+
+                {/* LOGO PERUSAHAAN */}
+                {/* Silakan ganti '/logo.png' dengan nama file logo perusahaan Anda (taruh filenya di folder frontend-client/public) */}
+                <div className="logo-container">
+                    <img
+                        src="/LOGORAC.png"
+                        alt="Logo Web Payroll"
+                        className="login-logo"
+                        onError={(e) => {
+                            e.target.onerror = null;
+                            /* Gambar default estetik jika file logo.png belum ada */
+                            e.target.src = "https://ui-avatars.com/api/?name=Payroll+App&background=4338ca&color=fff&size=200&font-size=0.25&rounded=true&bold=true";
+                        }}
+                    />
                 </div>
 
                 <h1 className="login-title">Selamat Datang</h1>
                 <p className="login-subtitle">Silakan login untuk mengakses Payroll</p>
 
-                {error && <div className="alert-error">⚠️ {error}</div>}
+                {error && <div className="alert-error" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><AlertTriangle size={18} /> {error}</div>}
 
                 <form onSubmit={handleLogin}>
-                    
+
                     {/* Input Email */}
                     <div className="form-group">
                         <label className="form-label">Email Address</label>
@@ -105,13 +115,13 @@ const Login = () => {
                                 {/* Envelope SVG */}
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
                             </span>
-                            <input 
-                                type="email" 
+                            <input
+                                type="email"
                                 className="form-control"
-                                value={email} 
-                                onChange={(e) => setEmail(e.target.value)} 
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 placeholder="name@company.com"
-                                required 
+                                required
                                 disabled={loading}
                             />
                         </div>
@@ -125,13 +135,13 @@ const Login = () => {
                                 {/* Lock SVG */}
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                             </span>
-                            <input 
-                                type="password" 
+                            <input
+                                type="password"
                                 className="form-control"
-                                value={password} 
-                                onChange={(e) => setPassword(e.target.value)} 
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
                                 placeholder="••••••••"
-                                required 
+                                required
                                 disabled={loading}
                             />
                         </div>
@@ -148,11 +158,10 @@ const Login = () => {
                 </div>
 
                 {/* Tombol Google */}
-                <div style={{display:'flex', justifyContent:'center'}}>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
                     <GoogleLogin
                         onSuccess={handleGoogleSuccess}
                         onError={() => { setError("Gagal koneksi Google"); setLoading(false); }}
-                        useOneTap
                         theme="outline"
                         size="large"
                         shape="rectangular"
@@ -162,14 +171,15 @@ const Login = () => {
                 </div>
 
                 {/* Perbaikan: class -> className */}
-                <a href="/forgot-password" className="forgot-link">Lupa Password Anda?</a>
+                <Link to="/forgot-password" className="forgot-link">Lupa Password Anda?</Link>
 
                 {loading && (
-                    <div style={{marginTop:'15px', color:'#64748b', fontSize:'0.9rem'}}>
-                        ⏳ Sedang menghubungkan...
+                    <div style={{ marginTop: '15px', color: '#64748b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                        <Loader2 size={16} /> Sedang menghubungkan...
                     </div>
                 )}
             </div>
+            <Toast show={toast.show} type={toast.type} message={toast.message} onClose={hideToast} />
         </div>
     );
 };

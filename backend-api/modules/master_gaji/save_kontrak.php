@@ -26,6 +26,7 @@ try {
     $status_ptkp     = $data['status_ptkp'] ?? null; // e.g. "TK/0"
     $gaji_pokok      = (float)($data['gaji_pokok'] ?? 0);
     $tunjangan       = (float)($data['tunjangan'] ?? 0);
+    $catatan         = $data['catatan'] ?? null;
     $id_kontrak      = $data['id_kontrak'] ?? null;
     $komponen_tambahan = $data['komponen_tambahan'] ?? [];
 
@@ -109,13 +110,13 @@ try {
 
     // Save or update kontrak
     if ($id_kontrak) {
-        $updateSql = "UPDATE kontrak_kerja SET jabatan = ?, tanggal_mulai = ?, tanggal_berakhir = ?, jenis_kontrak = ?, id_ptkp = ? WHERE id_kontrak = ? AND id_pegawai = ?";
-        $db->prepare($updateSql)->execute([$jabatan, $tanggal_mulai, $tanggal_berakhir, $jenis_kontrak, $id_ptkp, $id_kontrak, $id_pegawai]);
+        $updateSql = "UPDATE kontrak_kerja SET jabatan = ?, tanggal_mulai = ?, tanggal_berakhir = ?, jenis_kontrak = ?, id_ptkp = ?, catatan = ? WHERE id_kontrak = ? AND id_pegawai = ?";
+        $db->prepare($updateSql)->execute([$jabatan, $tanggal_mulai, $tanggal_berakhir, $jenis_kontrak, $id_ptkp, $catatan, $id_kontrak, $id_pegawai]);
         $finalId = $id_kontrak;
     } else {
         $noKontrak = "NK/" . $id_pegawai . "/" . date('Y') . "-" . rand(1000, 9999);
-        $insertSql = "INSERT INTO kontrak_kerja (id_pegawai, jabatan, tanggal_mulai, tanggal_berakhir, jenis_kontrak, no_kontrak, id_ptkp) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        $db->prepare($insertSql)->execute([$id_pegawai, $jabatan, $tanggal_mulai, $tanggal_berakhir, $jenis_kontrak, $noKontrak, $id_ptkp]);
+        $insertSql = "INSERT INTO kontrak_kerja (id_pegawai, jabatan, tanggal_mulai, tanggal_berakhir, jenis_kontrak, no_kontrak, id_ptkp, catatan) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        $db->prepare($insertSql)->execute([$id_pegawai, $jabatan, $tanggal_mulai, $tanggal_berakhir, $jenis_kontrak, $noKontrak, $id_ptkp, $catatan]);
         $finalId = $db->lastInsertId();
     }
 
