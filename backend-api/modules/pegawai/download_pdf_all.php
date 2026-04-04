@@ -174,7 +174,7 @@ HTML;
         $jabatanDisplay = $row['jabatan'] ? (strlen($row['jabatan']) > 22 ? substr($row['jabatan'], 0, 20).'...' : $row['jabatan']) : '-';
         $pdf->Cell($w[3], 9, '  ' . $jabatanDisplay, 'LRB', 0, 'L', true);
         
-        $pdf->Cell($w[4], 9, substr($row['jenis_kontrak'] ?? '-', 0, 10), 'LRB', 0, 'C', true);
+        $pdf->Cell($w[4], 9, substr($row['jenis_kontrak'] ?? '-', 0, 15), 'LRB', 0, 'C', true);
         
         // Use different text color if 0
         $pdf->SetTextColor($gajiPokok > 0 ? 17 : 107, $gajiPokok > 0 ? 24 : 114, $gajiPokok > 0 ? 39 : 128);

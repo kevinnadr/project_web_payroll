@@ -117,9 +117,8 @@ try {
         $nominal = (float)preg_replace('/[^0-9.]/', '', $nom_raw);
         
         // Normalize kategori
-        $kategori = 'Tetap';
-        if (stripos($kat_raw, 'non') !== false) $kategori = 'Non Alpha';
-        if (stripos($kat_raw, 'hadir') !== false) $kategori = 'Kehadiran';
+        $kategori = 'PENERIMAAN';
+        if (stripos($kat_raw, 'potong') !== false) $kategori = 'POTONGAN';
 
         try {
             $stmtCek = $db->prepare("SELECT id_pegawai FROM pegawai WHERE nik = ?");

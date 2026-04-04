@@ -24,6 +24,10 @@ const DataPendapatanLain = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 50;
 
+    // Selection State for Bulk Delete
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+
     // File Upload State
     const [isUploading, setIsUploading] = useState(false);
     const [importResult, setImportResult] = useState(null);
@@ -142,17 +146,25 @@ const DataPendapatanLain = () => {
     };
 
     const confirmDeleteGroup = async () => {
-        if (deleteInput !== 'hapus data') {
+        if (deleteInput.trim().toLowerCase() !== 'hapus data') {
             showToast('error', 'Konfirmasi gagal. Hapus dibatalkan karena teks tidak sesuai.');
             return;
         }
 
         try {
-            const payload = { id_pegawai: deleteTarget.id_pegawai, periode: periode, items: [] };
-            const response = await axios.post('http://localhost/project_web_payroll/backend-api/modules/pendapatan_lain/save.php', payload);
+            let payload = { periode: periode };
+            if (Array.isArray(deleteTarget)) {
+                payload.pegawai_ids = deleteTarget;
+            } else {
+                payload.id_pegawai = deleteTarget.id_pegawai;
+            }
+
+            const response = await axios.post('http://localhost/project_web_payroll/backend-api/modules/pendapatan_lain/delete.php', payload);
             if (response.data.status === 'success') {
-                showToast('success', 'Data pendapatan berhasil dihapus!');
+                showToast('success', Array.isArray(deleteTarget) ? 'Data pendapatan terpilih berhasil dihapus!' : 'Data pendapatan berhasil dihapus!');
                 setShowDeleteModal(false);
+                if (Array.isArray(deleteTarget)) setSelectedIds([]);
+                setIsSelectionMode(false);
                 fetchPendapatan();
             } else {
                 showToast('error', "Gagal menghapus data.");
@@ -160,6 +172,29 @@ const DataPendapatanLain = () => {
         } catch (error) {
             console.error("Error deleting:", error);
             showToast('error', "Gagal menghapus data.");
+        }
+    };
+
+    const handleBulkDelete = () => {
+        if (selectedIds.length === 0) return;
+        setDeleteTarget(selectedIds);
+        setDeleteInput('');
+        setShowDeleteModal(true);
+    };
+
+    const handleSelectAll = (e) => {
+        if (e.target.checked) {
+            setSelectedIds(groupedDataList.filter(item => item.items && item.items.length > 0).map(item => item.id_pegawai));
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleSelectRow = (id) => {
+        if (selectedIds.includes(id)) {
+            setSelectedIds(selectedIds.filter(itemId => itemId !== id));
+        } else {
+            setSelectedIds([...selectedIds, id]);
         }
     };
 
@@ -295,6 +330,7 @@ const DataPendapatanLain = () => {
 
     useEffect(() => {
         setCurrentPage(1); // Reset to page 1 on search or data change
+        setSelectedIds([]);
     }, [searchTerm, pegawaiList, pendapatanList]);
 
     const indexOfLastItem = currentPage * itemsPerPage;
@@ -368,6 +404,32 @@ const DataPendapatanLain = () => {
                     </div>
 
                     <div style={{ display: 'flex', gap: '10px' }}>
+                        {isSelectionMode ? (
+                            <>
+                                <button
+                                    onClick={() => {
+                                        setIsSelectionMode(false);
+                                        setSelectedIds([]);
+                                    }}
+                                    className="btn-modern btn-outline"
+                                >
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>Batal Pilih</span>
+                                </button>
+                                {selectedIds.length > 0 && (
+                                    <button onClick={handleBulkDelete} className="btn-modern btn-outline" style={{ borderColor: '#ef4444', color: '#ef4444', background: '#fef2f2' }}>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><Trash2 size={18} /> Hapus Terpilih ({selectedIds.length})</span>
+                                    </button>
+                                )}
+                            </>
+                        ) : (
+                            <button
+                                onClick={() => setIsSelectionMode(true)}
+                                className="btn-modern btn-outline"
+                                style={{ borderColor: '#ef4444', color: '#ef4444' }}
+                            >
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><ClipboardList size={18} /> Pilih Data</span>
+                            </button>
+                        )}
                         <button onClick={handleExport} className="btn-modern btn-outline" style={{ borderColor: '#3b82f6', color: '#3b82f6' }}>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><Download size={18} /> Export ({periode})</span>
                         </button>
@@ -385,6 +447,16 @@ const DataPendapatanLain = () => {
                     <table className="modern-table" style={{ width: '100%', textAlign: 'left' }}>
                         <thead style={{ background: 'linear-gradient(135deg, #b91c1c 0%, #ef4444 100%)' }}>
                             <tr>
+                                {isSelectionMode && (
+                                    <th style={{ textAlign: 'center', padding: '15px 10px', background: 'transparent', color: 'white', width: '50px' }}>
+                                        <input
+                                            type="checkbox"
+                                            onChange={handleSelectAll}
+                                            checked={groupedDataList.filter(item => item.items && item.items.length > 0).length > 0 && selectedIds.length === groupedDataList.filter(item => item.items && item.items.length > 0).length}
+                                            style={{ cursor: 'pointer', transform: 'scale(1.2)' }}
+                                        />
+                                    </th>
+                                )}
                                 <th style={{ textAlign: 'left', paddingLeft: '2rem', background: 'transparent', color: 'white' }}>Nama Pegawai</th>
                                 <th style={{ textAlign: 'left', background: 'transparent', color: 'white' }}>Nama Pendapatan</th>
                                 <th style={{ textAlign: 'left', background: 'transparent', color: 'white' }}>Nominal</th>
@@ -394,7 +466,19 @@ const DataPendapatanLain = () => {
                         </thead>
                         <tbody>
                             {currentItems.length > 0 ? currentItems.map((group, idx) => (
-                                <tr key={group.id_pegawai}>
+                                <tr key={group.id_pegawai} style={{ background: selectedIds.includes(group.id_pegawai) ? '#f0fdf4' : 'transparent' }}>
+                                    {isSelectionMode && (
+                                        <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                                            {group.items && group.items.length > 0 && (
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.includes(group.id_pegawai)}
+                                                    onChange={() => handleSelectRow(group.id_pegawai)}
+                                                    style={{ cursor: 'pointer', transform: 'scale(1.2)' }}
+                                                />
+                                            )}
+                                        </td>
+                                    )}
                                     <td style={{ verticalAlign: 'top', textAlign: 'left', paddingLeft: '2rem' }}>
                                         <div className="user-profile">
                                             {group.foto_profil ? (
@@ -454,34 +538,55 @@ const DataPendapatanLain = () => {
                                 </tr>
                             )) : (
                                 <tr>
-                                    <td colSpan="6" style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>Belum ada data pendapatan lain ditemukan.</td>
+                                    <td colSpan={isSelectionMode ? "6" : "5"} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>Belum ada data pendapatan lain ditemukan.</td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
                 </div>
 
-                {totalPages > 1 && (
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '20px', gap: '15px' }}>
-                        <button
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f8fafc' : 'white', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
-                        >
-                            Prev
-                        </button>
-                        <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 600 }}>
-                            Halaman {currentPage} dari {totalPages}
-                        </span>
-                        <button
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f8fafc' : 'white', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
-                        >
-                            Next
-                        </button>
+                <div style={{ display: 'flex', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 600, flex: 1 }}>
+                        Total Data: {groupedDataList.length}
                     </div>
-                )}
+                    {totalPages > 1 && (
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f8fafc' : 'white', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
+                            >
+                                Prev
+                            </button>
+                            {[...Array(totalPages)].map((_, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => setCurrentPage(i + 1)}
+                                    style={{
+                                        padding: '8px 12px',
+                                        borderRadius: '8px',
+                                        border: '1px solid',
+                                        borderColor: currentPage === i + 1 ? '#3b82f6' : '#cbd5e1',
+                                        background: currentPage === i + 1 ? '#eff6ff' : 'white',
+                                        color: currentPage === i + 1 ? '#2563eb' : '#475569',
+                                        fontWeight: 600,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {i + 1}
+                                </button>
+                            ))}
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f8fafc' : 'white', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
+                    <div style={{ flex: 1 }}></div>
+                </div>
 
                 {/* Modal Form */}
                 {
@@ -619,24 +724,27 @@ const DataPendapatanLain = () => {
                                                 <td style={{ padding: '10px', color: '#64748b' }}>Kevin Adrian</td>
                                                 <td style={{ padding: '10px', fontWeight: 'bold' }}>Bonus Kinerja</td>
                                                 <td style={{ padding: '10px', textAlign: 'right', color: '#16a34a' }}>5000000</td>
-                                                <td style={{ padding: '10px', textAlign: 'center' }}>Non Alpha</td>
+                                                <td style={{ padding: '10px', textAlign: 'center' }}>Penerimaan</td>
                                             </tr>
                                             <tr>
                                                 <td style={{ padding: '10px', fontWeight: 'bold' }}>2024001</td>
                                                 <td style={{ padding: '10px', color: '#64748b' }}>Kevin Adrian</td>
                                                 <td style={{ padding: '10px', fontWeight: 'bold' }}>THR</td>
                                                 <td style={{ padding: '10px', textAlign: 'right', color: '#16a34a' }}>8000000</td>
-                                                <td style={{ padding: '10px', textAlign: 'center' }}>Tetap</td>
+                                                <td style={{ padding: '10px', textAlign: 'center' }}>Potongan</td>
                                             </tr>
                                         </tbody>
                                     </table>
                                 </div>
 
-                                <div style={{ background: '#fffbeb', padding: '12px', borderRadius: '6px', fontSize: '0.85rem', color: '#92400e', marginBottom: '20px' }}>
-                                    <strong>Sistem Update "Upsert":</strong><br />
-                                    • Jika nama pendapatan belum ada, sistem akan <strong>menambahkannya</strong>.<br />
-                                    • Jika nama pendapatan sudah ada, sistem akan <strong>memperbarui/menimpa</strong> nominal tersebut.<br />
-                                    • Data pendapatan lama yang kosong dari file Excel <strong>TIDAK AKAN DIHAPUS</strong>.
+                                <div style={{ background: '#fffbeb', padding: '16px', borderRadius: '8px', fontSize: '0.9rem', color: '#92400e', marginBottom: '20px', lineHeight: '1.4' }}>
+                                    <strong style={{ display: 'block', marginBottom: '6px', fontSize: '0.95rem' }}>Informasi Penting:</strong>
+                                    <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <li>Pastikan <strong>Nama Pendapatan</strong> sesuai dengan nama yang ada pada menu <strong>Master Komponen</strong>.</li>
+                                        <li>Jika pendapatan belum tercatat pada periode terkait, sistem akan <strong>menambahkannya</strong>.</li>
+                                        <li>Jika pendapatan sudah tercatat di sistem (Pegawai & Nama Pendapatan sama), sistem otomatis <strong>memperbarui/menimpa</strong> nilainya.</li>
+                                        <li>Data pendapatan lain di sistem yang dikosongkan/tidak diikutsertakan dari file Excel <strong>TIDAK AKAN TERHAPUS</strong>.</li>
+                                    </ul>
                                 </div>
 
                                 <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
@@ -661,7 +769,9 @@ const DataPendapatanLain = () => {
                             <div style={{ padding: '24px 20px' }}>
                                 <p style={{ fontSize: '0.95rem', color: '#334155', lineHeight: '1.5', marginBottom: '15px' }}>
                                     Anda akan menghapus data pendapatan lain untuk:
-                                    <strong style={{ display: 'block', color: '#0f172a', marginTop: '5px' }}>{deleteTarget?.nama_lengkap}</strong>
+                                    <strong style={{ display: 'block', color: '#0f172a', marginTop: '5px' }}>
+                                        {Array.isArray(deleteTarget) ? `${deleteTarget.length} Pegawai Terpilih` : deleteTarget?.nama_lengkap}
+                                    </strong>
                                 </p>
                                 <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '10px' }}>
                                     Ketik <strong style={{ color: '#dc2626' }}>hapus data</strong> di bawah ini untuk mengonfirmasi:

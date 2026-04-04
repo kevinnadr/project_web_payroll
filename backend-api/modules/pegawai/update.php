@@ -48,9 +48,22 @@ try {
             $uploadDir = __DIR__ . '/../../uploads/pegawai/';
             if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
             
+            // Cari foto lama untuk dihapus
+            $stmtOld = $db->prepare("SELECT foto_profil FROM pegawai WHERE id_pegawai = ?");
+            $stmtOld->execute([$id_pegawai]);
+            $oldData = $stmtOld->fetch(PDO::FETCH_ASSOC);
+
             if (move_uploaded_file($_FILES['foto_profil']['tmp_name'], $uploadDir . $newFilename)) {
                 $fotoSql = ", foto_profil = :foto_profil";
                 $params[':foto_profil'] = $newFilename;
+
+                // Hapus file foto lama jika ada
+                if ($oldData && !empty($oldData['foto_profil'])) {
+                    $oldFilePath = $uploadDir . $oldData['foto_profil'];
+                    if (file_exists($oldFilePath)) {
+                        unlink($oldFilePath);
+                    }
+                }
             }
         }
     }

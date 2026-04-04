@@ -14,6 +14,11 @@ if (empty($id)) {
 }
 
 try {
+    // Ambil info foto profil sebelum data dihapus
+    $stmtFoto = $db->prepare("SELECT foto_profil FROM pegawai WHERE id_pegawai = ?");
+    $stmtFoto->execute([$id]);
+    $fotoData = $stmtFoto->fetch(PDO::FETCH_ASSOC);
+
     // Delete from 'pegawai' table (cascade will handle child tables if foreign keys set up correctly)
     $sql = "DELETE FROM pegawai WHERE id_pegawai = :id";
     
@@ -21,6 +26,13 @@ try {
     $stmt->execute([':id' => $id]);
 
     if ($stmt->rowCount() > 0) {
+        // Hapus file foto dari server jika ada
+        if ($fotoData && !empty($fotoData['foto_profil'])) {
+            $filePath = __DIR__ . '/../../uploads/pegawai/' . $fotoData['foto_profil'];
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+        }
         echo json_encode(["status" => "success", "message" => "Pegawai berhasil dihapus permanen."]);
     } else {
         echo json_encode(["status" => "error", "message" => "Data tidak ditemukan."]);

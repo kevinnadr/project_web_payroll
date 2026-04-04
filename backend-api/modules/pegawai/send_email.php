@@ -90,6 +90,20 @@ try {
         }
     }
 
+    usort($fixedIncomes, function($a, $b) {
+        $orderA = 3;
+        if (strcasecmp($a['nama'], 'Gaji Pokok') === 0) $orderA = 1;
+        else if (strcasecmp($a['nama'], 'Tunjangan Tetap') === 0) $orderA = 2;
+        else if ($a['nominal'] < 0) $orderA = 4;
+        
+        $orderB = 3;
+        if (strcasecmp($b['nama'], 'Gaji Pokok') === 0) $orderB = 1;
+        else if (strcasecmp($b['nama'], 'Tunjangan Tetap') === 0) $orderB = 2;
+        else if ($b['nominal'] < 0) $orderB = 4;
+        
+        return $orderA <=> $orderB;
+    });
+
     $statutoryDeductions = [];
     $subtotalStatutory = 0;
     if ($gaji['bpjs_tk'] > 0) {
@@ -143,7 +157,7 @@ try {
 
     // CONTENT RENDERER
     $renderSection = function($title, $items, $subtotal, $pdf, $isDeduction = false) {
-        if (empty($items) && $title !== 'GAJI POKOK & TUNJANGAN TETAP') return;
+        if (empty($items) && $title !== 'GAJI POKOK, TUNJANGAN TETAP & KOMPONEN PENGHASILAN') return;
         
         $pdf->SetFont('Arial', 'B', 9);
         $pdf->SetFillColor(240, 248, 255); 
@@ -172,7 +186,7 @@ try {
         $pdf->Ln(2); 
     };
 
-    $renderSection("GAJI POKOK & TUNJANGAN TETAP", $fixedIncomes, $subtotalFixed, $pdf);
+    $renderSection("GAJI POKOK, TUNJANGAN TETAP & KOMPONEN PENGHASILAN", $fixedIncomes, $subtotalFixed, $pdf);
     if (!empty($variableIncomes)) $renderSection("KOMPONEN PENGHASILAN LAIN", $variableIncomes, $subtotalVariable, $pdf);
 
     $pdf->Ln(1);

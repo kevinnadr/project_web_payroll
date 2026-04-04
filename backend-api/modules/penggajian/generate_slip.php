@@ -168,8 +168,8 @@ try {
             }
             else {
                 // TETAP / PENERIMAAN
-                // Check if it's strictly Tetap or simply Penerimaan Tambahan
-                $tGroup = (stripos($k['nama_komponen'], 'gaji') !== false || stripos($k['nama_komponen'], 'tetap') !== false) ? 'TETAP' : 'VARIABEL';
+                // Check if it's strictly Tetap, Bulanan, or simply Penerimaan Tambahan
+                $tGroup = (stripos($k['nama_komponen'], 'gaji') !== false || stripos($k['nama_komponen'], 'tetap') !== false || $jenis === 'TETAP' || $jenis === 'BULANAN') ? 'TETAP' : 'VARIABEL';
                 $incomes[] = ['nama' => $k['nama_komponen'], 'jenis' => $jenis, 'tipe_grup' => $tGroup, 'nominal' => $nominal];
             }
             $totalBruto += $nominal;

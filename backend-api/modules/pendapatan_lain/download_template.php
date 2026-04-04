@@ -36,9 +36,9 @@ try {
 
     // Example Data
     $examples = [
-        ['2024001', 'Budi Santoso', 'Uang Makan', '50000', 'Kehadiran'],
-        ['2024001', 'Budi Santoso', 'Tunjangan Transport', '25000', 'Non Alpha'],
-        ['2024002', 'Ani Wahyuni', 'Bonus Kinerja', '1500000', 'Tetap']
+        ['2024001', 'Budi Santoso', 'Bonus Tahunan', '5000000', 'PENERIMAAN'],
+        ['2024001', 'Budi Santoso', 'Lembur', '125000', 'PENERIMAAN'],
+        ['2024002', 'Ani Wahyuni', 'Cicilan Koperasi', '150000', 'POTONGAN']
     ];
 
     $rowNum = 2;
@@ -59,10 +59,10 @@ try {
     $sheet->getStyle('G2')->getFont()->setBold(true);
     $sheet->setCellValue('G3', '1. Kolom [NIK], [Nama Pendapatan], [Nominal], dan [Kategori] WAJIB diisi.');
     $sheet->setCellValue('G4', '2. Kolom [Nama Lengkap] hanya sebagai informasi tambahan, sistem membaca berdasarkan NIK.');
-    $sheet->setCellValue('G5', '3. Nilai [Kategori] hanya boleh salah satu dari: Tetap, Non Alpha, atau Kehadiran.');
-    $sheet->setCellValue('G6', '4. Sistem menggunakan "Upsert" (Update or Insert):');
-    $sheet->setCellValue('G7', '   Jika belum ada, akan ditambahkan. Jika sudah ada, Nominal & Kategori akan diperbarui.');
-    $sheet->setCellValue('G8', '5. Data lama yang TIDAK ada di Excel ini akan DIBIARKAN / AMAN.');
+    $sheet->setCellValue('G5', '3. Nilai [Kategori] hanya boleh salah satu dari: PENERIMAAN atau POTONGAN.');
+    $sheet->setCellValue('G6', '4. Pastikan penulisan [Nama Pendapatan] sesuai dengan nama yang ada di menu Master Komponen.');
+    $sheet->setCellValue('G7', '5. Sistem menggunakan "Upsert": Jika sudah ada di periode terkait akan diperbarui, jika belum akan ditambahkan.');
+    $sheet->setCellValue('G8', '6. Data lama yang tidak dicantumkan di file Excel ini akan DIBIARKAN (Tidak Terhapus).');
     
     // Output file
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

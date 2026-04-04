@@ -87,7 +87,7 @@ const Dashboard = () => {
                     <div className="stat-card green-card">
                         <div className="icon-wrapper"><DollarSign size={24} color="white" /></div>
                         <div className="stat-info">
-                            <h3>Total Pendapatan Kotor</h3>
+                            <h3>Total Pengeluaran</h3>
                             <div className="stat-number" style={{ fontSize: '1.5rem', marginTop: '10px' }}>{formatRupiah(stats.total_gaji || 0)}</div>
                             <span className="stat-desc">Estimasi bulan {bulanFilter}</span>
                         </div>

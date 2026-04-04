@@ -52,12 +52,12 @@ const Sidebar = ({ user }) => {
                         <CalendarDays size={20} /> <span>Absensi</span>
                     </button>
 
-                    <button className={isActive('/slip-gaji')} onClick={() => { setIsOpen(false); navigate('/slip-gaji'); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Banknote size={20} /> <span>Slip Gaji</span>
-                    </button>
-
                     <button className={isActive('/pendapatan-lain')} onClick={() => { setIsOpen(false); navigate('/pendapatan-lain'); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Gift size={20} /> <span>Pendapatan Lain</span>
+                    </button>
+
+                    <button className={isActive('/slip-gaji')} onClick={() => { setIsOpen(false); navigate('/slip-gaji'); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Banknote size={20} /> <span>Slip Gaji</span>
                     </button>
 
                     <button className={isActive('/pph-ter')} onClick={() => { setIsOpen(false); navigate('/pph-ter'); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

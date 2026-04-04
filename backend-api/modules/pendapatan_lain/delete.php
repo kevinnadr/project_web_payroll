@@ -14,18 +14,36 @@ require_once '../../config/database.php';
 
 $data = json_decode(file_get_contents("php://input"));
 
-if (empty($data->id)) {
-    echo json_encode(["status" => "error", "message" => "ID tidak valid."]);
-    exit;
-}
+if (isset($data->pegawai_ids) && is_array($data->pegawai_ids) && count($data->pegawai_ids) > 0) {
+    if (empty($data->periode)) {
+        echo json_encode(["status" => "error", "message" => "Periode tidak valid."]);
+        exit;
+    }
+    try {
+        $periode = $data->periode;
+        $placeholders = str_repeat('?,', count($data->pegawai_ids) - 1) . '?';
+        $params = $data->pegawai_ids;
+        $params[] = $periode; // add periode to end of params
 
-try {
-    $sql = "DELETE FROM pendapatan_lain WHERE id = ?";
-    $stmt = $db->prepare($sql);
-    $stmt->execute([$data->id]);
+        $sql = "DELETE FROM pendapatan_lain WHERE id_pegawai IN ($placeholders) AND DATE_FORMAT(date, '%Y-%m') = ?";
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
 
-    echo json_encode(["status" => "success", "message" => "Data berhasil dihapus."]);
-} catch (Exception $e) {
-    echo json_encode(["status" => "error", "message" => $e->getMessage()]);
+        echo json_encode(["status" => "success", "message" => "Data terpilih berhasil dihapus."]);
+    } catch (Exception $e) {
+        echo json_encode(["status" => "error", "message" => $e->getMessage()]);
+    }
+} else if (!empty($data->id_pegawai) && !empty($data->periode)) {
+    try {
+        $sql = "DELETE FROM pendapatan_lain WHERE id_pegawai = ? AND DATE_FORMAT(date, '%Y-%m') = ?";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$data->id_pegawai, $data->periode]);
+
+        echo json_encode(["status" => "success", "message" => "Data berhasil dihapus."]);
+    } catch (Exception $e) {
+        echo json_encode(["status" => "error", "message" => $e->getMessage()]);
+    }
+} else {
+    echo json_encode(["status" => "error", "message" => "Data tidak lengkap untuk menghapus."]);
 }
 ?>

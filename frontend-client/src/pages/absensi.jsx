@@ -572,34 +572,55 @@ const Absensi = () => {
                     </table>
                 </div>
 
-                {totalPages > 1 && (
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '20px', gap: '15px' }}>
-                        <button
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f8fafc' : 'white', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
-                        >
-                            Prev
-                        </button>
-                        <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 600 }}>
-                            Halaman {currentPage} dari {totalPages}
-                        </span>
-                        <button
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f8fafc' : 'white', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
-                        >
-                            Next
-                        </button>
+                <div style={{ display: 'flex', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 600, flex: 1 }}>
+                        Total Data: {filteredList.length}
                     </div>
-                )}
+                    {totalPages > 1 && (
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f8fafc' : 'white', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
+                            >
+                                Prev
+                            </button>
+                            {[...Array(totalPages)].map((_, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => setCurrentPage(i + 1)}
+                                    style={{
+                                        padding: '8px 12px',
+                                        borderRadius: '8px',
+                                        border: '1px solid',
+                                        borderColor: currentPage === i + 1 ? '#3b82f6' : '#cbd5e1',
+                                        background: currentPage === i + 1 ? '#eff6ff' : 'white',
+                                        color: currentPage === i + 1 ? '#2563eb' : '#475569',
+                                        fontWeight: 600,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {i + 1}
+                                </button>
+                            ))}
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f8fafc' : 'white', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
+                    <div style={{ flex: 1 }}></div>
+                </div>
 
                 {/* MODAL SETTINGS */}
                 {showSettingsModal && (
                     <div className="modal-backdrop">
                         <div className="modal-content-modern" style={{ width: '450px' }}>
                             <div className="modal-header-modern">
-                                <h3><span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={20} /> Aturan Data Keterlambatan</span></h3>
+                                <h3><span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={20} /> Aturan Denda Keterlambatan</span></h3>
                                 <button onClick={() => setShowSettingsModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex' }}><X size={24} /></button>
                             </div>
                             <form onSubmit={handleSaveSettings} style={{ padding: '20px' }}>
@@ -766,6 +787,13 @@ const Absensi = () => {
                                                 </tr>
                                             </tbody>
                                         </table>
+                                    </div>
+                                    <div style={{ background: '#fffbeb', padding: '16px', borderRadius: '8px', fontSize: '0.9rem', color: '#92400e', marginBottom: '20px', lineHeight: '1.4' }}>
+                                        <strong style={{ display: 'block', marginBottom: '6px', fontSize: '0.95rem' }}>Informasi Penting:</strong>
+                                        <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            <li>Gunakan <strong>Template CSV/Excel</strong> yang disediakan untuk hasil yang optimal.</li>
+                                            <li>Pastikan <strong>NIK</strong> valid dan terdaftar di sistem.</li>
+                                        </ul>
                                     </div>
                                     <div className="modal-footer-modern" style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
                                         <button onClick={handleDownloadTemplate} className="btn-cancel" style={{ flex: 1, textAlign: 'center' }}><span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><Download size={18} /> Download Template CSV</span></button>

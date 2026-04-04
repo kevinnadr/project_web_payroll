@@ -200,27 +200,48 @@ const MasterGaji = () => {
                     </table>
                 </div>
 
-                {totalPages > 1 && (
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '20px', gap: '15px' }}>
-                        <button
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f8fafc' : 'white', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
-                        >
-                            Prev
-                        </button>
-                        <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 600 }}>
-                            Halaman {currentPage} dari {totalPages}
-                        </span>
-                        <button
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f8fafc' : 'white', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
-                        >
-                            Next
-                        </button>
+                <div style={{ display: 'flex', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 600, flex: 1 }}>
+                        Total Data: {filteredList.length}
                     </div>
-                )}
+                    {totalPages > 1 && (
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f8fafc' : 'white', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
+                            >
+                                Prev
+                            </button>
+                            {[...Array(totalPages)].map((_, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => setCurrentPage(i + 1)}
+                                    style={{
+                                        padding: '8px 12px',
+                                        borderRadius: '8px',
+                                        border: '1px solid',
+                                        borderColor: currentPage === i + 1 ? '#3b82f6' : '#cbd5e1',
+                                        background: currentPage === i + 1 ? '#eff6ff' : 'white',
+                                        color: currentPage === i + 1 ? '#2563eb' : '#475569',
+                                        fontWeight: 600,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {i + 1}
+                                </button>
+                            ))}
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f8fafc' : 'white', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
+                    <div style={{ flex: 1 }}></div>
+                </div>
 
                 {showEdit && selectedData && (
                     <div className="modal-backdrop">

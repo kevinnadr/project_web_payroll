@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import { Pencil, Trash2, Search, X, Lock, RefreshCcw, PlusCircle, AlertTriangle, FileText, Banknote, Shield, Settings, Eye, ClipboardList } from 'lucide-react';
+import Select from 'react-select';
 import '../App.css';
 
 const KontrakPegawai = () => {
@@ -77,13 +78,25 @@ const KontrakPegawai = () => {
 
     // Helper Calculate Duration (Remaining Time)
     const calculateDuration = (start, end) => {
-        if (!end || end === '0000-00-00') return <span style={{ color: '#10b981', fontWeight: 600 }}>Permanen / Tidak Terbatas</span>;
+        const startString = (!start || start === '0000-00-00' || isNaN(new Date(start).getTime())) ? '-' : new Date(start).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+
+        if (!end || end === '0000-00-00') {
+            return (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontWeight: 600, color: '#334155' }}>
+                        Sejak {startString}
+                    </span>
+                    <span style={{ color: '#10b981', fontWeight: 600, fontSize: '0.85rem' }}>
+                        Permanen / Tidak Terbatas
+                    </span>
+                </div>
+            );
+        }
 
         const startDate = new Date(start);
         const endDate = new Date(end);
         const now = new Date();
 
-        const startString = isNaN(startDate.getTime()) ? (start || '-') : startDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
         const endString = isNaN(endDate.getTime()) ? (end || '-') : endDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 
         // Reset hours to compare dates only
@@ -711,27 +724,48 @@ const KontrakPegawai = () => {
                     </table>
                 </div>
 
-                {totalPages > 1 && (
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '20px', gap: '15px' }}>
-                        <button
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f8fafc' : 'white', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
-                        >
-                            Prev
-                        </button>
-                        <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 600 }}>
-                            Halaman {currentPage} dari {totalPages}
-                        </span>
-                        <button
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f8fafc' : 'white', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
-                        >
-                            Next
-                        </button>
+                <div style={{ display: 'flex', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 600, flex: 1 }}>
+                        Total Data: {groupedData.length}
                     </div>
-                )}
+                    {totalPages > 1 && (
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f8fafc' : 'white', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
+                            >
+                                Prev
+                            </button>
+                            {[...Array(totalPages)].map((_, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => setCurrentPage(i + 1)}
+                                    style={{
+                                        padding: '8px 12px',
+                                        borderRadius: '8px',
+                                        border: '1px solid',
+                                        borderColor: currentPage === i + 1 ? '#3b82f6' : '#cbd5e1',
+                                        background: currentPage === i + 1 ? '#eff6ff' : 'white',
+                                        color: currentPage === i + 1 ? '#2563eb' : '#475569',
+                                        fontWeight: 600,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {i + 1}
+                                </button>
+                            ))}
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f8fafc' : 'white', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: 600 }}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
+                    <div style={{ flex: 1 }}></div>
+                </div>
 
                 {/* MODAL CONTRACT (CREATE & EDIT BASIC) */}
                 {showModal && (modalMode === 'kontrak' || modalMode === 'create_kontrak') && (
@@ -748,19 +782,27 @@ const KontrakPegawai = () => {
                                     <div className="form-group">
                                         <label>Pegawai *</label>
                                         {modalMode === 'create_kontrak' && !selectedPegawai ? (
-                                            <select
-                                                value={formKontrak.id_pegawai}
-                                                onChange={e => setFormKontrak({ ...formKontrak, id_pegawai: e.target.value })}
+                                            <Select
+                                                value={formKontrak.id_pegawai ? {
+                                                    value: formKontrak.id_pegawai,
+                                                    label: pegawaiOptions.find(p => p.id_pegawai === formKontrak.id_pegawai) ? `${pegawaiOptions.find(p => p.id_pegawai === formKontrak.id_pegawai).nik} - ${pegawaiOptions.find(p => p.id_pegawai === formKontrak.id_pegawai).nama_lengkap}` : 'Pilih Pegawai'
+                                                } : null}
+                                                onChange={selected => setFormKontrak({ ...formKontrak, id_pegawai: selected ? selected.value : '' })}
+                                                options={pegawaiOptions.map(p => ({ value: p.id_pegawai, label: `${p.nik} - ${p.nama_lengkap}` }))}
+                                                placeholder="-- Cari / Pilih Pegawai --"
+                                                isSearchable
                                                 required
-                                                style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }}
-                                            >
-                                                <option value="">-- Pilih Pegawai --</option>
-                                                {pegawaiOptions.map(p => (
-                                                    <option key={p.id_pegawai} value={p.id_pegawai}>
-                                                        {p.nik} - {p.nama_lengkap}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                styles={{
+                                                    control: (base) => ({
+                                                        ...base,
+                                                        padding: '4px',
+                                                        borderRadius: '8px',
+                                                        borderColor: '#cbd5e1'
+                                                    }),
+                                                    menuPortal: base => ({ ...base, zIndex: 9999 })
+                                                }}
+                                                menuPortalTarget={document.body}
+                                            />
                                         ) : (
                                             <div style={{ padding: '10px', background: '#f1f5f9', borderRadius: 8, fontWeight: 600 }}>
                                                 {selectedPegawai?.nama_lengkap || '-'} <span style={{ fontSize: '0.85em', color: '#64748b' }}>({selectedPegawai?.nik})</span>

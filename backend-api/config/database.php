@@ -1,7 +1,7 @@
 <?php
 // config/database.php
 $host = "localhost";
-$db_name = "latihan123"; // Ganti sesuai nama DB nanti
+$db_name = "db_payroll"; // Ganti sesuai nama DB nanti
 $username = "root";
 $password = "";
 
