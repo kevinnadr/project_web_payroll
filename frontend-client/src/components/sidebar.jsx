@@ -1,17 +1,20 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Menu, LayoutDashboard, Users, ClipboardList, HeartPulse, CalendarDays, Banknote, Gift, CreditCard, Settings, LayoutList } from 'lucide-react';
+import { Menu, LayoutDashboard, Users, ClipboardList, HeartPulse, CalendarDays, Banknote, Gift, CreditCard, Settings, LayoutList, AlertTriangle, X } from 'lucide-react';
 
 const Sidebar = ({ user }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
     const navigate = useNavigate();
     const location = useLocation(); // Untuk mengecek halaman mana yang sedang aktif
 
     const handleLogout = () => {
-        if (window.confirm("Yakin mau logout?")) {
-            localStorage.clear();
-            navigate('/');
-        }
+        setShowLogoutModal(true);
+    };
+
+    const confirmLogout = () => {
+        localStorage.clear();
+        navigate('/');
     };
 
     // Fungsi helper untuk menentukan class active
@@ -89,6 +92,40 @@ const Sidebar = ({ user }) => {
                     </button>
                 </div>
             </aside>
+
+            {showLogoutModal && (
+                <div className="modal-backdrop" style={{ zIndex: 10000 }}>
+                    <div className="modal-content-modern" style={{ width: '400px', backgroundColor: '#fff', borderRadius: '12px' }}>
+                        <div className="modal-header-modern" style={{ borderBottom: '1px solid #fee2e2', backgroundColor: '#fef2f2', borderTopLeftRadius: '12px', borderTopRightRadius: '12px', padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '1.1rem' }}>
+                                <AlertTriangle size={22} strokeWidth={2.5} /> Konfirmasi Logout
+                            </h3>
+                            <button onClick={() => setShowLogoutModal(false)} style={{ color: '#991b1b', background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}><X size={24} /></button>
+                        </div>
+                        <div style={{ padding: '24px 20px' }}>
+                            <p style={{ fontSize: '1rem', color: '#334155', lineHeight: '1.5', margin: '0 0 20px 0' }}>
+                                Apakah Anda yakin ingin keluar dari aplikasi?
+                            </p>
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <button
+                                    onClick={() => setShowLogoutModal(false)}
+                                    className="btn-modern"
+                                    style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    onClick={confirmLogout}
+                                    className="btn-modern"
+                                    style={{ flex: 1, background: '#ef4444', color: 'white', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+                                >
+                                    Ya, Logout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };
