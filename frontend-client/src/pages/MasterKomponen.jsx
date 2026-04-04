@@ -103,7 +103,7 @@ const MasterKomponen = () => {
     };
 
     const confirmDelete = async () => {
-        if (deleteInput !== 'hapus data') {
+        if (deleteInput.trim().toLowerCase() !== 'hapus data') {
             showToast('error', 'Konfirmasi gagal. Hapus dibatalkan karena teks tidak sesuai.');
             return;
         }

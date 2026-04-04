@@ -424,7 +424,7 @@ const KontrakPegawai = () => {
     };
 
     const confirmDeleteKontrak = async () => {
-        if (deleteInput !== 'hapus data') {
+        if (deleteInput.trim().toLowerCase() !== 'hapus data') {
             showToast('error', 'Validasi gagal. Hapus dibatalkan karena teks tidak sesuai.');
             return;
         }
