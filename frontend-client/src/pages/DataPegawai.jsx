@@ -402,7 +402,7 @@ const DataPegawai = () => {
                     <table className="modern-table">
                         <thead style={{ background: 'linear-gradient(135deg, #b91c1c 0%, #ef4444 100%)' }}>
                             <tr>
-                                <th style={{ textAlign: 'left', paddingLeft: '2rem', background: 'transparent', color: 'white', width: '30%' }}>NAMA PEGAWAI</th>
+                                <th style={{ textAlign: 'center', paddingLeft: '2rem', background: 'transparent', color: 'white', width: '30%' }}>NAMA PEGAWAI</th>
                                 <th style={{ textAlign: 'left', background: 'transparent', color: 'white', width: '30%' }}>KONTAK & NPWP</th>
                                 <th style={{ textAlign: 'center', background: 'transparent', color: 'white', width: '15%' }}>MULAI KERJA</th>
                                 <th style={{ textAlign: 'center', background: 'transparent', color: 'white', width: '15%' }}>BERAKHIR</th>
