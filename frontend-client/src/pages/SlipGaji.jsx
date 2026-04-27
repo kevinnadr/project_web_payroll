@@ -97,10 +97,10 @@ const SlipGaji = () => {
     const totalPages = Math.ceil(filteredList.length / itemsPerPage);
 
     // --- ACTIONS DOWNLOAD & EMAIL ---
-    const handlePdfAll = () => window.open(import.meta.env.VITE_API_URL + '/modules/pegawai/download_pdf_all.php?bulan=${periodFilter}', '_blank');
-    const handlePdfSlipsAll = () => window.open(import.meta.env.VITE_API_URL + '/modules/pegawai/download_slips_all.php?bulan=${periodFilter}', '_blank');
-    const handlePdfOne = (id) => window.open(import.meta.env.VITE_API_URL + '/modules/pegawai/download_pdf_one.php?id=${id}&bulan=${periodFilter}', '_blank');
-    const handleExcelRekap = () => window.open(import.meta.env.VITE_API_URL + '/modules/pegawai/export_rekap_excel.php?bulan=${periodFilter}', '_blank');
+    const handlePdfAll = () => window.open(`${import.meta.env.VITE_API_URL}/modules/pegawai/download_pdf_all.php?bulan=${periodFilter}`, '_blank');
+    const handlePdfSlipsAll = () => window.open(`${import.meta.env.VITE_API_URL}/modules/pegawai/download_slips_all.php?bulan=${periodFilter}`, '_blank');
+    const handlePdfOne = (id) => window.open(`${import.meta.env.VITE_API_URL}/modules/pegawai/download_pdf_one.php?id=${id}&bulan=${periodFilter}`, '_blank');
+    const handleExcelRekap = () => window.open(`${import.meta.env.VITE_API_URL}/modules/pegawai/export_rekap_excel.php?bulan=${periodFilter}`, '_blank');
 
 
     const handleSendEmail = async (id, email) => {
@@ -234,12 +234,12 @@ const SlipGaji = () => {
                                                 <div className="user-profile" style={{ justifyContent: 'flex-start' }}>
                                                     {row.foto_profil ? (
                                                         <img
-                                                            src={import.meta.env.VITE_API_URL + '/uploads/pegawai/${row.foto_profil}'}
+                                                            src={`${import.meta.env.VITE_API_URL}/uploads/pegawai/${row.foto_profil}`}
                                                             alt="Profile"
                                                             style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                setZoomImage(import.meta.env.VITE_API_URL + '/uploads/pegawai/${row.foto_profil}');
+                                                                setZoomImage(`${import.meta.env.VITE_API_URL}/uploads/pegawai/${row.foto_profil}`);
                                                             }}
                                                         />
                                                     ) : (
