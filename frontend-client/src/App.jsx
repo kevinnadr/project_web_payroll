@@ -1,16 +1,16 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
+import Login from './pages/login';
+import Dashboard from './pages/dashboard';
 import DataPegawai from './pages/DataPegawai';
 import DataBPJS from './pages/DataBPJS';
 import SlipGaji from './pages/SlipGaji';
 import KontrakPegawai from './pages/KontrakPegawai';
-import Absensi from './pages/Absensi';
+import Absensi from './pages/absensi';
 import PPHTer from './pages/PPHTer';
 import UserManagement from './pages/UserManagement';
 import DataPendapatanLain from './pages/DataPendapatanLain';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
+import ForgotPassword from './pages/forgotpassword';
+import ResetPassword from './pages/resetpassword';
 import MasterKomponen from './pages/MasterKomponen';
 
 const ProtectedRoute = ({ children }) => {
