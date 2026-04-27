@@ -55,7 +55,7 @@ const DataBPJS = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`http://localhost/project_web_payroll/backend-api/modules/bpjs/read.php?periode=${periodFilter}`);
+            const res = await axios.get(import.meta.env.VITE_API_URL + `/modules/bpjs/read.php?periode=${periodFilter}`);
             const data = Array.isArray(res.data.data) ? res.data.data : [];
             const sorted = data.sort((a, b) => (parseInt(a.nik) || 0) - (parseInt(b.nik) || 0));
             setRawList(sorted); // Using rawList as the main list now
@@ -108,7 +108,7 @@ const DataBPJS = () => {
     const handleSave = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/bpjs/update.php', {
+            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/bpjs/update.php', {
                 ...formData,
                 periode: periodFilter // Ensure period is sent
             });
@@ -127,7 +127,7 @@ const DataBPJS = () => {
     const handleDelete = async (id, nama) => {
         if (!confirm(`Hapus/Reset data BPJS untuk ${nama} pada periode ${periodFilter}?`)) return;
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/bpjs/delete.php', {
+            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/bpjs/delete.php', {
                 id_pegawai: id,
                 periode: periodFilter
             });
@@ -143,8 +143,8 @@ const DataBPJS = () => {
     };
 
     // --- IMPORT / EXPORT HANDLERS ---
-    const handleExport = () => window.open(`http://localhost/project_web_payroll/backend-api/modules/bpjs/export_excel.php?periode=${periodFilter}`, '_blank');
-    const handleDownloadTemplate = () => window.open('http://localhost/project_web_payroll/backend-api/modules/bpjs/download_template.php', '_blank');
+    const handleExport = () => window.open(import.meta.env.VITE_API_URL + `/modules/bpjs/export_excel.php?periode=${periodFilter}`, '_blank');
+    const handleDownloadTemplate = () => window.open(import.meta.env.VITE_API_URL + '/modules/bpjs/download_template.php', '_blank');
 
     const handleImport = async (e) => {
         const file = e.target.files[0];
@@ -168,7 +168,7 @@ const DataBPJS = () => {
         setIsUploading(true);
 
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/bpjs/import_excel.php', formDataUpload, {
+            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/bpjs/import_excel.php', formDataUpload, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
@@ -302,10 +302,10 @@ const DataBPJS = () => {
                                             <div className="user-profile">
                                                 {row.foto_profil ? (
                                                     <img
-                                                        src={`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${row.foto_profil}`}
+                                                        src={`${import.meta.env.VITE_API_URL}/uploads/pegawai/${row.foto_profil}`}
                                                         alt="Profile"
                                                         style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
-                                                        onClick={() => setZoomImage(`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${row.foto_profil}`)}
+                                                        onClick={() => setZoomImage(`${import.meta.env.VITE_API_URL}/uploads/pegawai/${row.foto_profil}`)}
                                                     />
                                                 ) : (
                                                     <div className="avatar-circle">{row.nama_lengkap.charAt(0)}</div>

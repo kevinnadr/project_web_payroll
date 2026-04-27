@@ -19,7 +19,7 @@ const ForgotPassword = () => {
         setLoading(true);
 
         try {
-            const response = await axios.post('http://localhost/project_web_payroll/backend-api/modules/auth/request_reset.php', {
+            const response = await axios.post(import.meta.env.VITE_API_URL + '/modules/auth/request_reset.php', {
                 email
             });
 

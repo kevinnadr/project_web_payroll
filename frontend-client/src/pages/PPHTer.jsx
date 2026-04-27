@@ -48,7 +48,7 @@ const PPHTer = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const res = await axios.get('http://localhost/project_web_payroll/backend-api/modules/master_gaji/read_pph_ter.php');
+            const res = await axios.get(import.meta.env.VITE_API_URL + '/modules/master_gaji/read_pph_ter.php');
             if (res.data.status === 'success') {
                 setPphList(res.data.data);
             }
@@ -81,8 +81,8 @@ const PPHTer = () => {
 
         try {
             const url = isEdit
-                ? 'http://localhost/project_web_payroll/backend-api/modules/master_gaji/update_pph_ter.php'
-                : 'http://localhost/project_web_payroll/backend-api/modules/master_gaji/create_pph_ter.php';
+                ? import.meta.env.VITE_API_URL + '/modules/master_gaji/update_pph_ter.php'
+                : import.meta.env.VITE_API_URL + '/modules/master_gaji/create_pph_ter.php';
 
             const res = await axios.post(url, formData);
             if (res.data.status === 'success') {
@@ -110,7 +110,7 @@ const PPHTer = () => {
         }
 
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_gaji/delete_pph_ter.php', { id: deleteTarget });
+            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/master_gaji/delete_pph_ter.php', { id: deleteTarget });
             if (res.data.status === 'success') {
                 showToast('success', 'Data berhasil dihapus!');
                 setShowDeleteModal(false);

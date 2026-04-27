@@ -77,7 +77,7 @@ const DataPendapatanLain = () => {
 
     const fetchPegawai = async () => {
         try {
-            const response = await axios.get('http://localhost/project_web_payroll/backend-api/modules/pegawai/read.php');
+            const response = await axios.get(import.meta.env.VITE_API_URL + '/modules/pegawai/read.php');
             if (response.data.status === 'success') {
                 setPegawaiList(response.data.data);
             }
@@ -88,7 +88,7 @@ const DataPendapatanLain = () => {
 
     const fetchMasterKomponen = async () => {
         try {
-            const res = await axios.get('http://localhost/project_web_payroll/backend-api/modules/master_komponen/read.php');
+            const res = await axios.get(import.meta.env.VITE_API_URL + '/modules/master_komponen/read.php');
             if (res.data.status === 'success') {
                 setMasterKomponenOptions(res.data.data);
             }
@@ -99,7 +99,7 @@ const DataPendapatanLain = () => {
 
     const fetchPendapatan = async (p = periode) => {
         try {
-            const response = await axios.get(`http://localhost/project_web_payroll/backend-api/modules/pendapatan_lain/read.php?periode=${p}`);
+            const response = await axios.get(import.meta.env.VITE_API_URL + `/modules/pendapatan_lain/read.php?periode=${p}`);
             if (response.data.status === 'success') {
                 setPendapatanList(response.data.data);
             }
@@ -126,7 +126,7 @@ const DataPendapatanLain = () => {
                 }))
             };
 
-            const response = await axios.post('http://localhost/project_web_payroll/backend-api/modules/pendapatan_lain/save.php', payload);
+            const response = await axios.post(import.meta.env.VITE_API_URL + '/modules/pendapatan_lain/save.php', payload);
             if (response.data.status === 'success') {
                 showToast('success', 'Data pendapatan berhasil disimpan!');
                 setShowModal(false);
@@ -159,7 +159,7 @@ const DataPendapatanLain = () => {
                 payload.id_pegawai = deleteTarget.id_pegawai;
             }
 
-            const response = await axios.post('http://localhost/project_web_payroll/backend-api/modules/pendapatan_lain/delete.php', payload);
+            const response = await axios.post(import.meta.env.VITE_API_URL + '/modules/pendapatan_lain/delete.php', payload);
             if (response.data.status === 'success') {
                 showToast('success', Array.isArray(deleteTarget) ? 'Data pendapatan terpilih berhasil dihapus!' : 'Data pendapatan berhasil dihapus!');
                 setShowDeleteModal(false);
@@ -199,8 +199,8 @@ const DataPendapatanLain = () => {
     };
 
     // --- IMPORT / EXPORT HANDLERS ---
-    const handleExport = () => window.open(`http://localhost/project_web_payroll/backend-api/modules/pendapatan_lain/export_excel.php?periode=${periode}`, '_blank');
-    const handleDownloadTemplate = () => window.open('http://localhost/project_web_payroll/backend-api/modules/pendapatan_lain/download_template.php', '_blank');
+    const handleExport = () => window.open(import.meta.env.VITE_API_URL + `/modules/pendapatan_lain/export_excel.php?periode=${periode}`, '_blank');
+    const handleDownloadTemplate = () => window.open(import.meta.env.VITE_API_URL + '/modules/pendapatan_lain/download_template.php', '_blank');
 
     const handleImport = async (e) => {
         const file = e.target.files[0];
@@ -224,7 +224,7 @@ const DataPendapatanLain = () => {
         setIsUploading(true);
 
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/pendapatan_lain/import_excel.php', formDataUpload, {
+            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/pendapatan_lain/import_excel.php', formDataUpload, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
@@ -483,10 +483,10 @@ const DataPendapatanLain = () => {
                                         <div className="user-profile">
                                             {group.foto_profil ? (
                                                 <img
-                                                    src={`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${group.foto_profil}`}
+                                                    src={`${import.meta.env.VITE_API_URL}/uploads/pegawai/${group.foto_profil}`}
                                                     alt="Profile"
                                                     style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
-                                                    onClick={() => setZoomImage(`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${group.foto_profil}`)}
+                                                    onClick={() => setZoomImage(`${import.meta.env.VITE_API_URL}/uploads/pegawai/${group.foto_profil}`)}
                                                 />
                                             ) : (
                                                 <div className="avatar-circle">{group.nama_lengkap.charAt(0)}</div>

@@ -12,7 +12,7 @@ define('SMTP_USER', 'kevin19305.ib@gmail.com');
 define('SMTP_PASS', 'sxkl vipy bfsx ljfe'); 
 
 // URL Frontend React Anda (Pastikan port-nya benar, biasanya 5173)
-define('BASE_URL_FRONTEND', 'http://localhost:5173'); 
+define('BASE_URL_FRONTEND', 'http://103.23.199.184'); 
 
 $input = json_decode(file_get_contents("php://input"));
 if (!isset($input->email)) {

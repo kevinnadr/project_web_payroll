@@ -41,7 +41,7 @@ const MasterKomponen = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const res = await axios.get('http://localhost/project_web_payroll/backend-api/modules/master_komponen/read.php');
+            const res = await axios.get(import.meta.env.VITE_API_URL + '/modules/master_komponen/read.php');
             if (res.data.status === 'success') {
                 setKomponenList(res.data.data || []);
             }
@@ -75,8 +75,8 @@ const MasterKomponen = () => {
 
         try {
             const url = isEdit
-                ? 'http://localhost/project_web_payroll/backend-api/modules/master_komponen/update.php'
-                : 'http://localhost/project_web_payroll/backend-api/modules/master_komponen/create.php';
+                ? import.meta.env.VITE_API_URL + '/modules/master_komponen/update.php'
+                : import.meta.env.VITE_API_URL + '/modules/master_komponen/create.php';
 
             const payload = isEdit
                 ? { id: formData.id, nama_komponen: formData.nama_komponen.trim() }
@@ -109,7 +109,7 @@ const MasterKomponen = () => {
         }
 
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_komponen/delete.php', { id: deleteTarget.id });
+            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/master_komponen/delete.php', { id: deleteTarget.id });
             if (res.data.status === 'success') {
                 showToast('success', 'Komponen berhasil dihapus!');
                 setShowDeleteModal(false);

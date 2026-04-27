@@ -44,7 +44,7 @@ const Dashboard = () => {
 
     const fetchStats = async () => {
         try {
-            const res = await axios.get(`http://localhost/project_web_payroll/backend-api/modules/dashboard/stats.php?bulan=${bulanFilter}`);
+            const res = await axios.get(import.meta.env.VITE_API_URL + `/modules/dashboard/stats.php?bulan=${bulanFilter}`);
             if (res.data.status === 'success') {
                 setStats(res.data.data);
             }

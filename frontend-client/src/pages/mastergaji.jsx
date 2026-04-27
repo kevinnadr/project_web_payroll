@@ -32,7 +32,7 @@ const MasterGaji = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`http://localhost/project_web_payroll/backend-api/modules/master_gaji/read_all.php`, {
+            const res = await axios.get(import.meta.env.VITE_API_URL + '/modules/master_gaji/read_all.php', {
                 params: { bulan: bulanFilter }
             });
             if (res.data.status === 'success') {
@@ -59,7 +59,7 @@ const MasterGaji = () => {
                 ikut_bpjs_ks: selectedData.ikut_bpjs_ks === 1 ? 1 : 0
             };
 
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_gaji/save_gaji_full.php', payload);
+            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/master_gaji/save_gaji_full.php', payload);
 
             if (res.data.status === 'success') {
                 showToast('success', res.data.message);
@@ -112,7 +112,7 @@ const MasterGaji = () => {
                         <input type="text" placeholder="Cari Nama / NIK..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                     </div>
                     <div className="toolbar-actions">
-                        <button onClick={() => window.open(`http://localhost/project_web_payroll/backend-api/modules/master_gaji/export_excel.php?bulan=${bulanFilter}`, '_blank')} className="btn-modern btn-outline"><span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><Download size={18} /> Excel</span></button>
+                        <button onClick={() => window.open(import.meta.env.VITE_API_URL + '/modules/master_gaji/export_excel.php?bulan=${bulanFilter}', '_blank')} className="btn-modern btn-outline"><span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><Download size={18} /> Excel</span></button>
                     </div>
                 </div>
 
@@ -138,10 +138,10 @@ const MasterGaji = () => {
                                                 <div className="user-profile">
                                                     {row.foto_profil ? (
                                                         <img
-                                                            src={`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${row.foto_profil}`}
+                                                            src={import.meta.env.VITE_API_URL + '/uploads/pegawai/${row.foto_profil}'}
                                                             alt="Profile"
                                                             style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', cursor: 'pointer' }}
-                                                            onClick={() => setZoomImage(`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${row.foto_profil}`)}
+                                                            onClick={() => setZoomImage(import.meta.env.VITE_API_URL + '/uploads/pegawai/${row.foto_profil}')}
                                                         />
                                                     ) : (
                                                         <div className="avatar-circle">{(row.nama_lengkap || '').charAt(0)}</div>

@@ -68,7 +68,7 @@ const Absensi = () => {
 
     const fetchSettings = async () => {
         try {
-            const res = await axios.get('http://localhost/project_web_payroll/backend-api/modules/absensi/read_settings.php');
+            const res = await axios.get(import.meta.env.VITE_API_URL + '/modules/absensi/read_settings.php');
             if (res.data.status === 'success') {
                 setSettings(res.data.data);
             }
@@ -80,7 +80,7 @@ const Absensi = () => {
     const handleSaveSettings = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/absensi/save_settings.php', settings);
+            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/absensi/save_settings.php', settings);
             if (res.data.status === 'success') {
                 showToast('success', "Pengaturan berhasil disimpan!");
                 setShowSettingsModal(false);
@@ -95,7 +95,7 @@ const Absensi = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`http://localhost/project_web_payroll/backend-api/modules/absensi/read.php?bulan=${bulanFilter}`);
+            const res = await axios.get(import.meta.env.VITE_API_URL + `/modules/absensi/read.php?bulan=${bulanFilter}`);
             setListAbsensi(res.data.data);
             setFilteredList(res.data.data);
         } catch (e) { console.error("Fetch Error:", e); }
@@ -138,7 +138,7 @@ const Absensi = () => {
     };
 
     // --- EXPORT & TEMPLATE ---
-    const handleDownloadTemplate = () => window.open('http://localhost/project_web_payroll/backend-api/modules/absensi/download_template.php', '_blank'); // Using simple template for now
+    const handleDownloadTemplate = () => window.open(import.meta.env.VITE_API_URL + '/modules/absensi/download_template.php', '_blank'); // Using simple template for now
 
     // --- IMPORT CSV ---
     const handleFileChange = async (e) => {
@@ -220,7 +220,7 @@ const Absensi = () => {
                 setLoading(true);
 
                 await axios.post(
-                    `http://localhost/project_web_payroll/backend-api/modules/absensi/import_excel.php`,
+                    import.meta.env.VITE_API_URL + `/modules/absensi/import_excel.php`,
                     {
                         bulan: bulanFilter,
                         data: dataToImport
@@ -247,7 +247,7 @@ const Absensi = () => {
     };
 
     const handleExport = () => {
-        window.open(`http://localhost/project_web_payroll/backend-api/modules/absensi/export_excel.php?bulan=${bulanFilter}`, '_blank');
+        window.open(import.meta.env.VITE_API_URL + `/modules/absensi/export_excel.php?bulan=${bulanFilter}`, '_blank');
     };
     const handleSaveAbsensi = async (e) => {
         e.preventDefault();
@@ -262,7 +262,7 @@ const Absensi = () => {
         }
 
         try {
-            const res = await axios.post(`http://localhost/project_web_payroll/backend-api/modules/absensi/save.php`, { ...editData, bulan: bulanFilter });
+            const res = await axios.post(import.meta.env.VITE_API_URL + `/modules/absensi/save.php`, { ...editData, bulan: bulanFilter });
             if (res.data.status === 'success') { setShowModal(false); fetchData(); showToast('success', 'Data absensi berhasil diupdate!'); }
             else { showToast('error', res.data.message); }
         } catch (e) { showToast('error', "Error saving data"); }
@@ -299,7 +299,7 @@ const Absensi = () => {
                 payload.pegawai_id = deleteTarget.pegawai_id;
             }
 
-            const res = await axios.post(`http://localhost/project_web_payroll/backend-api/modules/absensi/delete.php`, payload);
+            const res = await axios.post(import.meta.env.VITE_API_URL + `/modules/absensi/delete.php`, payload);
 
             if (res.data.status === 'success') {
                 showToast('success', Array.isArray(deleteTarget) ? 'Data absensi terpilih berhasil dihapus!' : 'Data absensi berhasil dihapus!');
@@ -502,10 +502,10 @@ const Absensi = () => {
                                         <div className="user-profile">
                                             {row.foto_profil ? (
                                                 <img
-                                                    src={`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${row.foto_profil}`}
+                                                    src={`${import.meta.env.VITE_API_URL}/uploads/pegawai/${row.foto_profil}`}
                                                     alt="Profile"
                                                     style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
-                                                    onClick={() => setZoomImage(`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${row.foto_profil}`)}
+                                                    onClick={() => setZoomImage(`${import.meta.env.VITE_API_URL}/uploads/pegawai/${row.foto_profil}`)}
                                                 />
                                             ) : (
                                                 <div className="avatar-circle">{row.nama_lengkap.charAt(0)}</div>

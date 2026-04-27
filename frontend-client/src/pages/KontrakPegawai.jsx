@@ -176,7 +176,7 @@ const KontrakPegawai = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const res = await axios.get('http://localhost/project_web_payroll/backend-api/modules/master_gaji/read_kontrak.php', {
+            const res = await axios.get(import.meta.env.VITE_API_URL + '/modules/master_gaji/read_kontrak.php', {
                 params: { bulan: bulanFilter }
             });
             if (res.data.status === 'success') {
@@ -189,7 +189,7 @@ const KontrakPegawai = () => {
 
     const fetchPegawaiSimple = async () => {
         try {
-            const res = await axios.get('http://localhost/project_web_payroll/backend-api/modules/pegawai/read_simple.php');
+            const res = await axios.get(import.meta.env.VITE_API_URL + '/modules/pegawai/read_simple.php');
             if (res.data.status === 'success') {
                 setPegawaiOptions(res.data.data);
             }
@@ -198,7 +198,7 @@ const KontrakPegawai = () => {
 
     const fetchMasterKomponen = async () => {
         try {
-            const res = await axios.get('http://localhost/project_web_payroll/backend-api/modules/master_komponen/read.php');
+            const res = await axios.get(import.meta.env.VITE_API_URL + '/modules/master_komponen/read.php');
             if (res.data.status === 'success') {
                 setMasterKomponenOptions(res.data.data);
             }
@@ -282,7 +282,7 @@ const KontrakPegawai = () => {
 
             // Fetch BPJS Data
             try {
-                const res = await axios.get('http://localhost/project_web_payroll/backend-api/modules/master_gaji/read_bpjs.php', {
+                const res = await axios.get(import.meta.env.VITE_API_URL + '/modules/master_gaji/read_bpjs.php', {
                     params: { id_pegawai: pegawai.id_pegawai }
                 });
                 if (res.data.status === 'success' && res.data.data) {
@@ -334,7 +334,7 @@ const KontrakPegawai = () => {
         try {
             // 1. Save Main Contract (Basic Data + Tunjangan Tetap)
             // Note: save_kontrak.php handles Tunjangan Tetap logic internally by adding it to komponen
-            const resKontrak = await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_gaji/save_kontrak.php', formKontrak);
+            const resKontrak = await axios.post(import.meta.env.VITE_API_URL + '/modules/master_gaji/save_kontrak.php', formKontrak);
 
             if (resKontrak.data.status === 'success') {
                 // FIXED: structure is res.data.data.id_kontrak
@@ -379,7 +379,7 @@ const KontrakPegawai = () => {
                     id_kontrak: savedIdKontrak,
                     komponen_tambahan: allKomponen
                 };
-                await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_gaji/save_komponen.php', payloadKomponen);
+                await axios.post(import.meta.env.VITE_API_URL + '/modules/master_gaji/save_komponen.php', payloadKomponen);
 
                 // 3. Save BPJS Logic - REMOVED PER REQ
                 // const payloadBpjs = {
@@ -404,7 +404,7 @@ const KontrakPegawai = () => {
     const handleSavePtkp = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/pegawai/update_ptkp.php', formPtkp);
+            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/pegawai/update_ptkp.php', formPtkp);
             if (res.data.status === 'success') {
                 showToast('success', 'Status PTKP Updated!');
                 setShowModal(false); fetchData();
@@ -429,7 +429,7 @@ const KontrakPegawai = () => {
             return;
         }
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/master_gaji/delete_kontrak.php', { id_kontrak: deleteTarget.id_kontrak });
+            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/master_gaji/delete_kontrak.php', { id_kontrak: deleteTarget.id_kontrak });
             if (res.data.status === 'success') {
                 showToast('success', 'Kontrak berhasil dihapus!');
                 setShowDeleteModal(false);
@@ -544,10 +544,10 @@ const KontrakPegawai = () => {
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                                                 {pegawai.foto_profil ? (
                                                     <img
-                                                        src={`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${pegawai.foto_profil}`}
+                                                        src={`${import.meta.env.VITE_API_URL}/uploads/pegawai/${pegawai.foto_profil}`}
                                                         alt="Profile"
                                                         style={{ width: '45px', height: '45px', borderRadius: '50%', objectFit: 'cover', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
-                                                        onClick={() => setZoomImage(`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${pegawai.foto_profil}`)}
+                                                        onClick={() => setZoomImage(`${import.meta.env.VITE_API_URL}/uploads/pegawai/${pegawai.foto_profil}`)}
                                                     />
                                                 ) : (
                                                     <div

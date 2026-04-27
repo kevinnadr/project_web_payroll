@@ -41,7 +41,7 @@ const SlipGaji = () => {
     const fetchPegawai = async () => {
         setLoading(true);
         try {
-            const res = await axios.get('http://localhost/project_web_payroll/backend-api/modules/pegawai/read.php');
+            const res = await axios.get(import.meta.env.VITE_API_URL + '/modules/pegawai/read.php');
             const responseData = res.data.data || res.data || [];
             const list = Array.isArray(responseData) ? responseData : [];
             const sorted = [...list].sort((a, b) => (parseInt(a.nik) || 0) - (parseInt(b.nik) || 0));
@@ -59,7 +59,7 @@ const SlipGaji = () => {
         setShowGenerateModal(false);
         setLoading(true);
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/penggajian/generate_slip.php', { bulan: periodFilter });
+            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/penggajian/generate_slip.php', { bulan: periodFilter });
             if (res.data.status === 'success') {
                 showToast('success', res.data.message);
                 fetchPegawai(); // trigger refresh
@@ -97,10 +97,10 @@ const SlipGaji = () => {
     const totalPages = Math.ceil(filteredList.length / itemsPerPage);
 
     // --- ACTIONS DOWNLOAD & EMAIL ---
-    const handlePdfAll = () => window.open(`http://localhost/project_web_payroll/backend-api/modules/pegawai/download_pdf_all.php?bulan=${periodFilter}`, '_blank');
-    const handlePdfSlipsAll = () => window.open(`http://localhost/project_web_payroll/backend-api/modules/pegawai/download_slips_all.php?bulan=${periodFilter}`, '_blank');
-    const handlePdfOne = (id) => window.open(`http://localhost/project_web_payroll/backend-api/modules/pegawai/download_pdf_one.php?id=${id}&bulan=${periodFilter}`, '_blank');
-    const handleExcelRekap = () => window.open(`http://localhost/project_web_payroll/backend-api/modules/pegawai/export_rekap_excel.php?bulan=${periodFilter}`, '_blank');
+    const handlePdfAll = () => window.open(import.meta.env.VITE_API_URL + '/modules/pegawai/download_pdf_all.php?bulan=${periodFilter}', '_blank');
+    const handlePdfSlipsAll = () => window.open(import.meta.env.VITE_API_URL + '/modules/pegawai/download_slips_all.php?bulan=${periodFilter}', '_blank');
+    const handlePdfOne = (id) => window.open(import.meta.env.VITE_API_URL + '/modules/pegawai/download_pdf_one.php?id=${id}&bulan=${periodFilter}', '_blank');
+    const handleExcelRekap = () => window.open(import.meta.env.VITE_API_URL + '/modules/pegawai/export_rekap_excel.php?bulan=${periodFilter}', '_blank');
 
 
     const handleSendEmail = async (id, email) => {
@@ -108,7 +108,7 @@ const SlipGaji = () => {
         if (!confirm(`Kirim notifikasi data ke email: ${email}?`)) return;
         setSendingEmailId(id);
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/pegawai/send_email.php', { id, bulan: periodFilter });
+            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/pegawai/send_email.php', { id, bulan: periodFilter });
             if (res.data.status === 'success') showToast('success', "Email Terkirim!");
             else showToast('error', "Gagal: " + res.data.message);
         } catch (e) { showToast('error', "Error koneksi server."); }
@@ -119,7 +119,7 @@ const SlipGaji = () => {
         if (!confirm("Kirim slip gaji via email ke SEMUA pegawai yang memiliki email? Proses mungkin memakan waktu.")) return;
         setIsSendingAll(true);
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/pegawai/send_email_all.php', { bulan: periodFilter });
+            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/pegawai/send_email_all.php', { bulan: periodFilter });
             if (res.data.status === 'success') {
                 showToast('success', `Proses Selesai!\n${res.data.message}`);
             } else {
@@ -234,12 +234,12 @@ const SlipGaji = () => {
                                                 <div className="user-profile" style={{ justifyContent: 'flex-start' }}>
                                                     {row.foto_profil ? (
                                                         <img
-                                                            src={`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${row.foto_profil}`}
+                                                            src={import.meta.env.VITE_API_URL + '/uploads/pegawai/${row.foto_profil}'}
                                                             alt="Profile"
                                                             style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                setZoomImage(`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${row.foto_profil}`);
+                                                                setZoomImage(import.meta.env.VITE_API_URL + '/uploads/pegawai/${row.foto_profil}');
                                                             }}
                                                         />
                                                     ) : (

@@ -62,7 +62,7 @@ const UserManagement = () => {
     // --- 2. AMBIL DATA USER ---
     const fetchUsers = async () => {
         try {
-            const res = await axios.get('http://localhost/project_web_payroll/backend-api/modules/users/read.php');
+            const res = await axios.get(import.meta.env.VITE_API_URL + '/modules/users/read.php');
             if (res.data.status === 'success') {
                 setUsers(res.data.data);
                 setFilteredUsers(res.data.data);
@@ -91,8 +91,8 @@ const UserManagement = () => {
         setLoading(true);
 
         const url = isEdit
-            ? 'http://localhost/project_web_payroll/backend-api/modules/users/update.php'
-            : 'http://localhost/project_web_payroll/backend-api/modules/users/create.php';
+            ? import.meta.env.VITE_API_URL + '/modules/users/update.php'
+            : import.meta.env.VITE_API_URL + '/modules/users/create.php';
 
         try {
             const res = await axios.post(url, formData);
@@ -130,7 +130,7 @@ const UserManagement = () => {
         }
 
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/users/delete.php', { id: deleteTarget.id });
+            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/users/delete.php', { id: deleteTarget.id });
             if (res.data.status === 'success') {
                 showToast('success', "User dihapus!");
                 setShowDeleteModal(false);

@@ -70,7 +70,7 @@ const DataPegawai = () => {
     const fetchPegawai = async () => {
         setLoading(true);
         try {
-            const res = await axios.get('http://localhost/project_web_payroll/backend-api/modules/pegawai/read.php');
+            const res = await axios.get(import.meta.env.VITE_API_URL + '/modules/pegawai/read.php');
             const list = Array.isArray(res.data.data) ? res.data.data : [];
             const sorted = [...list].sort((a, b) => (parseInt(a.nik) || 0) - (parseInt(b.nik) || 0));
             setPegawaiList(sorted);
@@ -169,7 +169,7 @@ const DataPegawai = () => {
                 npwp: row.npwp || '',
                 foto_profil: null
             });
-            setPreviewImage(row.foto_profil ? `http://localhost/project_web_payroll/backend-api/uploads/pegawai/${row.foto_profil}` : null);
+            setPreviewImage(row.foto_profil ? `${import.meta.env.VITE_API_URL}/uploads/pegawai/${row.foto_profil}` : null);
         } else {
             setIsEdit(false);
             setFormData({
@@ -189,8 +189,8 @@ const DataPegawai = () => {
     const handleSave = async (e) => {
         e.preventDefault();
         const url = isEdit
-            ? 'http://localhost/project_web_payroll/backend-api/modules/pegawai/update.php'
-            : 'http://localhost/project_web_payroll/backend-api/modules/pegawai/create.php';
+            ? import.meta.env.VITE_API_URL + '/modules/pegawai/update.php'
+            : import.meta.env.VITE_API_URL + '/modules/pegawai/create.php';
 
         const data = new FormData();
         data.append('id_pegawai', formData.id_pegawai);
@@ -220,8 +220,8 @@ const DataPegawai = () => {
     };
 
     // --- IMPORT / EXPORT HANDLERS ---
-    const handleExport = () => window.open(`http://localhost/project_web_payroll/backend-api/modules/pegawai/export_excel.php?periode=${periodFilter}`, '_blank');
-    const handleDownloadTemplate = () => window.open('http://localhost/project_web_payroll/backend-api/modules/pegawai/download_template.php', '_blank');
+    const handleExport = () => window.open(import.meta.env.VITE_API_URL + `/modules/pegawai/export_excel.php?periode=${periodFilter}`, '_blank');
+    const handleDownloadTemplate = () => window.open(import.meta.env.VITE_API_URL + '/modules/pegawai/download_template.php', '_blank');
 
     const handleImport = async (e) => {
         const file = e.target.files[0];
@@ -244,7 +244,7 @@ const DataPegawai = () => {
         setIsUploading(true);
 
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/pegawai/import_excel.php', formDataUpload, {
+            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/pegawai/import_excel.php', formDataUpload, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
@@ -287,7 +287,7 @@ const DataPegawai = () => {
         }
 
         try {
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/pegawai/delete.php', { id_pegawai: deleteTarget.id_pegawai });
+            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/pegawai/delete.php', { id_pegawai: deleteTarget.id_pegawai });
             if (res.data.status === 'success') {
                 showToast('success', `Pegawai ${deleteTarget.nama_lengkap} berhasil dihapus.`);
                 setShowDeleteModal(false);
@@ -421,11 +421,11 @@ const DataPegawai = () => {
                                             <div className="user-profile" style={{ margin: 0 }}>
                                                 {row.foto_profil ? (
                                                     <img
-                                                        src={`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${row.foto_profil}`}
+                                                        src={`${import.meta.env.VITE_API_URL}/uploads/pegawai/${row.foto_profil}`}
                                                         alt="Profile"
                                                         className="avatar-circle"
                                                         style={{ objectFit: 'cover', cursor: 'pointer' }}
-                                                        onClick={() => setZoomImage(`http://localhost/project_web_payroll/backend-api/uploads/pegawai/${row.foto_profil}`)}
+                                                        onClick={() => setZoomImage(`${import.meta.env.VITE_API_URL}/uploads/pegawai/${row.foto_profil}`)}
                                                     />
                                                 ) : (
                                                     <div className="avatar-circle">{row.nama_lengkap.charAt(0)}</div>

@@ -26,7 +26,7 @@ const Login = () => {
         setLoading(true);
 
         try {
-            const response = await axios.post('http://localhost/project_web_payroll/backend-api/modules/auth/login.php', {
+            const response = await axios.post(import.meta.env.VITE_API_URL + '/modules/auth/login.php', {
                 email, password
             });
 
@@ -60,7 +60,7 @@ const Login = () => {
             console.log("Data Google:", decoded);
 
             // 2. KIRIM DATA YANG SUDAH BERSIH KE BACKEND
-            const res = await axios.post('http://localhost/project_web_payroll/backend-api/modules/auth/login_google.php', {
+            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/auth/login_google.php', {
                 email: decoded.email,
                 name: decoded.name
             });
