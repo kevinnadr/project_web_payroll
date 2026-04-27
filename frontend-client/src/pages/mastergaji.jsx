@@ -112,7 +112,7 @@ const MasterGaji = () => {
                         <input type="text" placeholder="Cari Nama / NIK..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                     </div>
                     <div className="toolbar-actions">
-                        <button onClick={() => window.open(import.meta.env.VITE_API_URL + '/modules/master_gaji/export_excel.php?bulan=${bulanFilter}', '_blank')} className="btn-modern btn-outline"><span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><Download size={18} /> Excel</span></button>
+                        <button onClick={() => window.open(`${import.meta.env.VITE_API_URL}/modules/master_gaji/export_excel.php?bulan=${bulanFilter}`, '_blank')} className="btn-modern btn-outline"><span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><Download size={18} /> Excel</span></button>
                     </div>
                 </div>
 
@@ -138,10 +138,10 @@ const MasterGaji = () => {
                                                 <div className="user-profile">
                                                     {row.foto_profil ? (
                                                         <img
-                                                            src={import.meta.env.VITE_API_URL + '/uploads/pegawai/${row.foto_profil}'}
+                                                            src={`${import.meta.env.VITE_API_URL}/uploads/pegawai/${row.foto_profil}`}
                                                             alt="Profile"
                                                             style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', cursor: 'pointer' }}
-                                                            onClick={() => setZoomImage(import.meta.env.VITE_API_URL + '/uploads/pegawai/${row.foto_profil}')}
+                                                            onClick={() => setZoomImage(`${import.meta.env.VITE_API_URL}/uploads/pegawai/${row.foto_profil}`)}
                                                         />
                                                     ) : (
                                                         <div className="avatar-circle">{(row.nama_lengkap || '').charAt(0)}</div>
