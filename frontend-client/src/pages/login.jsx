@@ -206,16 +206,9 @@ const Login = () => {
             {/* FULL SCREEN LOADING TRANSITION */}
             {isRedirecting && (
                 <div className="login-loading-overlay">
-                    <div className="loading-content">
-                        <div className="pulse-logo-wrapper">
-                            <img src="/LOGORAC.png" alt="Loading Logo" className="pulse-logo" />
-                        </div>
-                        <div className="loading-text-container">
-                            <p className="loading-status-text">{loadingMessage}</p>
-                            <div className="loading-bar-container">
-                                <div className="loading-bar-progress"></div>
-                            </div>
-                        </div>
+                    <div className="loading-content-simple">
+                        <Loader2 className="spinner-icon" size={48} />
+                        <p>Mohon Tunggu...</p>
                     </div>
                 </div>
             )}
