@@ -54,9 +54,9 @@ const Dashboard = () => {
     };
 
     return (
-        <div className="app-layout">
+        <div className="app-layout-modern">
             <Sidebar user={user} />
-            <main className="main-content">
+            <main className="main-content-modern">
 
                 {/* HEADER */}
                 <div className="page-header-modern">
@@ -155,72 +155,8 @@ const Dashboard = () => {
 
             </main>
 
-            <style>{`
-                /* GRID LAYOUT */
-                .dashboard-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-                    gap: 20px;
-                    margin-bottom: 30px;
-                }
-
-                /* CARD STYLES */
-                .stat-card {
-                    background: white;
-                    border-radius: 16px;
-                    padding: 20px;
-                    display: flex;
-                    align-items: center;
-                    gap: 15px;
-                    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-                    transition: transform 0.2s;
-                    border: 1px solid rgba(0,0,0,0.05);
-                }
-                .stat-card:hover { transform: translateY(-5px); }
-
-                .stat-info h3 { margin: 0; font-size: 0.9rem; color: rgba(255,255,255,0.9); font-weight: 500; }
-                .stat-number { font-size: 2.2rem; font-weight: 800; line-height: 1.2; margin: 5px 0; color: white; }
-                .stat-desc { font-size: 0.8rem; color: rgba(255,255,255,0.8); }
-
-                .icon-wrapper {
-                    width: 50px; height: 50px;
-                    background: rgba(255,255,255,0.2);
-                    border-radius: 12px;
-                    display: flex; align-items: center; justify-content: center;
-                    font-size: 1.5rem;
-                }
-
-                /* COLOR VARIANTS */
-                .blue-card { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
-                .green-card { background: linear-gradient(135deg, #10b981, #059669); color: white; }
-                .red-card { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
-                .yellow-card { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
-
-                /* MINI STATS (Untuk Card Kuning) */
-                .mini-stats { display: flex; flex-direction: column; gap: 2px; margin-top: 5px; font-size: 0.85rem; color: white; }
-
-                /* WELCOME SECTION */
-                .welcome-section {
-                    background: white;
-                    padding: 30px;
-                    border-radius: 16px;
-                    border: 1px solid #e2e8f0;
-                    box-shadow: 0 4px 20px rgba(0,0,0,0.02);
-                }
-                .welcome-section h2 { margin-top: 0; color: #1e293b; }
-                .welcome-section p { color: #64748b; line-height: 1.6; }
-
-                /* HEADER STYLES (Sama seperti Absensi) */
-                .page-header-modern { display: flex; justify-content: space-between; align-items: end; margin-bottom: 25px; }
-                .modern-title { font-size: 1.8rem; font-weight: 700; color: #1e293b; margin: 0; }
-                .modern-subtitle { color: #64748b; margin: 5px 0 0; font-size: 0.95rem; }
-                
-                .date-picker-container { background: white; padding: 5px 10px 5px 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 10px; border: 1px solid #e2e8f0; }
-                .label-periode { font-weight: 600; color: #475569; font-size: 0.9rem; }
-                .modern-input-date { border: none; font-family: inherit; color: #0f172a; font-weight: 600; cursor: pointer; outline: none; }
-            `}</style>
         </div>
     );
 };
 
-export default Dashboard;
+export default Dashboard;
