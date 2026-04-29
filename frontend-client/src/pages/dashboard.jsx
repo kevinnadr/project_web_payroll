@@ -121,7 +121,7 @@ const Dashboard = () => {
 
                 {/* WELCOME SECTION */}
                 <div className="welcome-section" style={{ marginBottom: '30px' }}>
-                    <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Hand size={28} color="#eab308" /> Selamat Datang, {user?.nama || 'User'}!</h2>
+                    <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Hand size={28} color="#eab308" /> Selamat Datang, {user?.nama_lengkap}!</h2>
                     <p>
                         Sistem Payroll ini membantu Anda mengelola Absensi, Gaji, dan Data Pegawai dengan lebih mudah.
                         Pastikan data absensi bulan <strong>{bulanFilter}</strong> sudah diinput sebelum mencetak slip gaji.

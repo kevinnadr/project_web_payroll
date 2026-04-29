@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Menu, LayoutDashboard, Users, ClipboardList, HeartPulse, CalendarDays, Banknote, Gift, CreditCard, Settings, LayoutList, AlertTriangle, X } from 'lucide-react';
+import { Menu, LayoutDashboard, Users, ClipboardList, HeartPulse, CalendarDays, Banknote, Gift, CreditCard, Settings, LayoutList, AlertTriangle, X, LogOut } from 'lucide-react';
 
 const Sidebar = ({ user }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -81,16 +81,14 @@ const Sidebar = ({ user }) => {
 
                 <div className="sidebar-footer">
                     <div className="user-profile">
-                        <div className="avatar">
-                            {(user?.nama?.trim().charAt(0) || 'A').toUpperCase()}
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '0.8rem', color: '#cbd5e1' }}>Halo,</span>
-                            <strong style={{ color: 'white', fontSize: '0.9rem' }}>{user?.nama || 'User'}</strong>
+                        <div className="avatar">{user?.nama?.charAt(0) || 'A'}</div>
+                        <div className="user-info">
+                            <span className="user-name">{user?.nama || 'User'}</span>
+                            <span className={`user-role-badge ${user?.role === 'admin' ? 'admin' : ''}`}>{user?.role || 'Staff'}</span>
                         </div>
                     </div>
-                    <button onClick={handleLogout} className="btn btn-logout">
-                        Logout Keluar
+                    <button onClick={handleLogout} className="btn-logout-modern">
+                        <LogOut size={18} /> <span>Logout Keluar</span>
                     </button>
                 </div>
             </aside>
