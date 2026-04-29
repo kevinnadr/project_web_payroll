@@ -14,6 +14,7 @@ const Login = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
     const [isRedirecting, setIsRedirecting] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState("Menyiapkan Sesi...");
     const { toast, showToast, hideToast } = useToast();
