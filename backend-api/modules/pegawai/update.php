@@ -43,28 +43,40 @@ try {
         $filename = $_FILES['foto_profil']['name'];
         $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
         
-        if (in_array($ext, $allowed)) {
-            $newFilename = time() . '_' . rand(1000,9999) . '.' . $ext;
-            $uploadDir = __DIR__ . '/../../uploads/pegawai/';
-            if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
-            
-            // Cari foto lama untuk dihapus
-            $stmtOld = $db->prepare("SELECT foto_profil FROM pegawai WHERE id_pegawai = ?");
-            $stmtOld->execute([$id_pegawai]);
-            $oldData = $stmtOld->fetch(PDO::FETCH_ASSOC);
+        if (!in_array($ext, $allowed)) {
+            echo json_encode(["status" => "error", "message" => "Format file tidak didukung!"]);
+            exit;
+        }
 
-            if (move_uploaded_file($_FILES['foto_profil']['tmp_name'], $uploadDir . $newFilename)) {
-                $fotoSql = ", foto_profil = :foto_profil";
-                $params[':foto_profil'] = $newFilename;
+        $newFilename = time() . '_' . rand(1000,9999) . '.' . $ext;
+        $uploadDir = __DIR__ . '/../../uploads/pegawai/';
+        
+        if (!is_dir($uploadDir)) {
+            if (!mkdir($uploadDir, 0777, true)) {
+                echo json_encode(["status" => "error", "message" => "Gagal membuat direktori upload! Periksa izin folder di VPS."]);
+                exit;
+            }
+        }
+        
+        // Cari foto lama untuk dihapus
+        $stmtOld = $db->prepare("SELECT foto_profil FROM pegawai WHERE id_pegawai = ?");
+        $stmtOld->execute([$id_pegawai]);
+        $oldData = $stmtOld->fetch(PDO::FETCH_ASSOC);
 
-                // Hapus file foto lama jika ada
-                if ($oldData && !empty($oldData['foto_profil'])) {
-                    $oldFilePath = $uploadDir . $oldData['foto_profil'];
-                    if (file_exists($oldFilePath)) {
-                        unlink($oldFilePath);
-                    }
+        if (move_uploaded_file($_FILES['foto_profil']['tmp_name'], $uploadDir . $newFilename)) {
+            $fotoSql = ", foto_profil = :foto_profil";
+            $params[':foto_profil'] = $newFilename;
+
+            // Hapus file foto lama jika ada
+            if ($oldData && !empty($oldData['foto_profil'])) {
+                $oldFilePath = $uploadDir . $oldData['foto_profil'];
+                if (file_exists($oldFilePath)) {
+                    unlink($oldFilePath);
                 }
             }
+        } else {
+            echo json_encode(["status" => "error", "message" => "Gagal memindahkan file upload! Periksa izin folder uploads/pegawai/ di VPS."]);
+            exit;
         }
     }
 

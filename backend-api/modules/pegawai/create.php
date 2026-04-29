@@ -30,14 +30,26 @@ try {
         $filename = $_FILES['foto_profil']['name'];
         $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
         
-        if (in_array($ext, $allowed)) {
-            $newFilename = time() . '_' . rand(1000,9999) . '.' . $ext;
-            $uploadDir = __DIR__ . '/../../uploads/pegawai/';
-            if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
-            
-            if (move_uploaded_file($_FILES['foto_profil']['tmp_name'], $uploadDir . $newFilename)) {
-                $foto_profil = $newFilename;
+        if (!in_array($ext, $allowed)) {
+            echo json_encode(["status" => "error", "message" => "Format file tidak didukung!"]);
+            exit;
+        }
+
+        $newFilename = time() . '_' . rand(1000,9999) . '.' . $ext;
+        $uploadDir = __DIR__ . '/../../uploads/pegawai/';
+        
+        if (!is_dir($uploadDir)) {
+            if (!mkdir($uploadDir, 0777, true)) {
+                echo json_encode(["status" => "error", "message" => "Gagal membuat direktori upload! Periksa izin folder di VPS."]);
+                exit;
             }
+        }
+        
+        if (move_uploaded_file($_FILES['foto_profil']['tmp_name'], $uploadDir . $newFilename)) {
+            $foto_profil = $newFilename;
+        } else {
+            echo json_encode(["status" => "error", "message" => "Gagal memindahkan file upload! Periksa izin folder uploads/pegawai/ di VPS."]);
+            exit;
         }
     }
 
