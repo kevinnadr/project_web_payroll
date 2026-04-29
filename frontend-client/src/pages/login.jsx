@@ -14,10 +14,35 @@ const Login = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
-    const [loading, setLoading] = useState(false);
+    const [isRedirecting, setIsRedirecting] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState("Menyiapkan Sesi...");
     const { toast, showToast, hideToast } = useToast();
 
     const navigate = useNavigate();
+
+    const messages = [
+        "Verifikasi Akun...",
+        "Mengambil Data Sesi...",
+        "Menyiapkan Dashboard...",
+        "Hampir Selesai...",
+        "Selamat Datang!"
+    ];
+
+    const startTransition = () => {
+        setIsRedirecting(true);
+        let currentIdx = 0;
+        const interval = setInterval(() => {
+            if (currentIdx < messages.length - 1) {
+                currentIdx++;
+                setLoadingMessage(messages[currentIdx]);
+            }
+        }, 500);
+
+        setTimeout(() => {
+            clearInterval(interval);
+            navigate('/dashboard');
+        }, 2800); // Jeda sekitar 2.8 detik
+    };
 
     // --- LOGIC LOGIN MANUAL ---
     const handleLogin = async (e) => {
@@ -33,19 +58,13 @@ const Login = () => {
             if (response.data && response.data.status === 'success') {
                 localStorage.setItem('token', response.data.token);
                 localStorage.setItem('user', JSON.stringify(response.data.user));
-
-                // Cek Role (Opsional, jika ingin membedakan redirect)
-                if (response.data.user.role === 'admin') {
-                    navigate('/dashboard');
-                } else {
-                    navigate('/dashboard');
-                }
+                startTransition();
             } else {
-                setError(response.data?.message || "Terjadi kesalahan di server (Tidak ada response JSON)."); // Tampilkan pesan error dari backend
+                setError(response.data?.message || "Email atau password salah.");
+                setLoading(false);
             }
         } catch (err) {
-            setError(err.response?.data?.message || "Email atau password salah.");
-        } finally {
+            setError(err.response?.data?.message || "Terjadi kesalahan koneksi.");
             setLoading(false);
         }
     };
@@ -68,8 +87,7 @@ const Login = () => {
             if (res.data.status === 'success') {
                 localStorage.setItem('token', res.data.token);
                 localStorage.setItem('user', JSON.stringify(res.data.user));
-                showToast('success', "Login Google Berhasil!");
-                setTimeout(() => navigate('/dashboard'), 1000);
+                startTransition();
             } else {
                 setError(res.data.message);
             }
@@ -153,22 +171,25 @@ const Login = () => {
 
                 </form>
 
-                <div className="divider">
-                    <span>ATAU MASUK DENGAN</span>
-                </div>
-
-                {/* Tombol Google */}
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                    <GoogleLogin
-                        onSuccess={handleGoogleSuccess}
-                        onError={() => { setError("Gagal koneksi Google"); setLoading(false); }}
-                        theme="outline"
-                        size="large"
-                        shape="rectangular"
-                        width="370"
-                        logo_alignment="center"
-                    />
-                </div>
+                {/* Tombol Google — hanya tampil jika VITE_GOOGLE_ENABLED=true di .env */}
+                {import.meta.env.VITE_GOOGLE_ENABLED === 'true' && (
+                    <>
+                        <div className="divider">
+                            <span>ATAU MASUK DENGAN</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            <GoogleLogin
+                                onSuccess={handleGoogleSuccess}
+                                onError={() => { setError("Gagal koneksi Google"); setLoading(false); }}
+                                theme="outline"
+                                size="large"
+                                shape="rectangular"
+                                width="370"
+                                logo_alignment="center"
+                            />
+                        </div>
+                    </>
+                )}
 
                 {/* Perbaikan: class -> className */}
                 <Link to="/forgot-password" className="forgot-link">Lupa Password Anda?</Link>
@@ -180,6 +201,23 @@ const Login = () => {
                 )}
             </div>
             <Toast show={toast.show} type={toast.type} message={toast.message} onClose={hideToast} />
+
+            {/* FULL SCREEN LOADING TRANSITION */}
+            {isRedirecting && (
+                <div className="login-loading-overlay">
+                    <div className="loading-content">
+                        <div className="pulse-logo-wrapper">
+                            <img src="/LOGORAC.png" alt="Loading Logo" className="pulse-logo" />
+                        </div>
+                        <div className="loading-text-container">
+                            <p className="loading-status-text">{loadingMessage}</p>
+                            <div className="loading-bar-container">
+                                <div className="loading-bar-progress"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
