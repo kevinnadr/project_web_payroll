@@ -111,7 +111,9 @@ const SlipGaji = () => {
             const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/pegawai/send_email.php', { id, bulan: periodFilter });
             if (res.data.status === 'success') showToast('success', "Email Terkirim!");
             else showToast('error', "Gagal: " + res.data.message);
-        } catch (e) { showToast('error', "Error koneksi server."); }
+        } catch (e) { 
+            showToast('error', "Error server: " + (e.response?.data?.message || e.message)); 
+        }
         finally { setSendingEmailId(null); }
     };
 

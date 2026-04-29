@@ -218,36 +218,49 @@ try {
 
     // 4. KIRIM EMAIL (PHPMailer)
     $mail = new PHPMailer(true);
+    $debugOutput = '';
     
-    // --- KONFIGURASI SMTP (SESUAIKAN JIKA PERLU) ---
-    $mail->isSMTP();
-    $mail->Host       = 'smtp.gmail.com'; 
-    $mail->SMTPAuth   = true;
-    $mail->Username   = 'kevin19305.ib@gmail.com'; // Email pengirim
-    $mail->Password   = 'sxkl vipy bfsx ljfe';    // App Password Gmail
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; // Diubah dari STARTTLS ke SMTPS
-    $mail->Port       = 465;                         // Diubah dari 587 ke 465
-    // $mail->SMTPDebug  = 2; // Aktifkan ini untuk debug jika masih gagal
-    // ----------------------------------------------
+    try {
+        // --- KONFIGURASI SMTP ---
+        $mail->isSMTP();
+        $mail->Host       = 'smtp.gmail.com'; 
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'kevin19305.ib@gmail.com';
+        $mail->Password   = 'sxkl vipy bfsx ljfe';
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        $mail->Port       = 465;
+        
+        // Setup debug capturing
+        $mail->SMTPDebug = 2; 
+        $mail->Debugoutput = function($str, $level) use (&$debugOutput) {
+            $debugOutput .= "$level: $str\n";
+        };
 
-    $mail->setFrom('payroll_system@no-reply.com', 'Sistem Payroll');
-    $mail->addAddress($gaji['email'], $gaji['nama_lengkap']);
-    
-    $mail->isHTML(true);
-    $mail->Subject = 'Slip Gaji - ' . $periodeLabel;
-    $mail->Body    = "Halo <b>{$gaji['nama_lengkap']}</b>,<br><br>Terlampir adalah slip gaji Anda untuk periode <b>{$periodeLabel}</b>.<br>Silakan cek lampiran PDF.<br><br>Salam,<br>HRD";
+        $mail->setFrom('payroll_system@no-reply.com', 'Sistem Payroll');
+        $mail->addAddress($gaji['email'], $gaji['nama_lengkap']);
+        
+        $mail->isHTML(true);
+        $mail->Subject = 'Slip Gaji - ' . $periodeLabel;
+        $mail->Body    = "Halo <b>{$gaji['nama_lengkap']}</b>,<br><br>Terlampir adalah slip gaji Anda untuk periode <b>{$periodeLabel}</b>.<br>Silakan cek lampiran PDF.<br><br>Salam,<br>HRD";
 
-    $mail->addStringAttachment($pdfContent, "Slip_Gaji_{$gaji['nik']}.pdf");
+        $mail->addStringAttachment($pdfContent, "Slip_Gaji_{$gaji['nik']}.pdf");
 
-    $mail->send();
-    echo json_encode(["status" => "success", "message" => "Email berhasil dikirim ke " . $gaji['email']]);
+        $mail->send();
+        echo json_encode(["status" => "success", "message" => "Email berhasil dikirim ke " . $gaji['email']]);
+
+    } catch (Exception $e) {
+        $msg = $e->getMessage();
+        if ($mail->ErrorInfo) {
+            $msg .= ' | Mailer Error: ' . $mail->ErrorInfo;
+        }
+        echo json_encode([
+            "status" => "error", 
+            "message" => $msg,
+            "debug" => $debugOutput // Mengirim log debug ke frontend
+        ]);
+    }
 
 } catch (Exception $e) {
-    // Tangkap error PHPMailer atau Exception lain
-    $msg = $e->getMessage();
-    if (isset($mail) && $mail->ErrorInfo) {
-        $msg .= ' | Mailer Error: ' . $mail->ErrorInfo;
-    }
-    echo json_encode(["status" => "error", "message" => $msg]);
+    echo json_encode(["status" => "error", "message" => $e->getMessage()]);
 }
 ?>
