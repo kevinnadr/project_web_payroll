@@ -225,8 +225,9 @@ try {
     $mail->SMTPAuth   = true;
     $mail->Username   = 'kevin19305.ib@gmail.com'; // Email pengirim
     $mail->Password   = 'sxkl vipy bfsx ljfe';    // App Password Gmail
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-    $mail->Port       = 587;
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; // Diubah dari STARTTLS ke SMTPS
+    $mail->Port       = 465;                         // Diubah dari 587 ke 465
+    // $mail->SMTPDebug  = 2; // Aktifkan ini untuk debug jika masih gagal
     // ----------------------------------------------
 
     $mail->setFrom('payroll_system@no-reply.com', 'Sistem Payroll');

@@ -229,8 +229,9 @@ try {
             $mail->SMTPAuth   = true;
             $mail->Username   = 'kevin19305.ib@gmail.com'; 
             $mail->Password   = 'sxkl vipy bfsx ljfe';    
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port       = 587;
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; // Diubah ke SMTPS
+            $mail->Port       = 465;                         // Diubah ke 465
+            // $mail->SMTPDebug  = 2; // Aktifkan jika gagal
 
             $mail->setFrom('payroll_system@no-reply.com', 'Sistem Payroll');
             $mail->addAddress($gaji['email'], $gaji['nama_lengkap']);
