@@ -1819,7 +1819,7 @@ input[type=number]::-webkit-outer-spin-button {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  background: linear-gradient(135deg, #4a0404 0%, #b91c1c 100%);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1833,11 +1833,18 @@ input[type=number]::-webkit-outer-spin-button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 15px;
+  gap: 20px;
+}
+
+.loading-content-simple p {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  font-size: 1.1rem;
 }
 
 .spinner-icon {
-  color: #ef4444;
+  color: #ffffff;
   animation: spin 1s linear infinite;
 }
 
