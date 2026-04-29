@@ -1682,4 +1682,116 @@ input[type=number]::-webkit-outer-spin-button {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
+
+/* =========================================
+   DASHBOARD & MODERN LAYOUT STYLES
+   ========================================= */
+
+.app-layout-modern {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f8fafc;
+}
+
+.main-content-modern {
+  flex: 1;
+  padding: 30px 40px;
+  overflow-y: auto;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 20px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+}
+
+.stat-info h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+}
+
+.stat-number {
+  font-size: 2.2rem;
+  font-weight: 800;
+  line-height: 1.1;
+  margin: 8px 0;
+  color: white;
+  letter-spacing: -1px;
+}
+
+.stat-desc {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+}
+
+.icon-wrapper {
+  width: 54px;
+  height: 54px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(5px);
+}
+
+.blue-card { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+.green-card { background: linear-gradient(135deg, #10b981, #047857); }
+.red-card { background: linear-gradient(135deg, #ef4444, #b91c1c); }
+.yellow-card { background: linear-gradient(135deg, #f59e0b, #b45309); }
+
+.welcome-section {
+  background: white;
+  padding: 35px;
+  border-radius: 24px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+  margin-bottom: 30px;
+}
+
+.welcome-section h2 {
+  margin-top: 0;
+  color: #0f172a;
+  font-weight: 800;
+  font-size: 1.6rem;
+  letter-spacing: -0.5px;
+}
+
+.mini-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 0.85rem;
+}
+
+.modern-input-date {
+  border: none;
+  font-family: inherit;
+  color: #0f172a;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+  background: transparent;
 }
