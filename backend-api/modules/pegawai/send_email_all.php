@@ -231,8 +231,15 @@ try {
             $mail->SMTPAuth   = true;
             $mail->Username   = 'kevin19305.ib@gmail.com'; 
             $mail->Password   = 'sxkl vipy bfsx ljfe';    
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; // Diubah ke SMTPS
-            $mail->Port       = 465;                         // Diubah ke 465
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS; 
+            $mail->Port       = 587;
+            $mail->SMTPOptions = [
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                    'allow_self_signed' => true
+                ]
+            ];
             // $mail->SMTPDebug  = 2; // Aktifkan jika gagal
 
             $mail->setFrom('kevin19305.ib@gmail.com', 'Sistem Payroll');

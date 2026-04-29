@@ -233,9 +233,16 @@ try {
         $mail->SMTPAuth   = true;
         $mail->Username   = 'kevin19305.ib@gmail.com';
         $mail->Password   = 'sxkl vipy bfsx ljfe';
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-        $mail->Port       = 465;
-        $mail->Timeout    = 30; // Set timeout to avoid network hanging
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS; // Switch to STARTTLS
+        $mail->Port       = 587;                          // Switch to 587
+        $mail->Timeout    = 30; 
+        $mail->SMTPOptions = [
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
+            ]
+        ]; // Allow flexible SSL for VPS compatibility
 
         $mail->setFrom('kevin19305.ib@gmail.com', 'Sistem Payroll');
         $mail->addAddress($gaji['email'], $gaji['nama_lengkap']);
