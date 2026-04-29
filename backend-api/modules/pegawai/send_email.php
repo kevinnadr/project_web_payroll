@@ -10,8 +10,12 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 // Jika FPDF belum diload oleh composer (misal manual setup)
-if (!class_exists('FPDF') && class_exists('Setasign\Fpdf\Fpdf')) {
-    class_alias('Setasign\Fpdf\Fpdf', 'FPDF');
+if (!class_exists('FPDF')) {
+    if (class_exists('Setasign\Fpdf\Fpdf')) {
+        class_alias('Setasign\Fpdf\Fpdf', 'FPDF');
+    } else {
+        require_once('../../vendor/setasign/fpdf/fpdf.php');
+    }
 }
 
 $input = json_decode(file_get_contents("php://input"));
@@ -236,8 +240,9 @@ try {
             $debugOutput .= "$level: $str\n";
         };
 
-        $mail->setFrom('payroll_system@no-reply.com', 'Sistem Payroll');
+        $mail->setFrom('kevin19305.ib@gmail.com', 'Sistem Payroll');
         $mail->addAddress($gaji['email'], $gaji['nama_lengkap']);
+        $mail->addReplyTo('kevin19305.ib@gmail.com', 'Sistem Payroll');
         
         $mail->isHTML(true);
         $mail->Subject = 'Slip Gaji - ' . $periodeLabel;

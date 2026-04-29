@@ -233,8 +233,9 @@ try {
             $mail->Port       = 465;                         // Diubah ke 465
             // $mail->SMTPDebug  = 2; // Aktifkan jika gagal
 
-            $mail->setFrom('payroll_system@no-reply.com', 'Sistem Payroll');
+            $mail->setFrom('kevin19305.ib@gmail.com', 'Sistem Payroll');
             $mail->addAddress($gaji['email'], $gaji['nama_lengkap']);
+            $mail->addReplyTo('kevin19305.ib@gmail.com', 'Sistem Payroll');
             
             $mail->isHTML(true);
             $mail->Subject = 'Slip Gaji - ' . $periodeLabel;
