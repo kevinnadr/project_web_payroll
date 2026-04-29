@@ -13,6 +13,16 @@ const SlipGaji = () => {
     const [filteredList, setFilteredList] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(false);
+    
+    // Custom Confirmation Modal State
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [confirmConfig, setConfirmConfig] = useState({
+        title: '',
+        message: '',
+        onConfirm: () => {},
+        type: 'info' // info, warning, danger
+    });
+
     const [isSendingAll, setIsSendingAll] = useState(false); // New state for bulk email
     const [sendingEmailId, setSendingEmailId] = useState(null);
     const [showGenerateModal, setShowGenerateModal] = useState(false);
@@ -105,7 +115,17 @@ const SlipGaji = () => {
 
     const handleSendEmail = async (id, email) => {
         if (!email) { showToast('error', "Pegawai ini tidak memiliki email."); return; }
-        if (!confirm(`Kirim notifikasi data ke email: ${email}?`)) return;
+        setConfirmConfig({
+            title: 'Kirim Slip Gaji',
+            message: `Kirim notifikasi data ke email: ${email}?`,
+            type: 'info',
+            onConfirm: () => executeSendEmail(id)
+        });
+        setShowConfirmModal(true);
+    };
+
+    const executeSendEmail = async (id) => {
+        setShowConfirmModal(false);
         setSendingEmailId(id);
         try {
             const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/pegawai/send_email.php', { id, bulan: periodFilter });
@@ -118,7 +138,17 @@ const SlipGaji = () => {
     };
 
     const handleSendEmailAll = async () => {
-        if (!confirm("Kirim slip gaji via email ke SEMUA pegawai yang memiliki email? Proses mungkin memakan waktu.")) return;
+        setConfirmConfig({
+            title: 'Kirim Massal',
+            message: "Kirim slip gaji via email ke SEMUA pegawai yang memiliki email? Proses ini mungkin memakan waktu beberapa menit.",
+            type: 'warning',
+            onConfirm: executeSendEmailAll
+        });
+        setShowConfirmModal(true);
+    };
+
+    const executeSendEmailAll = async () => {
+        setShowConfirmModal(false);
         setIsSendingAll(true);
         try {
             const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/pegawai/send_email_all.php', { bulan: periodFilter });
@@ -459,6 +489,52 @@ const SlipGaji = () => {
                     </div>
                 )}
                 <Toast show={toast.show} type={toast.type} message={toast.message} onClose={hideToast} />
+
+                {/* CUSTOM CONFIRMATION MODAL */}
+                {showConfirmModal && (
+                    <div className="modal-backdrop">
+                        <div className="modal-content-modern" style={{ width: '420px' }}>
+                            <div className="modal-header-modern" style={{ 
+                                background: confirmConfig.type === 'danger' ? '#fef2f2' : (confirmConfig.type === 'warning' ? '#fffbeb' : '#eff6ff'),
+                                borderBottom: confirmConfig.type === 'danger' ? '1px solid #fee2e2' : (confirmConfig.type === 'warning' ? '1px solid #fef3c7' : '1px solid #dbeafe')
+                            }}>
+                                <h3 style={{ 
+                                    color: confirmConfig.type === 'danger' ? '#dc2626' : (confirmConfig.type === 'warning' ? '#b45309' : '#1d4ed8'),
+                                    display: 'flex', alignItems: 'center', gap: '10px' 
+                                }}>
+                                    {confirmConfig.type === 'danger' ? <AlertTriangle size={20} /> : <Mail size={20} />}
+                                    {confirmConfig.title}
+                                </h3>
+                                <button onClick={() => setShowConfirmModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={20} /></button>
+                            </div>
+                            <div style={{ padding: '25px 20px' }}>
+                                <p style={{ color: '#334155', lineHeight: '1.6', fontSize: '0.95rem', margin: 0 }}>
+                                    {confirmConfig.message}
+                                </p>
+                                <div style={{ display: 'flex', gap: '10px', marginTop: '25px' }}>
+                                    <button 
+                                        onClick={() => setShowConfirmModal(false)} 
+                                        className="btn-modern" 
+                                        style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 600 }}
+                                    >
+                                        Batal
+                                    </button>
+                                    <button 
+                                        onClick={confirmConfig.onConfirm} 
+                                        className="btn-modern" 
+                                        style={{ 
+                                            flex: 1, 
+                                            background: confirmConfig.type === 'danger' ? '#ef4444' : (confirmConfig.type === 'warning' ? '#f59e0b' : '#3b82f6'),
+                                            color: 'white', border: 'none', fontWeight: 600 
+                                        }}
+                                    >
+                                        Ya, Lanjutkan
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );
