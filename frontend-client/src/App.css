@@ -1669,7 +1669,6 @@ input[type=number]::-webkit-outer-spin-button {
     -webkit-overflow-scrolling: touch;
   }
 }
-}
 
 /* Fix Form Grids */
 .form-grid-2,
