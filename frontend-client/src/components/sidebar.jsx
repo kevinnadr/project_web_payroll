@@ -80,13 +80,13 @@ const Sidebar = ({ user }) => {
                 </nav>
 
                 <div className="sidebar-footer">
-                    <div className="user-profile">
-                        <div className="avatar">
+                    <div className="user-profile-modern">
+                        <div className="avatar-box">
                             {user?.nama ? user.nama.trim().charAt(0).toUpperCase() : 'A'}
                         </div>
-                        <div className="user-info">
-                            <span className="user-name">{user?.nama || 'User'}</span>
-                            <span className={`user-role-badge ${user?.role === 'admin' ? 'admin' : ''}`}>{user?.role || 'Staff'}</span>
+                        <div className="user-details">
+                            <span className="name-text">{user?.nama || 'User'}</span>
+                            <span className="role-text-badge">{user?.role || 'Staff'}</span>
                         </div>
                     </div>
                     <button onClick={handleLogout} className="btn-logout-modern">
