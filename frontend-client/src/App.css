@@ -1707,14 +1707,27 @@ input[type=number]::-webkit-outer-spin-button {
 
 .stat-card {
   background: white;
-  border-radius: 20px;
-  padding: 24px;
+  border-radius: 24px;
+  padding: 26px;
   display: flex;
   align-items: center;
-  gap: 18px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 20px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
 }
 
 .stat-card:hover {
@@ -1755,10 +1768,10 @@ input[type=number]::-webkit-outer-spin-button {
   backdrop-filter: blur(5px);
 }
 
-.blue-card { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
-.green-card { background: linear-gradient(135deg, #10b981, #047857); }
-.red-card { background: linear-gradient(135deg, #ef4444, #b91c1c); }
-.yellow-card { background: linear-gradient(135deg, #f59e0b, #b45309); }
+.blue-card { background: linear-gradient(135deg, #6366f1, #4f46e5); }   /* Soft Indigo */
+.green-card { background: linear-gradient(135deg, #2dd4bf, #0d9488); }  /* Soft Teal */
+.red-card { background: linear-gradient(135deg, #fb7185, #e11d48); }    /* Soft Rose */
+.yellow-card { background: linear-gradient(135deg, #fbbf24, #d97706); } /* Soft Amber */
 
 .welcome-section {
   background: white;

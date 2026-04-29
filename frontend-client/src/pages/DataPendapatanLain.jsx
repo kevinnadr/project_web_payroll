@@ -457,7 +457,7 @@ const DataPendapatanLain = () => {
                                         />
                                     </th>
                                 )}
-                                <th style={{ textAlign: 'left', paddingLeft: '2rem', background: 'transparent', color: 'white' }}>Nama Pegawai</th>
+                                <th style={{ textAlign: 'center', paddingLeft: '2rem', background: 'transparent', color: 'white' }}>Nama Pegawai</th>
                                 <th style={{ textAlign: 'left', background: 'transparent', color: 'white' }}>Nama Pendapatan</th>
                                 <th style={{ textAlign: 'left', background: 'transparent', color: 'white' }}>Nominal</th>
                                 <th style={{ textAlign: 'left', background: 'transparent', color: 'white' }}>Kategori</th>
