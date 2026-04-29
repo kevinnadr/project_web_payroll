@@ -358,7 +358,7 @@ body {
   height: 44px;
   min-width: 44px;
   flex-shrink: 0;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -366,7 +366,7 @@ body {
   font-weight: 800;
   font-size: 1.2rem;
   color: #ffffff !important;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
   border: 2px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -392,12 +392,12 @@ body {
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  color: #93c5fd;
-  background: rgba(59, 130, 246, 0.15);
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.15);
   padding: 2px 8px;
   border-radius: 4px;
   width: fit-content;
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .btn-logout-modern {
