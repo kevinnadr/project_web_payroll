@@ -12,6 +12,8 @@ require_once '../../vendor/autoload.php';
 use PHPMailer\PHPMailer\PHPMailer; 
 use PHPMailer\PHPMailer\Exception;
 
+ob_start(); // Buffer output
+
 // Jika FPDF belum diload oleh composer (misal manual setup)
 if (!class_exists('FPDF') && class_exists('Setasign\Fpdf\Fpdf')) {
     class_alias('Setasign\Fpdf\Fpdf', 'FPDF');
@@ -252,6 +254,7 @@ try {
         }
     }
 
+    ob_clean();
     echo json_encode([
         "status" => "success", 
         "message" => "Proses Selesai. Sukses: $successCount, Gagal: $failCount",
@@ -259,6 +262,7 @@ try {
     ]);
 
 } catch (Exception $e) {
+    ob_clean();
     echo json_encode(["status" => "error", "message" => $e->getMessage()]);
 }
 ?>

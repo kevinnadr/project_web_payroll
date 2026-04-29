@@ -9,6 +9,8 @@ require_once '../../vendor/autoload.php';
 use PHPMailer\PHPMailer\PHPMailer; 
 use PHPMailer\PHPMailer\Exception;
 
+ob_start(); // Start output buffering to prevent headers/warnings leak
+
 // Jika FPDF belum diload oleh composer (misal manual setup)
 if (!class_exists('FPDF')) {
     if (class_exists('Setasign\Fpdf\Fpdf')) {
@@ -233,12 +235,7 @@ try {
         $mail->Password   = 'sxkl vipy bfsx ljfe';
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
         $mail->Port       = 465;
-        
-        // Setup debug capturing
-        $mail->SMTPDebug = 2; 
-        $mail->Debugoutput = function($str, $level) use (&$debugOutput) {
-            $debugOutput .= "$level: $str\n";
-        };
+        $mail->Timeout    = 30; // Set timeout to avoid network hanging
 
         $mail->setFrom('kevin19305.ib@gmail.com', 'Sistem Payroll');
         $mail->addAddress($gaji['email'], $gaji['nama_lengkap']);
@@ -251,6 +248,7 @@ try {
         $mail->addStringAttachment($pdfContent, "Slip_Gaji_{$gaji['nik']}.pdf");
 
         $mail->send();
+        ob_clean();
         echo json_encode(["status" => "success", "message" => "Email berhasil dikirim ke " . $gaji['email']]);
 
     } catch (Exception $e) {
@@ -258,10 +256,10 @@ try {
         if ($mail->ErrorInfo) {
             $msg .= ' | Mailer Error: ' . $mail->ErrorInfo;
         }
+        ob_clean();
         echo json_encode([
             "status" => "error", 
-            "message" => $msg,
-            "debug" => $debugOutput // Mengirim log debug ke frontend
+            "message" => $msg
         ]);
     }
 
