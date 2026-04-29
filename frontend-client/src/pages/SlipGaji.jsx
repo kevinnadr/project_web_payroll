@@ -495,17 +495,18 @@ const SlipGaji = () => {
                     <div className="modal-backdrop">
                         <div className="modal-content-modern" style={{ width: '420px' }}>
                             <div className="modal-header-modern" style={{ 
-                                background: confirmConfig.type === 'danger' ? '#fef2f2' : (confirmConfig.type === 'warning' ? '#fffbeb' : '#eff6ff'),
-                                borderBottom: confirmConfig.type === 'danger' ? '1px solid #fee2e2' : (confirmConfig.type === 'warning' ? '1px solid #fef3c7' : '1px solid #dbeafe')
+                                background: 'linear-gradient(135deg, #fef2f2 0%, #fff1f2 100%)',
+                                borderBottom: '1px solid #fecdd3'
                             }}>
                                 <h3 style={{ 
-                                    color: confirmConfig.type === 'danger' ? '#dc2626' : (confirmConfig.type === 'warning' ? '#b45309' : '#1d4ed8'),
-                                    display: 'flex', alignItems: 'center', gap: '10px' 
+                                    color: '#b91c1c',
+                                    display: 'flex', alignItems: 'center', gap: '10px',
+                                    margin: 0
                                 }}>
-                                    {confirmConfig.type === 'danger' ? <AlertTriangle size={20} /> : <Mail size={20} />}
+                                    <Mail size={20} />
                                     {confirmConfig.title}
                                 </h3>
-                                <button onClick={() => setShowConfirmModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={20} /></button>
+                                <button onClick={() => setShowConfirmModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex' }}><X size={24} /></button>
                             </div>
                             <div style={{ padding: '25px 20px' }}>
                                 <p style={{ color: '#334155', lineHeight: '1.6', fontSize: '0.95rem', margin: 0 }}>
@@ -515,7 +516,7 @@ const SlipGaji = () => {
                                     <button 
                                         onClick={() => setShowConfirmModal(false)} 
                                         className="btn-modern" 
-                                        style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 600 }}
+                                        style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 600, cursor: 'pointer' }}
                                     >
                                         Batal
                                     </button>
@@ -524,8 +525,8 @@ const SlipGaji = () => {
                                         className="btn-modern" 
                                         style={{ 
                                             flex: 1, 
-                                            background: confirmConfig.type === 'danger' ? '#ef4444' : (confirmConfig.type === 'warning' ? '#f59e0b' : '#3b82f6'),
-                                            color: 'white', border: 'none', fontWeight: 600 
+                                            background: 'linear-gradient(135deg, #b91c1c 0%, #ef4444 100%)',
+                                            color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer'
                                         }}
                                     >
                                         Ya, Lanjutkan
