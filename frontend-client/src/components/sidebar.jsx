@@ -81,7 +81,9 @@ const Sidebar = ({ user }) => {
 
                 <div className="sidebar-footer">
                     <div className="user-profile">
-                        <div className="avatar">{user?.nama?.charAt(0) || 'A'}</div>
+                        <div className="avatar">
+                            {(user?.nama?.trim().charAt(0) || 'A').toUpperCase()}
+                        </div>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <span style={{ fontSize: '0.8rem', color: '#cbd5e1' }}>Halo,</span>
                             <strong style={{ color: 'white', fontSize: '0.9rem' }}>{user?.nama || 'User'}</strong>
