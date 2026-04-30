@@ -4,7 +4,7 @@ import Sidebar from '../components/sidebar';
 import { useNavigate } from 'react-router-dom';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
-import { Pencil, Trash2, Search, X, Lock, RefreshCcw, PlusCircle, AlertTriangle, FileText, Banknote, Shield, Settings, Eye, ClipboardList } from 'lucide-react';
+import { Pencil, Trash2, Search, X, Lock, RefreshCcw, PlusCircle, AlertTriangle, FileText, Banknote, Shield, Settings, Eye, ClipboardList, CalendarDays } from 'lucide-react';
 import Select from 'react-select';
 import '../App.css';
 
@@ -470,6 +470,12 @@ const KontrakPegawai = () => {
         }
         return { total, hasDaily };
     };
+    
+    const getMonthLabel = (dateStr) => {
+        if (!dateStr) return 'Semua Periode';
+        const date = new Date(dateStr + '-01');
+        return date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    };
 
 
     return (
@@ -481,21 +487,39 @@ const KontrakPegawai = () => {
                         <h1 className="modern-title">Kontrak Kerja</h1>
                         <p className="modern-subtitle">Kelola data kontrak & komponen gaji pegawai (Multi-Kontrak Support).</p>
                     </div>
-                    <div className="date-picker-container" onClick={() => {
-                        try {
-                            if (monthInputRef.current && typeof monthInputRef.current.showPicker === 'function') {
-                                monthInputRef.current.showPicker();
-                            } else {
-                                monthInputRef.current?.focus();
+                    <div
+                        style={{ position: 'relative', cursor: 'pointer' }}
+                        onClick={() => {
+                            try {
+                                if (monthInputRef.current && typeof monthInputRef.current.showPicker === 'function') {
+                                    monthInputRef.current.showPicker();
+                                } else {
+                                    monthInputRef.current?.focus();
+                                }
+                            } catch (error) {
+                                console.error("Error opening picker:", error);
                             }
-                        } catch (error) {
-                            console.error("Error opening picker:", error);
-                        }
-                    }} style={{ cursor: 'pointer' }}>
-                        <span className="label-periode">Periode Data:</span>
-                        <input type="month" className="modern-input-date"
+                        }}
+                    >
+                        <div style={{
+                            background: '#0f172a', color: 'white', padding: '10px 20px', borderRadius: '30px',
+                            display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600,
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        }}>
+                            <span>Periode: {getMonthLabel(bulanFilter)}</span>
+                            <span style={{ opacity: 0.7, display: 'flex' }}><CalendarDays size={18} /></span>
+                        </div>
+                        <input
                             ref={monthInputRef}
-                            value={bulanFilter} onChange={(e) => setBulanFilter(e.target.value)} />
+                            type="month"
+                            value={bulanFilter}
+                            onChange={(e) => setBulanFilter(e.target.value)}
+                            style={{
+                                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                                opacity: 0, pointerEvents: 'none',
+                                zIndex: -1
+                            }}
+                        />
                     </div>
                 </div>
 
