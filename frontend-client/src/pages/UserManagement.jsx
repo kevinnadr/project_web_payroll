@@ -256,8 +256,8 @@ const UserManagement = () => {
                                 <div className="form-group">
                                     <label>Role</label>
                                     <select value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: 'white' }}>
-                                        <option value="user">User Biasa</option>
-                                        <option value="admin">Super Admin</option>
+                                        <option value="user">User</option>
+                                        <option value="admin">Admin</option>
                                     </select>
                                 </div>
                                 <div className="form-group">
