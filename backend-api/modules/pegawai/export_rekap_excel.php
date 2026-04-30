@@ -39,7 +39,7 @@ try {
             LEFT JOIN pph_ter pt_k ON sp_k.id_ter_reff = pt_k.id_ter
             WHERE (k.tanggal_mulai IS NULL OR DATE_FORMAT(k.tanggal_mulai, '%Y-%m') <= :bulan) 
             AND (k.tanggal_berakhir IS NULL OR k.tanggal_berakhir = '0000-00-00' OR DATE_FORMAT(k.tanggal_berakhir, '%Y-%m') >= :bulan)
-            ORDER BY p.nik ASC";
+            ORDER BY (p.nik + 0) ASC, p.nik ASC";
     
     $stmt = $db->prepare($sql);
     $stmt->execute([':bulan' => $bulan]);

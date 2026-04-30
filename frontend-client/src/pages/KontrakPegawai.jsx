@@ -225,6 +225,9 @@ const KontrakPegawai = () => {
         }
         return acc;
     }, {}));
+    
+    // Sort groupedData by NIK numerically
+    groupedData.sort((a, b) => (parseInt(a.pegawai.nik) || 0) - (parseInt(b.pegawai.nik) || 0));
 
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;

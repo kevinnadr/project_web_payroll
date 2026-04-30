@@ -31,7 +31,7 @@ try {
             LEFT JOIN status_ptkp sp_p ON p.id_ptkp = sp_p.id_ptkp";
 
     $sqlOrderBy = "LEFT JOIN status_ptkp sp_k ON k.id_ptkp = sp_k.id_ptkp
-            ORDER BY p.nik ASC";
+            ORDER BY (p.nik + 0) ASC, p.nik ASC";
 
     if (empty($bulanFilter)) {
         $sql = $sqlSelect . "

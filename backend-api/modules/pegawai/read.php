@@ -23,7 +23,7 @@ try {
             FROM pegawai p
             LEFT JOIN status_ptkp sp ON p.id_ptkp = sp.id_ptkp
             LEFT JOIN kontrak_kerja k ON p.id_pegawai = k.id_pegawai
-            ORDER BY p.id_pegawai ASC, k.tanggal_mulai DESC"; // Order contracts by newest first
+            ORDER BY (p.nik + 0) ASC, p.nik ASC, k.tanggal_mulai DESC"; // Order employees by NIK and contracts by newest first
 
     $stmt = $db->prepare($sql);
     $stmt->execute();

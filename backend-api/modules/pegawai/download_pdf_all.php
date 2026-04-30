@@ -67,7 +67,7 @@ try {
                 AND k.tanggal_mulai <= LAST_DAY(:bulanEndDate)
                 AND (k.tanggal_berakhir IS NULL OR k.tanggal_berakhir = '0000-00-00' OR k.tanggal_berakhir >= :bulanStartDate)
             LEFT JOIN status_ptkp sk ON k.id_ptkp = sk.id_ptkp
-            ORDER BY p.nik ASC";
+            ORDER BY (p.nik + 0) ASC, p.nik ASC";
     
     $stmt = $db->prepare($sql);
     $bulanDate = $bulan . '-01';

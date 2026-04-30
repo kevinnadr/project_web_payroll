@@ -25,13 +25,13 @@ try {
                 LEFT JOIN kontrak_kerja k ON p.id_pegawai = k.id_pegawai
                 GROUP BY p.id_pegawai
                 HAVING (min_start IS NULL) OR (min_start <= :periodEnd AND max_end >= :periodStart)
-                ORDER BY p.id_pegawai ASC";
+                ORDER BY (p.nik + 0) ASC, p.nik ASC";
         $stmt = $db->prepare($sql);
         $stmt->execute([':periodStart' => $periodStart, ':periodEnd' => $periodEnd]);
     } else {
         $sql = "SELECT p.nik, p.nama_lengkap, p.email, p.no_hp, p.npwp 
                 FROM pegawai p
-                ORDER BY p.id_pegawai ASC";
+                ORDER BY (p.nik + 0) ASC, p.nik ASC";
         $stmt = $db->prepare($sql);
         $stmt->execute();
     }

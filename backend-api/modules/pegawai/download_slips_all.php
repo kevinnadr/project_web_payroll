@@ -20,7 +20,7 @@ try {
         LEFT JOIN status_ptkp sp_k ON k.id_ptkp = sp_k.id_ptkp
         LEFT JOIN pph_ter pt ON sg.id_ter_reff = pt.id_ter
         WHERE sg.periode = ?
-        ORDER BY p.nik ASC
+        ORDER BY (p.nik + 0) ASC, p.nik ASC
     ");
     $stmtSlips->execute([$bulan]);
     $slips = $stmtSlips->fetchAll(PDO::FETCH_ASSOC);

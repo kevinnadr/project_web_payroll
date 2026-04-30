@@ -24,7 +24,7 @@ try {
                 COALESCE(d.dasar_upah, 0) as dasar_upah
             FROM pegawai p
             LEFT JOIN riwayat_bpjs d ON p.id_pegawai = d.id_pegawai AND DATE_FORMAT(d.date, '%Y-%m') = :periode
-            ORDER BY p.nik ASC";
+            ORDER BY (p.nik + 0) ASC, p.nik ASC";
 
     $stmt = $db->prepare($sql);
     $stmt->bindValue(':periode', $periode);

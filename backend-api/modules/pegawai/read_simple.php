@@ -5,7 +5,7 @@ require_once '../../config/database.php';
 require_once '../../config/cors.php';
 
 try {
-    $stmt = $db->query("SELECT id_pegawai, nik, nama_lengkap FROM pegawai ORDER BY nama_lengkap ASC");
+    $stmt = $db->query("SELECT id_pegawai, nik, nama_lengkap, status_ptkp FROM pegawai ORDER BY (nik + 0) ASC, nik ASC");
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode(["status" => "success", "data" => $data]);

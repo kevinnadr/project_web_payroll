@@ -20,7 +20,7 @@ try {
             FROM pendapatan_lain p 
             JOIN pegawai g ON p.id_pegawai = g.id_pegawai
             WHERE DATE_FORMAT(p.date, '%Y-%m') = ?
-            ORDER BY g.nama_lengkap ASC, p.nama_pendapatan ASC";
+            ORDER BY (g.nik + 0) ASC, g.nik ASC, p.nama_pendapatan ASC";
     $stmt = $db->prepare($sql);
     $stmt->execute([$periode]);
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);

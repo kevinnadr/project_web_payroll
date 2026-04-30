@@ -40,7 +40,7 @@ try {
                 WHERE `date` LIKE ?
                 GROUP BY id_pegawai
             ) a ON p.id_pegawai = a.id_pegawai
-            ORDER BY p.nama_lengkap ASC";
+            ORDER BY (p.nik + 0) ASC, p.nik ASC";
             
     $stmt = $db->prepare($sql);
     $stmt->execute([$bulan . '%']);

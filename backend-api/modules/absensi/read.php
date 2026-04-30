@@ -22,7 +22,6 @@ try {
                 COALESCE(a.izin, 0) as izin,
                 COALESCE(a.cuti, 0) as cuti,
                 COALESCE(a.hari_terlambat, 0) as hari_terlambat,
-                COALESCE(a.hari_terlambat, 0) as hari_terlambat,
                 COALESCE(a.menit_terlambat, 0) as menit_terlambat,
                 COALESCE(a.jam_lembur, 0) as jam_lembur,
                 COALESCE(a.hari_efektif, 25) as hari_efektif,
@@ -43,7 +42,7 @@ try {
                 WHERE `date` LIKE ?
                 GROUP BY id_pegawai
             ) a ON p.id_pegawai = a.id_pegawai
-            ORDER BY p.nama_lengkap ASC";
+            ORDER BY (p.nik + 0) ASC, p.nik ASC";
 
             
     $stmt = $db->prepare($sql);
