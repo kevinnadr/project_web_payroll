@@ -15,8 +15,20 @@ import MasterKomponen from './pages/MasterKomponen';
 
 const ProtectedRoute = ({ children }) => {
   const user = localStorage.getItem('user');
-  if (!user) {
+  const token = localStorage.getItem('token');
+  
+  if (!user || !token) {
     return <Navigate to="/" replace />;
+  }
+  return children;
+};
+
+const PublicRoute = ({ children }) => {
+  const user = localStorage.getItem('user');
+  const token = localStorage.getItem('token');
+  
+  if (user && token) {
+    return <Navigate to="/dashboard" replace />;
   }
   return children;
 };
@@ -25,9 +37,10 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/" element={<PublicRoute><Login /></PublicRoute>} />
+        <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+        <Route path="/reset-password" element={<PublicRoute><ResetPassword /></PublicRoute>} />
+        
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/data-pegawai" element={<ProtectedRoute><DataPegawai /></ProtectedRoute>} />
         <Route path="/data-bpjs" element={<ProtectedRoute><DataBPJS /></ProtectedRoute>} />
@@ -38,6 +51,9 @@ function App() {
         <Route path="/master-komponen" element={<ProtectedRoute><MasterKomponen /></ProtectedRoute>} />
         <Route path="/pendapatan-lain" element={<ProtectedRoute><DataPendapatanLain /></ProtectedRoute>} />
         <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
+
+        {/* Catch all: Redirect to dashboard if logged in, or login if not */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
   );
