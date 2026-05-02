@@ -231,8 +231,8 @@ try {
             $mail->SMTPAuth   = true;
             $mail->Username   = 'kevin19305.ib@gmail.com'; 
             $mail->Password   = 'sxkl vipy bfsx ljfe';    
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS; 
-            $mail->Port       = 587;
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; 
+            $mail->Port       = 465;
             $mail->SMTPOptions = [
                 'ssl' => [
                     'verify_peer' => false,

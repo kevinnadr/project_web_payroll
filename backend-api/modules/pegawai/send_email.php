@@ -233,8 +233,8 @@ try {
         $mail->SMTPAuth   = true;
         $mail->Username   = 'kevin19305.ib@gmail.com';
         $mail->Password   = 'sxkl vipy bfsx ljfe';
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS; // Switch to STARTTLS
-        $mail->Port       = 587;                          // Switch to 587
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; // Gunakan SMTPS untuk Port 465
+        $mail->Port       = 465;                          // Port 465 (Aman dari blokir VPS)
         $mail->Timeout    = 30; 
         $mail->SMTPOptions = [
             'ssl' => [
@@ -273,5 +273,4 @@ try {
 } catch (Exception $e) {
     echo json_encode(["status" => "error", "message" => $e->getMessage()]);
 }
-?>
-?>
+// Akhir file tanpa tag penutup PHP agar tidak ada output spasi tambahan
