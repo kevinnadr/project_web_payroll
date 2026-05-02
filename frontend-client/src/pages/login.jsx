@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
-import { GoogleLogin } from '@react-oauth/google';
+import { useGoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from "jwt-decode"; // --- PENTING: Import Logic Decoder ---
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
@@ -71,34 +71,44 @@ const Login = () => {
     };
 
     // --- LOGIC LOGIN GOOGLE (TERBARU) ---
-    const handleGoogleSuccess = async (credentialResponse) => {
-        setError("");
-        setLoading(true);
-        try {
-            // 1. DECODE TOKEN DARI GOOGLE
-            const decoded = jwtDecode(credentialResponse.credential);
-            console.log("Data Google:", decoded);
+    const loginWithGoogle = useGoogleLogin({
+        onSuccess: async (tokenResponse) => {
+            setError("");
+            setLoading(true);
+            try {
+                // 1. Ambil data user dari Google menggunakan Access Token
+                const userInfo = await axios.get(
+                    'https://www.googleapis.com/oauth2/v3/userinfo',
+                    { headers: { Authorization: `Bearer ${tokenResponse.access_token}` } }
+                );
 
-            // 2. KIRIM DATA YANG SUDAH BERSIH KE BACKEND
-            const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/auth/login_google.php', {
-                email: decoded.email,
-                name: decoded.name
-            });
+                console.log("Data Google:", userInfo.data);
 
-            if (res.data.status === 'success') {
-                localStorage.setItem('token', res.data.token);
-                localStorage.setItem('user', JSON.stringify(res.data.user));
-                startTransition();
-            } else {
-                setError(res.data.message);
+                // 2. KIRIM DATA YANG SUDAH BERSIH KE BACKEND
+                const res = await axios.post(import.meta.env.VITE_API_URL + '/modules/auth/login_google.php', {
+                    email: userInfo.data.email,
+                    name: userInfo.data.name
+                });
+
+                if (res.data.status === 'success') {
+                    localStorage.setItem('token', res.data.token);
+                    localStorage.setItem('user', JSON.stringify(res.data.user));
+                    startTransition();
+                } else {
+                    setError(res.data.message);
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error(err);
+                setError(err.response?.data?.message || "Gagal login dengan Google.");
+                setLoading(false);
             }
-        } catch (err) {
-            console.error(err);
-            setError(err.response?.data?.message || "Gagal login dengan Google.");
-        } finally {
+        },
+        onError: () => {
+            setError("Gagal koneksi Google");
             setLoading(false);
         }
-    };
+    });
 
     return (
         <div className="login-wrapper">
@@ -179,7 +189,8 @@ const Login = () => {
                 <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px' }}>
                     <button 
                         type="button" 
-                        onClick={() => document.querySelector('.invisible-google-btn button')?.click()}
+                        onClick={() => loginWithGoogle()}
+                        disabled={loading}
                         style={{
                             width: '100%',
                             display: 'flex',
@@ -193,12 +204,13 @@ const Login = () => {
                             padding: '10px 16px',
                             fontSize: '0.95rem',
                             fontWeight: '600',
-                            cursor: 'pointer',
+                            cursor: loading ? 'not-allowed' : 'pointer',
                             transition: 'all 0.2s',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                            opacity: loading ? 0.7 : 1
                         }}
-                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
+                        onMouseOver={(e) => !loading && (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                        onMouseOut={(e) => !loading && (e.currentTarget.style.backgroundColor = '#ffffff')}
                     >
                         <svg width="18" height="18" viewBox="0 0 24 24">
                             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -208,14 +220,6 @@ const Login = () => {
                         </svg>
                         Login dengan Google
                     </button>
-                </div>
-
-                {/* Hidden original button to handle logic */}
-                <div className="invisible-google-btn" style={{ display: 'none' }}>
-                    <GoogleLogin
-                        onSuccess={handleGoogleSuccess}
-                        onError={() => { setError("Gagal koneksi Google"); setLoading(false); }}
-                    />
                 </div>
 
                 {/* Perbaikan: class -> className */}
