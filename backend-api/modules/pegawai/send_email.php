@@ -233,9 +233,9 @@ try {
         $mail->SMTPAuth   = true;
         $mail->Username   = 'kevin19305.ib@gmail.com';
         $mail->Password   = 'sxkl vipy bfsx ljfe';
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS; // Switch to STARTTLS
-        $mail->Port       = 587;                          // Switch to 587
-        $mail->Timeout    = 30; 
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; // Gunakan SMTPS (SSL)
+        $mail->Port       = 465;                          // Port 465 untuk SSL
+        $mail->Timeout    = 60; 
         $mail->SMTPOptions = [
             'ssl' => [
                 'verify_peer' => false,
@@ -260,13 +260,13 @@ try {
 
     } catch (Exception $e) {
         $msg = $e->getMessage();
-        if ($mail->ErrorInfo) {
+        if (isset($mail) && $mail->ErrorInfo) {
             $msg .= ' | Mailer Error: ' . $mail->ErrorInfo;
         }
-        ob_clean();
+        if (ob_get_length()) ob_clean();
         echo json_encode([
             "status" => "error", 
-            "message" => $msg
+            "message" => "SMTP Error: " . $msg
         ]);
     }
 
