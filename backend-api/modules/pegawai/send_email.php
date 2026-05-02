@@ -3,6 +3,7 @@
 // Mengirim data slip gaji (Preview dari Kontrak) via Email
 
 require_once '../../config/cors.php';
+require_once '../../config/error_handler.php';
 require_once '../../config/database.php';
 require_once '../../vendor/autoload.php';
 
