@@ -231,9 +231,8 @@ try {
             $mail->SMTPAuth   = true;
             $mail->Username   = 'kevin19305.ib@gmail.com'; 
             $mail->Password   = 'sxkl vipy bfsx ljfe';    
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; // SSL
-            $mail->Port       = 465;
-            $mail->Timeout    = 60;
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS; 
+            $mail->Port       = 587;
             $mail->SMTPOptions = [
                 'ssl' => [
                     'verify_peer' => false,
@@ -270,7 +269,7 @@ try {
     ]);
 
 } catch (Exception $e) {
-    if (ob_get_length()) ob_clean();
-    echo json_encode(["status" => "error", "message" => "Critical Error: " . $e->getMessage()]);
+    ob_clean();
+    echo json_encode(["status" => "error", "message" => $e->getMessage()]);
 }
 ?>
