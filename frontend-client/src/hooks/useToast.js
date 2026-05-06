@@ -9,9 +9,13 @@ export const useToast = () => {
             clearTimeout(timerRef.current);
         }
         setToast({ show: true, type, message });
-        timerRef.current = setTimeout(() => {
-            setToast({ show: false, type: '', message: '' });
-        }, 4500);
+
+        // Jika error, jangan auto-hide. Biarkan user klik tombol OK.
+        if (type !== 'error') {
+            timerRef.current = setTimeout(() => {
+                setToast({ show: false, type: '', message: '' });
+            }, 4500);
+        }
     }, []);
 
     const hideToast = useCallback(() => {

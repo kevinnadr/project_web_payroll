@@ -61,11 +61,15 @@ const Login = () => {
                 localStorage.setItem('user', JSON.stringify(response.data.user));
                 startTransition();
             } else {
-                setError(response.data?.message || "Email atau password salah.");
+                const msg = response.data?.message || "Email atau password salah.";
+                setError(msg);
+                showToast('error', msg);
                 setLoading(false);
             }
         } catch (err) {
-            setError(err.response?.data?.message || "Terjadi kesalahan koneksi.");
+            const msg = err.response?.data?.message || "Terjadi kesalahan koneksi.";
+            setError(msg);
+            showToast('error', msg);
             setLoading(false);
         }
     };
@@ -96,11 +100,14 @@ const Login = () => {
                     startTransition();
                 } else {
                     setError(res.data.message);
+                    showToast('error', res.data.message);
                     setLoading(false);
                 }
             } catch (err) {
                 console.error(err);
-                setError(err.response?.data?.message || "Gagal login dengan Google.");
+                const msg = err.response?.data?.message || "Gagal login dengan Google.";
+                setError(msg);
+                showToast('error', msg);
                 setLoading(false);
             }
         },
